@@ -1,0 +1,384 @@
+{
+  "@@locale": "ja",
+  "appName": "JieLi OTA",
+  "@appName": {
+    "description": "App name"
+  },
+  "devices": "デバイス",
+  "@devices": {
+    "description": "Devices"
+  },
+  "update": "アップグレード",
+  "@update": {
+    "description": "Update"
+  },
+  "settings": "設定",
+  "@settings": {
+    "description": "Settings"
+  },
+  "currentLanguage": "現在の言語は {language} です",
+  "@currentLanguage": {
+    "description": "Current Language",
+    "placeholders": {
+      "language": {
+        "type": "String"
+      }
+    }
+  },
+  "connect": "接続",
+  "@connect": {
+    "description": "Connect"
+  },
+  "disconnect": "切断",
+  "@disconnect": {
+    "description": "Disconnect"
+  },
+  "filter": "フィルター",
+  "@filter": {
+    "description": "Filter"
+  },
+  "deviceList": "デバイスリスト",
+  "@deviceList": {
+    "description": "Device List"
+  },
+  "cancel": "キャンセル",
+  "@cancel": {
+    "description": "Cancel"
+  },
+  "confirm": "確認",
+  "@confirm": {
+    "description": "Confirm"
+  },
+  "pleaseSetFilter": "フィルターを設定してください",
+  "@pleaseSetFilter": {
+    "description": "Please set filter"
+  },
+  "copyRight": "©2021–2025 Zhuhai Jieli Technology co., LTD すべての権利を保有します",
+  "@copyRight": {
+    "description": "Copyright"
+  },
+  "companyName": "珠海ジェリーテクノロジー株式会社",
+  "@companyName": {
+    "description": "Company name"
+  },
+  "privacyPolicyDialogTitle": "利用規約とプライバシーポリシー",
+  "@privacyPolicyDialogTitle": {
+    "description": "Title for privacy policy dialog"
+  },
+  "welcomeMessage": "\u3000ジェリーOTAアップデートへようこそ！\n\u3000私たちはあなたのプライバシーと個人情報保護を非常に重視しています。\"ジェリーOTAアップデート\"サービスをご利用になる前に、必ずお読みください",
+  "@welcomeMessage": {
+    "description": "Welcome message first text"
+  },
+  "userAgreement": "《利用規約》",
+  "@userAgreement": {
+    "description": "User Agreement text"
+  },
+  "and": "および",
+  "@and": {
+    "description": "And text"
+  },
+  "privacyPolicy": "《プライバシーポリシー》",
+  "@privacyPolicy": {
+    "description": "PrivacyPolicy text"
+  },
+  "agreementText": "を理解し、同意してください。\n\u3000本通知および関連する規約内容に同意される場合は、「同意する」をクリックしてサービスをご利用ください。",
+  "@agreementText": {
+    "description": "Agreement text with indentation"
+  },
+  "agreeButton": "同意する",
+  "@agreeButton": {
+    "description": "AgreeButton button"
+  },
+  "disagreeButton": "同意せず終了",
+  "@disagreeButton": {
+    "description": "DisagreeButton button"
+  },
+  "btConnecting": "接続中...",
+  "@btConnecting": {
+    "description": "Connecting status"
+  },
+  "save": "保存する",
+  "@save": {
+    "description": "Save button text"
+  },
+  "logLocation": "ログ位置：",
+  "@logLocation": {
+    "description": "Displays the storage location of the log file"
+  },
+  "deviceAuthentication": "デバイス認証",
+  "@deviceAuthentication": {
+    "description": "Title for device authentication option"
+  },
+  "hidDevice": "HIDデバイス",
+  "@hidDevice": {
+    "description": "Title for HID device option"
+  },
+  "customReconnectMethod": "カスタム再接続方法",
+  "@customReconnectMethod": {
+    "description": "Title for custom reconnection method option"
+  },
+  "currentCommunicationMethod": "現在の通信方法",
+  "@currentCommunicationMethod": {
+    "description": "Label indicating the current communication method"
+  },
+  "communicationWayBle": "BLE",
+  "@communicationWayBle": {
+    "description": "Communication way is ble option"
+  },
+  "communicationWaySpp": "SPP",
+  "@communicationWaySpp": {
+    "description": "Communication way is spp option"
+  },
+  "adjustMtu": "MTUを調整",
+  "@adjustMtu": {
+    "description": "Adjust the MTU size"
+  },
+  "logFile": "ログファイル",
+  "@logFile": {
+    "description": "Application log file"
+  },
+  "sdkVersion": "SDKバージョン",
+  "@sdkVersion": {
+    "description": "Software version number"
+  },
+  "aboutApp": "アプリについて",
+  "@aboutApp": {
+    "description": "Application information and description"
+  },
+  "saveAndRestartMessage": "設定を保存しました。アプリを再起動して変更を適用しますか？",
+  "@saveAndRestartMessage": {
+    "description": "Prompt message asking user to restart app after saving settings"
+  },
+  "restart": "再起動",
+  "@restart": {
+    "description": "Restart the application"
+  },
+  "failedToSaveSettings": "設定の保存に失敗しました",
+  "@failedToSaveSettings": {
+    "description": "Message indicating that the settings failed to save"
+  },
+  "connectUsingSdkBluetooth": "SDKのBluetoothを使用して接続",
+  "@connectUsingSdkBluetooth": {
+    "description": "Connect to the device using the Bluetooth functionality provided by the SDK"
+  },
+  "currentAppVersion": "現在のバージョン",
+  "@currentAppVersion": {
+    "description": "Current app version description text"
+  },
+  "icpInfo": "ICP登録情報",
+  "@icpInfo": {
+    "description": "ICP registration information text"
+  },
+  "isDeleteAllLogFiles": "すべてのログファイルを削除してもよろしいですか?",
+  "@isDeleteAllLogFiles": {
+    "description": "Delete all log files text"
+  },
+  "deviceStatus": "デバイス状態",
+  "@deviceStatus": {
+    "description": "Label for device connection status"
+  },
+  "connected": "接続済み",
+  "@connected": {
+    "description": "Text for connected state"
+  },
+  "disconnected": "Disconnected",
+  "@disconnected": {
+    "description": "Text for disconnected state"
+  },
+  "deviceType": "Device Type",
+  "@deviceType": {
+    "description": "Label for device category"
+  },
+  "unknownType": "不明なタイプ",
+  "@unknownType": {
+    "description": "Label for unknown device type"
+  },
+  "classicBluetooth": "クラシックBluetooth",
+  "@classicBluetooth": {
+    "description": "Label for classic Bluetooth devices"
+  },
+  "bleDevice": "BLEデバイス",
+  "@bleDevice": {
+    "description": "Label for Bluetooth Low Energy devices"
+  },
+  "dualModeBluetooth": "デュアルモードBluetooth",
+  "@dualModeBluetooth": {
+    "description": "Label for devices supporting both classic and BLE"
+  },
+  "fileSelection": "ファイル選択",
+  "@fileSelection": {
+    "description": "Label for file selection functionality"
+  },
+  "delete": "削除（さくじょ）",
+  "@delete": {
+    "description": "Label for delete"
+  },
+  "localAdd": "ローカル追加",
+  "@localAdd": {
+    "description": "Label for local add"
+  },
+  "computerTransfer": "PC転送",
+  "@computerTransfer": {
+    "description": "Label for computer transfer"
+  },
+  "scanDownload": "QRコードダウンロード",
+  "@scanDownload": {
+    "description": "Label for scan download"
+  },
+  "saveFile": "ファイルを保存",
+  "@saveFile": {
+    "description": "Label for save file"
+  },
+  "serviceStarted": "サービスが開始されました",
+  "@serviceStarted": {
+    "description": "Label for service started"
+  },
+  "ensureConnection": "接続デバイスが同じWi-Fiに接続されているか、このデバイスのホットスポットに接続されていることを確認してください",
+  "@ensureConnection": {
+    "description": "Prompt to check network connection"
+  },
+  "copySuccess": "コピー成功、接続デバイスのブラウザで開いてください",
+  "@copySuccess": {
+    "description": "Notification for successful copy operation with browser instruction"
+  },
+  "collapse": "折りたたむ",
+  "@collapse": {
+    "description": "Label for collapse action"
+  },
+  "copyAddress": "アドレスをコピー",
+  "@copyAddress": {
+    "description": "Label for copy address action"
+  },
+  "selectUpgradeFile": "アップグレードファイルを選択してください",
+  "@selectUpgradeFile": {
+    "description": "Label for selecting upgrade file"
+  },
+  "upgradeProcessTip": "(アップグレード中はBluetoothとネットワークを有効にしたままにしてください)",
+  "@upgradeProcessTip": {
+    "description": "Tip for keeping Bluetooth and network enabled during upgrade process"
+  },
+  "fileVerificationComplete": "ファイルの検証が完了しました。デバイスに再接続中…",
+  "@fileVerificationComplete": {
+    "description": "Message indicating file verification is complete and reconnecting to device"
+  },
+  "reason": "原因: %s",
+  "@reason": {
+    "description": "Label prefix indicating reason or cause"
+  },
+  "otaComplete": "アップグレード完了",
+  "@otaComplete": {
+    "description": "OTA upgrade completed"
+  },
+  "otaFinish": "アップグレード終了",
+  "@otaFinish": {
+    "description": "OTA upgrade finished"
+  },
+  "otaUpgrading": "アップグレード中",
+  "@otaUpgrading": {
+    "description": "OTA upgrade in progress"
+  },
+  "otaUpgradeCancel": "アップグレードがキャンセルされました",
+  "@otaUpgradeCancel": {
+    "description": "OTA upgrade cancelled"
+  },
+  "otaUpgradeNotStarted": "アップグレードが開始されていません",
+  "@otaUpgradeNotStarted": {
+    "description": "OTA upgrade not started"
+  },
+  "otaCheckingUpgradeFile": "アップグレードファイルを確認中",
+  "@otaCheckingUpgradeFile": {
+    "description": "Checking upgrade file"
+  },
+  "otaUpgradeFailed": "アップグレード失敗: %s",
+  "@otaUpgradeFailed": {
+    "description": "OTA upgrade failed with reason"
+  },
+  "otaCheckFile": "ファイルを検証中",
+  "@otaCheckFile": {
+    "description": "Verifying file"
+  },
+  "updateFailed": "アップデート失敗",
+  "@updateFailed": {
+    "description": "Update failed"
+  },
+  "unknownError": "不明なエラー",
+  "@unknownError": {
+    "description": "Unknown error"
+  },
+  "scanQrcode": "QRコードをスキャン",
+  "@scanQrcode": {
+    "description": "Scan QR Code text"
+  },
+  "photos": "アルバム",
+  "@photos": {
+    "description": "Photos text"
+  },
+  "qrcodeIntoBox": "QRコード/バーコードを枠内に配置してください",
+  "@qrcodeIntoBox": {
+    "description": "Place the QR code/barcode inside the frame text"
+  },
+  "failPhotosSystemReason": "システムの理由により、アルバムにアクセスできません",
+  "@failPhotosSystemReason": {
+    "description": "Unable to access photos due to system reasons text"
+  },
+  "accessCameraReason": "リソースをダウンロードするためのQRコードをスキャンするには、カメラへのアクセスが必要です",
+  "@accessCameraReason": {
+    "description": "Camera access is required to scan QR codes for downloading resources text"
+  },
+  "accessPhotosReason": "リソースをダウンロードするためのQRコードをスキャンするには、アルバムへのアクセスが必要です",
+  "@accessPhotosReason": {
+    "description": "Photo album access is required to scan QR codes for downloading resources text"
+  },
+  "systemSetCamera": "この機能にはカメラの使用が必要です。システム設定で権限を付与してください",
+  "@systemSetCamera": {
+    "description": "This feature requires your camera, please go to system settings to grant permission text"
+  },
+  "systemSetExternalStorage": "この機能には電話のストレージの使用が必要です。システム設定で権限を付与してください",
+  "@systemSetExternalStorage": {
+    "description": "This feature requires your phone storage, please go to system settings to grant permission text"
+  },
+  "downloadSavePending": "ファイルを保存中。しばらくお待ちください…",
+  "@downloadSavePending": {
+    "description": "Saving file text"
+  },
+  "downloadingFile": "ファイルをダウンロード中",
+  "@downloadingFile": {
+    "description": "Downloading file text"
+  },
+  "downloadSuccessful": "ダウンロード成功",
+  "@downloadSuccessful": {
+    "description": "Download successful text"
+  },
+  "downloadCompleted": "ダウンロード完了",
+  "@downloadCompleted": {
+    "description": "Download completed text"
+  },
+  "pleaseRefreshWeb": "アップロード成功。ウェブページを更新してください",
+  "@pleaseRefreshWeb": {
+    "description": "Refresh web text"
+  },
+  "pressAgainToExit": "もう一度タップで終了します",
+  "@pressAgainToExit": {
+    "description": "Double tap to exit app prompt"
+  },
+  "notFoundQRCode": "QRコードが見つかりません",
+  "@notFoundQRCode": {
+    "description": "Prompt when no QR code is detected"
+  },
+  "fileShare":  "ファイル共有",
+  "@fileShare": {
+    "description": "Label for file sharing feature"
+  },
+  "shareUfwFile": "ufwファイルを共有",
+  "@shareUfwFile": {
+    "description": "Title for sharing ufw file"
+  },
+  "shareUfwFileTips": "サードパーティ製アプリ（WeChat/DingTalk）から「他のアプリで開く」＞ ufwファイルを開き、現在のOTAアップグレードに共有します",
+  "@shareUfwFileTips": {
+    "description": "Label for instructions for sharing ufw files from third-party apps"
+  },
+  "deviceMustMandatoryUpgrade": "デバイスは強制アップデートが必要です",
+  "@deviceMustMandatoryUpgrade": {
+    "description": "Label for device must be forced to upgrade"
+  }
+}

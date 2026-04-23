@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="colorPrimary">@color/white</color>
+    <color name="colorPrimaryDark">@color/white</color>
+    <color name="colorAccent">@color/main_color</color>
+
+    <color name="white">#FFFFFFFF</color>
+
+    <!-- 通用颜色 -->
+    <color name="main_color">@color/blue_398BFF</color>
+
+    <!-- 蓝色 -->
+    <color name="blue_398BFF">#398BFF</color>
+</resources>

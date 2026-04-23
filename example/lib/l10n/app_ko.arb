@@ -1,0 +1,380 @@
+{
+  "@@locale": "ko",
+  "appName": "JieLi OTA",
+  "@appName": {
+    "description": "App name"
+  },
+  "devices": "장치",
+  "@devices": {
+    "description": "Devices"
+  },
+  "update": "업데이트",
+  "@update": {
+    "description": "Update"
+  },
+  "settings": "설정",
+  "@settings": {
+    "description": "Settings"
+  },
+  "currentLanguage": "현재 언어는 {language}입니다",
+  "@currentLanguage": {
+    "description": "Current Language",
+    "placeholders": {
+      "language": {
+        "type": "String"
+      }
+    }
+  },
+  "connect": "연결",
+  "@connect": {
+    "description": "Connect"
+  },
+  "disconnect": "연결 끊기",
+  "@disconnect": {
+    "description": "Disconnect"
+  },
+  "filter": "필터",
+  "@filter": {
+    "description": "Filter"
+  },
+  "deviceList": "장치 목록",
+  "@deviceList": {
+    "description": "Device List"
+  },
+  "cancel": "취소",
+  "@cancel": {
+    "description": "Cancel"
+  },
+  "confirm": "확인",
+  "@confirm": {
+    "description": "Confirm"
+  },
+  "pleaseSetFilter": "필터를 설정해 주세요",
+  "@pleaseSetFilter": {
+    "description": "Please set filter"
+  },
+  "copyRight": "©2021–2025 Zhuhai Jieli Technology co., LTD 모든 권리 보유",
+  "@copyRight": {
+    "description": "Copyright"
+  },
+  "companyName": "주해 제리 기술 유한회사",
+  "@companyName": {
+    "description": "Company name"
+  },
+  "privacyPolicyDialogTitle": "이용약관 및 개인정보 처리방침",
+  "@privacyPolicyDialogTitle": {
+    "description": "Title for privacy policy dialog"
+  },
+  "welcomeMessage": "\u3000Jieli OTA 업데이트에 오신 것을 환영합니다!\n\u3000저희는 귀하의 개인정보 보호를 매우 중요하게 생각합니다. \"Jieli OTA 업데이트\" 서비스를 사용하기 전에 반드시",
+  "@welcomeMessage": {
+    "description": "Welcome message first text"
+  },
+  "userAgreement": "《이용 약관》",
+  "@userAgreement": {
+    "description": "User Agreement text"
+  },
+  "and": "및",
+  "@and": {
+    "description": "And text"
+  },
+  "privacyPolicy": "《개인정보 처리방침》",
+  "@privacyPolicy": {
+    "description": "PrivacyPolicy text"
+  },
+  "agreementText": "을(를) 주의 깊게 읽어보시기 바랍니다.\n\u3000본 안내 및 관련 약관 내용에 동의하시면 '동의'를 클릭하여 서비스를 시작하세요.",
+  "@agreementText": {
+    "description": "Agreement text with indentation"
+  },
+  "agreeButton": "동의",
+  "@agreeButton": {
+    "description": "AgreeButton button"
+  },
+  "disagreeButton": "동의하지 않고 종료",
+  "@disagreeButton": {
+    "description": "DisagreeButton button"
+  },
+  "btConnecting": "연결 중...",
+  "@btConnecting": {
+    "description": "Connecting status"
+  },
+  "save": "저장",
+  "@save": {
+    "description": "Save button text"
+  },
+  "logLocation": "로그 위치：",
+  "@logLocation": {
+    "description": "Displays the storage location of the log file"
+  },
+  "deviceAuthentication": "장치 인증",
+  "@deviceAuthentication": {
+    "description": "Title for device authentication option"
+  },
+  "hidDevice": "HID 장치",
+  "@hidDevice": {
+    "description": "Title for HID device option"
+  },
+  "customReconnectMethod": "사용자 정의 재연결 방식",
+  "@customReconnectMethod": {
+    "description": "Title for custom reconnection method option"
+  },
+  "currentCommunicationMethod": "현재 통신 방식",
+  "@currentCommunicationMethod": {
+    "description": "Label indicating the current communication method"
+  },
+  "communicationWayBle": "BLE",
+  "@communicationWayBle": {
+    "description": "Communication way is ble option"
+  },
+  "communicationWaySpp": "SPP",
+  "@communicationWaySpp": {
+    "description": "Communication way is spp option"
+  },
+  "adjustMtu": "MTU 조정",
+  "@adjustMtu": {
+    "description": "Adjust the MTU size"
+  },
+  "logFile": "로그 파일",
+  "@logFile": {
+    "description": "Application log file"
+  },
+  "sdkVersion": "SDK 버전",
+  "@sdkVersion": {
+    "description": "Software version number"
+  },
+  "aboutApp": "앱 정보",
+  "@aboutApp": {
+    "description": "Application information and description"
+  },
+  "saveAndRestartMessage": "설정이 저장되었습니다. 앱을 재시작하여 변경 사항을 적용하시겠습니까?",
+  "@saveAndRestartMessage": {
+    "description": "Prompt message asking user to restart app after saving settings"
+  },
+  "restart": "재시작",
+  "@restart": {
+    "description": "Restart the application"
+  },
+  "failedToSaveSettings": "설정 저장 실패",
+  "@failedToSaveSettings": {
+    "description": "Message indicating that the settings failed to save"
+  },
+  "connectUsingSdkBluetooth": "SDK 블루투스로 연결",
+  "@connectUsingSdkBluetooth": {
+    "description": "Connect to the device using the Bluetooth functionality provided by the SDK"
+  },
+  "currentAppVersion": "현재 버전",
+  "@currentAppVersion": {
+    "description": "Current app version description text"
+  },
+  "icpInfo": "ICP 등록 정보",
+  "@icpInfo": {
+    "description": "ICP registration information text"
+  },
+  "isDeleteAllLogFiles": "모든 로그 파일을 삭제하시겠습니까?",
+  "@isDeleteAllLogFiles": {
+    "description": "Delete all log files text"
+  },
+  "deviceStatus": "장치 상태",
+  "@deviceStatus": {
+    "description": "Label for device connection status"
+  },
+  "connected": "연결됨",
+  "@connected": {
+    "description": "Text for connected state"
+  },
+  "disconnected": "Disconnected",
+  "@disconnected": {
+    "description": "Text for disconnected state"
+  },
+  "deviceType": "Device Type",
+  "@deviceType": {
+    "description": "Label for device category"
+  },
+  "unknownType": "알 수 없는 유형",
+  "@unknownType": {
+    "description": "Label for unknown device type"
+  },
+  "classicBluetooth": "클래식 블루투스",
+  "@classicBluetooth": {
+    "description": "Label for classic Bluetooth devices"
+  },
+  "bleDevice": "BLE 장치",
+  "@bleDevice": {
+    "description": "Label for Bluetooth Low Energy devices"
+  },
+  "dualModeBluetooth": "듀얼 모드 블루투스",
+  "@dualModeBluetooth": {
+    "description": "Label for devices supporting both classic and BLE"
+  },
+  "fileSelection": "파일 선택",
+  "@fileSelection": {
+    "description": "Label for file selection functionality"
+  },
+  "delete": "삭제",
+  "@delete": {
+    "description": "Label for delete"
+  },
+  "localAdd": "로컬 추가",
+  "@localAdd": {
+    "description": "Label for local add"
+  },
+  "computerTransfer": "컴퓨터 전송",
+  "@computerTransfer": {
+    "description": "Label for computer transfer"
+  },
+  "scanDownload": "QR 코드 다운로드",
+  "@scanDownload": {
+    "description": "Label for scan download"
+  },
+  "saveFile": "파일 저장",
+  "@saveFile": {
+    "description": "Label for save file"
+  },
+  "serviceStarted": "서비스가 시작되었습니다",
+  "@serviceStarted": {
+    "description": "Label for service started"
+  },
+  "ensureConnection": "연결 장치가 동일한 Wi-Fi에 연결되어 있거나 이 장치의 핫스팟에 연결되어 있는지 확인하세요",
+  "@ensureConnection": {
+    "description": "Prompt to check network connection"
+  },
+  "copySuccess": "복사 성공, 연결된 장치의 브라우저에서 열어주세요",
+  "@copySuccess": {
+    "description": "Notification for successful copy operation with browser instruction"
+  },
+  "collapse": "접기",
+  "@collapse": {
+    "description": "Label for collapse action"
+  },
+  "copyAddress": "주소 복사",
+  "@copyAddress": {
+    "description": "Label for copy address action"
+  },
+  "selectUpgradeFile": "업그레이드 파일을 선택해 주세요",
+  "@selectUpgradeFile": {
+    "description": "Label for selecting upgrade file"
+  },
+  "upgradeProcessTip": "(업그레이드 과정 중에는 블루투스와 네트워크를 켜진 상태로 유지해 주세요)",
+  "@upgradeProcessTip": {
+    "description": "Tip for keeping Bluetooth and network enabled during upgrade process"
+  },
+  "fileVerificationComplete": "파일 검증 완료, 장치에 재연결 중…",
+  "@fileVerificationComplete": {
+    "description": "Message indicating file verification is complete and reconnecting to device"
+  },
+  "reason": "원인: %s",
+  "@reason": {
+    "description": "Label prefix indicating reason or cause"
+  },
+  "otaComplete": "업그레이드 완료",
+  "@otaComplete": {
+    "description": "OTA upgrade completed"
+  },
+  "otaFinish": "업그레이드 종료",
+  "@otaFinish": {
+    "description": "OTA upgrade finished"
+  },
+  "otaUpgrading": "업그레이드 중",
+  "@otaUpgrading": {
+    "description": "OTA upgrade in progress"
+  },
+  "otaUpgradeCancel": "업그레이드 취소됨",
+  "@otaUpgradeCancel": {
+    "description": "OTA upgrade cancelled"
+  },
+  "otaUpgradeNotStarted": "업그레이드 시작되지 않음",
+  "@otaUpgradeNotStarted": {
+    "description": "OTA upgrade not started"
+  },
+  "otaCheckingUpgradeFile": "업그레이드 파일 확인 중",
+  "@otaCheckingUpgradeFile": {
+    "description": "Checking upgrade file"
+  },
+  "otaUpgradeFailed": "업그레이드 실패: %s",
+  "@otaUpgradeFailed": {
+    "description": "OTA upgrade failed with reason"
+  },
+  "otaCheckFile": "파일 검증 중",
+  "@otaCheckFile": {
+    "description": "Verifying file"
+  },
+  "updateFailed": "업데이트 실패",
+  "@updateFailed": {
+    "description": "Update failed"
+  },
+  "unknownError": "알 수 없는 오류",
+  "@unknownError": {
+    "description": "Unknown error"
+  },
+  "scanQrcode": "QR 코드 스캔",
+  "@scanQrcode": {
+    "description": "Scan QR Code text"
+  },
+  "photos": "앨범",
+  "@photos": {
+    "description": "Photos text"
+  },
+  "qrcodeIntoBox": "QR 코드/바코드를 프레임 안에 배치하세요",
+  "@qrcodeIntoBox": {
+    "description": "Place the QR code/barcode inside the frame text"
+  },
+  "failPhotosSystemReason": "시스템 문제로 앨범에 접근할 수 없습니다",
+  "@failPhotosSystemReason": {
+    "description": "Unable to access photos due to system reasons text"
+  },
+  "accessCameraReason": "리소스 다운로드를 위해 QR 코드를 스캔하려면 카메라 접근 권한이 필요합니다",
+  "@accessCameraReason": {
+    "description": "Camera access is required to scan QR codes for downloading resources text"
+  },
+  "accessPhotosReason": "리소스 다운로드를 위해 QR 코드를 스캔하려면 앨범 접근 권한이 필요합니다",
+  "@accessPhotosReason": {
+    "description": "Photo album access is required to scan QR codes for downloading resources text"
+  },
+  "systemSetCamera": "이 기능은 카메라 사용이 필요합니다. 시스템 설정에서 권한을 부여해 주세요",
+  "@systemSetCamera": {
+    "description": "This feature requires your camera, please go to system settings to grant permission text"
+  },
+  "systemSetExternalStorage": "이 기능은 휴대폰 저장공간 사용이 필요합니다. 시스템 설정에서 권한을 부여해 주세요",
+  "@systemSetExternalStorage": {
+    "description": "This feature requires your phone storage, please go to system settings to grant permission text"
+  },
+  "downloadSavePending": "파일 저장 중. 잠시만 기다려 주세요…",
+  "@downloadSavePending": {
+    "description": "Saving file text"
+  },
+  "downloadingFile": "파일 다운로드 중",
+  "@downloadingFile": {
+    "description": "Downloading file text"
+  },
+  "downloadCompleted": "다운로드 완료",
+  "@downloadCompleted": {
+    "description": "Download completed text"
+  },
+  "pleaseRefreshWeb": "업로드에 성공했습니다. 웹 페이지를 새로 고치십시오",
+  "@pleaseRefreshWeb": {
+    "description": "Refresh web text"
+  },
+  "pressAgainToExit": "한 번 더 누르면 종료됩니다",
+  "@pressAgainToExit": {
+    "description": "Double tap to exit app prompt"
+  },
+  "notFoundQRCode":  "QR 코드를 찾을 수 없습니다",
+  "@notFoundQRCode": {
+    "description": "Prompt when no QR code is detected"
+  },
+  "fileShare":  "파일 공유",
+  "@fileShare": {
+    "description": "Label for file sharing feature"
+  },
+  "shareUfwFile": "ufw 파일 공유",
+  "@shareUfwFile": {
+    "description": "Title for sharing ufw file"
+  },
+  "shareUfwFileTips": "제3자 앱(WeChat/DingTalk)에서 '다른 앱으로 열기'를 통해 ufw 파일을 열고 현재 OTA 업그레이드로 공유합니다",
+  "@shareUfwFileTips": {
+    "description": "Label for instructions for sharing ufw files from third-party apps"
+  },
+  "deviceMustMandatoryUpgrade": "디바이스 강제 업그레이드 필요",
+  "@deviceMustMandatoryUpgrade": {
+    "description": "Label for device must be forced to upgrade"
+  }
+}

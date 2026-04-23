@@ -1,0 +1,384 @@
+{
+  "@@locale": "zh",
+  "appName": "杰理OTA升级",
+  "@appName": {
+    "description": "App name"
+  },
+  "devices": "设备",
+  "@devices": {
+    "description": "Devices"
+  },
+  "update": "升级",
+  "@update": {
+    "description": "Update"
+  },
+  "settings": "设置",
+  "@settings": {
+    "description": "Settings"
+  },
+  "currentLanguage": "当前语言：{language}",
+  "@currentLanguage": {
+    "description": "Current Language",
+    "placeholders": {
+      "language": {
+        "type": "String"
+      }
+    }
+  },
+  "connect": "连接",
+  "@connect": {
+    "description": "Connect"
+  },
+  "disconnect": "断开连接",
+  "@disconnect": {
+    "description": "Disconnect"
+  },
+  "filter": "设备过滤条件",
+  "@filter": {
+    "description": "Filter"
+  },
+  "deviceList": "设备列表",
+  "@deviceList": {
+    "description": "Device List"
+  },
+  "cancel": "取消",
+  "@cancel": {
+    "description": "Cancel"
+  },
+  "confirm": "确定",
+  "@confirm": {
+    "description": "Confirm"
+  },
+  "pleaseSetFilter": "请设置过滤条件",
+  "@pleaseSetFilter": {
+    "description": "请设置过滤条件"
+  },
+  "copyRight": "©2021–2025 珠海杰理科技有限公司 保留所有权利",
+  "@copyRight": {
+    "description": "Copyright"
+  },
+  "companyName": "珠海杰理科技有限公司",
+  "@companyName": {
+    "description": "Company name"
+  },
+  "privacyPolicyDialogTitle": "用户协议和隐私政策",
+  "@privacyPolicyDialogTitle": {
+    "description": "Title for privacy policy dialog"
+  },
+  "welcomeMessage": "\u3000欢迎使用杰理OTA升级！\n\u3000我们非常重视您的隐私保护和个人信息保护，在您使用“杰理OTA升级”服务之前，请务必认真阅读",
+  "@welcomeMessage": {
+    "description": "Welcome message first text"
+  },
+  "userAgreement": "《用户协议》",
+  "@userAgreement": {
+    "description": "User Agreement text"
+  },
+  "and": "及",
+  "@and": {
+    "description": "And text"
+  },
+  "privacyPolicy": "《隐私政策》",
+  "@privacyPolicy": {
+    "description": "PrivacyPolicy text"
+  },
+  "agreementText": "，并充分理解协议条款内容。\n\u3000如您同意并接受本提示及相关协议内容，请点击同意，开始接受我们的服务。",
+  "@agreementText": {
+    "description": "Agreement text with indentation"
+  },
+  "agreeButton": "同意",
+  "@agreeButton": {
+    "description": "AgreeButton button"
+  },
+  "disagreeButton": "不同意并退出",
+  "@disagreeButton": {
+    "description": "DisagreeButton button"
+  },
+  "btConnecting": "连接中...",
+  "@btConnecting": {
+    "description": "Connecting status"
+  },
+  "save": "保存",
+  "@save": {
+    "description": "Save button text"
+  },
+  "logLocation": "打印日志位置：",
+  "@logLocation": {
+    "description": "Displays the storage location of the log file"
+  },
+  "deviceAuthentication": "设备认证",
+  "@deviceAuthentication": {
+    "description": "Title for device authentication option"
+  },
+  "hidDevice": "HID设备",
+  "@hidDevice": {
+    "description": "Title for HID device option"
+  },
+  "customReconnectMethod": "自定义回连方式",
+  "@customReconnectMethod": {
+    "description": "Title for custom reconnection method option"
+  },
+  "currentCommunicationMethod": "当前通讯方式",
+  "@currentCommunicationMethod": {
+    "description": "Label indicating the current communication method"
+  },
+  "communicationWayBle": "BLE",
+  "@communicationWayBle": {
+    "description": "Communication way is ble option"
+  },
+  "communicationWaySpp": "SPP",
+  "@communicationWaySpp": {
+    "description": "Communication way is spp option"
+  },
+  "adjustMtu": "调整MTU",
+  "@adjustMtu": {
+    "description": "Adjust the MTU size"
+  },
+  "logFile": "Log文件",
+  "@logFile": {
+    "description": "Application log file"
+  },
+  "sdkVersion": "SDK版本号",
+  "@sdkVersion": {
+    "description": "Software version number"
+  },
+  "aboutApp": "关于APP",
+  "@aboutApp": {
+    "description": "Application information and description"
+  },
+  "saveAndRestartMessage": "保存设置，需重启App生效，确定重启？",
+  "@saveAndRestartMessage": {
+    "description": "Prompt message asking user to restart app after saving settings"
+  },
+  "restart": "重启",
+  "@restart": {
+    "description": "Restart the application"
+  },
+  "failedToSaveSettings": "保存设置失败",
+  "@failedToSaveSettings": {
+    "description": "Message indicating that the settings failed to save"
+  },
+  "connectUsingSdkBluetooth": "使用SDK蓝牙连接",
+  "@connectUsingSdkBluetooth": {
+    "description": "Connect to the device using the Bluetooth functionality provided by the SDK"
+  },
+  "currentAppVersion": "当前版本",
+  "@currentAppVersion": {
+    "description": "Current app version description text"
+  },
+  "icpInfo": "ICP备案信息",
+  "@icpInfo": {
+    "description": "ICP registration information text"
+  },
+  "isDeleteAllLogFiles": "是否删除所有Log文件?",
+  "@isDeleteAllLogFiles": {
+    "description": "Delete all log files text"
+  },
+  "deviceStatus": "设备状态",
+  "@deviceStatus": {
+    "description": "Label for device connection status"
+  },
+  "connected": "已连接",
+  "@connected": {
+    "description": "Text for connected state"
+  },
+  "disconnected": "未连接",
+  "@disconnected": {
+    "description": "Text for disconnected state"
+  },
+  "deviceType": "设备类型",
+  "@deviceType": {
+    "description": "Label for device category"
+  },
+  "unknownType": "未知类型",
+  "@unknownType": {
+    "description": "Label for unknown device type"
+  },
+  "classicBluetooth": "经典蓝牙",
+  "@classicBluetooth": {
+    "description": "Label for classic Bluetooth devices"
+  },
+  "bleDevice": "BLE设备",
+  "@bleDevice": {
+    "description": "Label for Bluetooth Low Energy devices"
+  },
+  "dualModeBluetooth": "双模蓝牙设备",
+  "@dualModeBluetooth": {
+    "description": "Label for devices supporting both classic and BLE"
+  },
+  "fileSelection": "文件选择",
+  "@fileSelection": {
+    "description": "Label for file selection functionality"
+  },
+  "delete": "删除",
+  "@delete": {
+    "description": "Label for delete"
+  },
+  "localAdd": "本地添加",
+  "@localAdd": {
+    "description": "Label for local add"
+  },
+  "computerTransfer": "电脑传输",
+  "@computerTransfer": {
+    "description": "Label for computer transfer"
+  },
+  "scanDownload": "扫码下载",
+  "@scanDownload": {
+    "description": "Label for scan download"
+  },
+  "saveFile": "保存文件",
+  "@saveFile": {
+    "description": "Label for save file"
+  },
+  "serviceStarted": "服务已开启",
+  "@serviceStarted": {
+    "description": "Label for service started"
+  },
+  "ensureConnection": "请确保连接设备在同一个Wi-Fi下，或连到此设备的热点上",
+  "@ensureConnection": {
+    "description": "Prompt to check network connection"
+  },
+  "copySuccess": "复制成功，请在连接设备的浏览器中打开",
+  "@copySuccess": {
+    "description": "Notification for successful copy operation with browser instruction"
+  },
+  "collapse": "收起",
+  "@collapse": {
+    "description": "Label for collapse action"
+  },
+  "copyAddress": "复制地址",
+  "@copyAddress": {
+    "description": "Label for copy address action"
+  },
+  "selectUpgradeFile": "请选择升级文件",
+  "@selectUpgradeFile": {
+    "description": "Label for selecting upgrade file"
+  },
+  "upgradeProcessTip": "(升级过程中，请保持蓝牙和网络打开状态)",
+  "@upgradeProcessTip": {
+    "description": "Tip for keeping Bluetooth and network enabled during upgrade process"
+  },
+  "fileVerificationComplete": "校验文件完成，正在回连设备…",
+  "@fileVerificationComplete": {
+    "description": "Message indicating file verification is complete and reconnecting to device"
+  },
+  "reason": "原因: %s",
+  "@reason": {
+    "description": "Label prefix indicating reason or cause"
+  },
+  "otaComplete": "升级完成",
+  "@otaComplete": {
+    "description": "OTA upgrade completed"
+  },
+  "otaFinish": "升级结束",
+  "@otaFinish": {
+    "description": "OTA upgrade finished"
+  },
+  "otaUpgrading": "正在升级",
+  "@otaUpgrading": {
+    "description": "OTA upgrade in progress"
+  },
+  "otaUpgradeCancel": "升级已取消",
+  "@otaUpgradeCancel": {
+    "description": "OTA upgrade cancelled"
+  },
+  "otaUpgradeNotStarted": "升级未开始",
+  "@otaUpgradeNotStarted": {
+    "description": "OTA upgrade not started"
+  },
+  "otaCheckingUpgradeFile": "正在检验升级文件",
+  "@otaCheckingUpgradeFile": {
+    "description": "Checking upgrade file"
+  },
+  "otaUpgradeFailed": "升级失败: %s",
+  "@otaUpgradeFailed": {
+    "description": "OTA upgrade failed with reason"
+  },
+  "otaCheckFile": "校验文件中",
+  "@otaCheckFile": {
+    "description": "Verifying file"
+  },
+  "updateFailed": "升级失败",
+  "@updateFailed": {
+    "description": "Update failed"
+  },
+  "unknownError": "未知错误",
+  "@unknownError": {
+    "description": "Unknown error"
+  },
+  "scanQrcode": "扫一扫",
+  "@scanQrcode": {
+    "description": "Scan QR Code text"
+  },
+  "photos": "相册",
+  "@photos": {
+    "description": "Photos text"
+  },
+  "qrcodeIntoBox": "将二维码/条码放入框内",
+  "@qrcodeIntoBox": {
+    "description": "Place the QR code/barcode inside the frame text"
+  },
+  "failPhotosSystemReason": "由于系统原因, 无法访问相册",
+  "@failPhotosSystemReason": {
+    "description": "Unable to access photos due to system reasons text"
+  },
+  "accessCameraReason": "需要访问相机，用于扫描二维码进行下载资源",
+  "@accessCameraReason": {
+    "description": "Camera access is required to scan QR codes for downloading resources text"
+  },
+  "accessPhotosReason": "需要访问相册，用于扫描二维码进行下载资源",
+  "@accessPhotosReason": {
+    "description": "Photo album access is required to scan QR codes for downloading resources text"
+  },
+  "systemSetCamera": "此功能需要使用到你的相机,请前往系统设置权限",
+  "@systemSetCamera": {
+    "description": "This feature requires your camera, please go to system settings to grant permission text"
+  },
+  "systemSetExternalStorage": "此功能需要使用到你的手机存储,请前往系统设置权限",
+  "@systemSetExternalStorage": {
+    "description": "This feature requires your phone storage, please go to system settings to grant permission text"
+  },
+  "downloadSavePending": "存储文件。请有点耐心…",
+  "@downloadSavePending": {
+    "description": "Saving file text"
+  },
+  "downloadingFile": "下载文件中",
+  "@downloadingFile": {
+    "description": "Downloading file text"
+  },
+  "downloadSuccessful": "下载成功",
+  "@downloadSuccessful": {
+    "description": "Download successful text"
+  },
+  "downloadCompleted": "下载完成",
+  "@downloadCompleted": {
+    "description": "Download completed text"
+  },
+  "pleaseRefreshWeb": "上传成功，请刷新网页端",
+  "@pleaseRefreshWeb": {
+    "description": "Refresh web text"
+  },
+  "pressAgainToExit": "再按一次退出应用",
+  "@pressAgainToExit": {
+    "description": "Double tap to exit app prompt"
+  },
+  "notFoundQRCode":  "未发现二维码",
+  "@notFoundQRCode": {
+    "description": "Prompt when no QR code is detected"
+  },
+  "fileShare":  "文件共享",
+  "@fileShare": {
+    "description": "Label for file sharing feature"
+  },
+  "shareUfwFile": "共享ufw文件",
+  "@shareUfwFile": {
+    "description": "Title for sharing ufw file"
+  },
+  "shareUfwFileTips": "从第三方APP（微信/钉钉）通过\"其他应用打开\">打开ufw文件，共享到当前OTA升级中",
+  "@shareUfwFileTips": {
+    "description": "Label for instructions for sharing ufw files from third-party apps"
+  },
+  "deviceMustMandatoryUpgrade": "设备需要强制升级",
+  "@deviceMustMandatoryUpgrade": {
+    "description": "Label for device must be forced to upgrade"
+  }
+}

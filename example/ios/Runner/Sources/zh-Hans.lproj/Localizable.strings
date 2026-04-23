@@ -1,0 +1,63 @@
+/**
+    Created on:2025-09-02 16:07:51
+    Copyright Â© www.zh-jieli.com. All rights reserved.
+*/
+"bluetooth_off" = "蓝牙未开启";
+"unknown_error" = "未知错误";
+"bt_connect_failed" = "连接失败";
+"device_connecting" = "正在连接";
+"repeated_connection" = "重复连接";
+"connect_timeout" = "连接超时";
+"reject_by_device" = "被拒绝";
+"paire_failed" = "配对失败";
+"paire_timeout" = "配对超时";
+"paire_ok" = "已配对";
+"master_slave_switch" = "正在主从切换";
+"disconnect_success" = "断开成功";
+"open_bluetooth" = "请打开蓝牙";
+"cancel" = "取消";
+"wecome_to_use_ota" = "欢迎使用「杰理OTA升级」文件管理平台~";
+"drag_the_update_file" = "请将升级文件拖入即可。";
+"ota_update" = "杰理OTA升级";
+"upload_Files" = "上传文件";
+"create_folder" = "创建文件夹";
+"refresh" = "刷新";
+"file_uploads_in_progress" = "正在上传文件";
+"please_enter_the_name_of_the_folder_to_be_created" = "请输入要创建的文件夹的名称：";
+"move_item" = "移动项目";
+"please_enter_the_new_location_for_this_item:" = "请输入此项目的新位置：";
+"result_success" = "升级成功";
+"result_fail" = "升级失败";
+"result_data_is_null" = "升级数据为空";
+"result_command_fail" = "指令失败";
+"result_seek_fail" = "标示偏移查找失败";
+"result_info_fail" = "固件信息错误";
+"result_low_power" = "电量低";
+"result_enter_fail" = "无法进入OTA升级";
+"result_upgrading" = "正在升级";
+"result_reconnect" = "回连中";
+"result_reboot" = "设备重启中";
+"result_preparing" = "准备中...";
+"result_prepared" = "准备完毕...";
+"result_fail_verification" = "固件认证失败";
+"result_fail_completely" = "数据校验失败";
+"result_fail_key" = "升级文件的生成Key不正确";
+"result_fail_error_file" = "升级文件错误";
+"result_fail_uboot" = "uboot内容不匹配";
+"result_fail_lenght" = "传输长度出错 ";
+"result_fail_flash" = "升级过程中flash读写失败";
+"result_fail_cmd_timeout" = "命令发送设备，回复超时";
+"result_fail_same_version" = "相同的固件";
+"result_fail_tws_disconnect" = "tws 耳机未连接";
+"result_fail_not_in_bin" = "耳机未在充电仓内";
+"result_reconnect_with_mac_addr" = "通过mac回连设备";
+"result_unknown" = "未知错误";
+"result_disconnect" = "设备断开";
+"result_failed_connect_more" = "固件多连接中，升级失败";
+"result_status_is_updating" = "设备已经在升级了...";
+"result_fail_same_sn" = "相同的SN";
+"result_cancel" = "用户取消";
+"unknown_type" = "不可知类型";
+"ble_not_open" = "蓝牙未打开";
+"need_upgrade_now" = "设备需要强制升级";
+

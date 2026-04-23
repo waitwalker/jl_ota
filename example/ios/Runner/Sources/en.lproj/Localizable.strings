@@ -1,0 +1,63 @@
+/**
+    Created on:2025-09-02 16:07:51
+    Copyright Â© www.zh-jieli.com. All rights reserved.
+*/
+"bluetooth_off" = "Bluetooth is not on";
+"unknown_error" = "Unknown Error";
+"bt_connect_failed" = "The connection fails";
+"device_connecting" = "is connectioning";
+"repeated_connection" ="reconnectioning";
+"connect_timeout" = "Connection timeout";
+"reject_by_device" = "Connection rejected";
+"paire_failed" = "Pairing failure";
+"paire_timeout" = "Pairing timeout";
+"paire_ok" = "Paired";
+"master_slave_switch" = "Switching between master and slave";
+"disconnect_success" = "Disconnect the success";
+"open_bluetooth" = "Please turn on Bluetoot";
+"cancel" = "Cancel";
+"wecome_to_use_ota" = "Welcome to the 'JL OTA' file management platform~";
+"drag_the_update_file" = "Please drag the upgrade file.";
+"ota_update" = "JL OTA Upgrade";
+"upload_Files" = "Upload Files";
+"create_folder" = "Create Folder";
+"refresh" = "Refresh";
+"file_uploads_in_progress" = "File Uploads in Progress";
+"please_enter_the_name_of_the_folder_to_be_created" = "Please enter the name of the folder to be created:";
+"move_item" = "Move Item";
+"please_enter_the_new_location_for_this_item:" = "Please enter the new location for this item:";
+"result_success" = "Upgrade successful";
+"result_fail" = "Upgrade failed";
+"result_data_is_null" = "Upgrade data is null";
+"result_command_fail" = "Command failed";
+"result_seek_fail" = "Failed to find the mark offset";
+"result_info_fail" = "Firmware information error";
+"result_low_power" = "Low power";
+"result_enter_fail" = "Unable to enter OTA upgrade";
+"result_upgrading" = "Upgrading";
+"result_reconnect" = "Reconnecting";
+"result_reboot" = "Device restarting";
+"result_preparing" = "Preparing...";
+"result_prepared" = "Prepared...";
+"result_fail_verification" = "Firmware verification failed";
+"result_fail_completely" = "Data verification failed";
+"result_fail_key" = "Incorrect key for the upgrade file";
+"result_fail_error_file" = "Error in the upgrade file";
+"result_fail_uboot" = "Uboot content does not match";
+"result_fail_lenght" = "Error in the transmission length";
+"result_fail_flash" = "Flash read and write failed during the upgrade";
+"result_fail_cmd_timeout" = "Command sent to device, reply timed out";
+"result_fail_same_version" = "Same firmware";
+"result_fail_tws_disconnect" = "TWS headset is not connected";
+"result_fail_not_in_bin" = "The headset is not in the charging case";
+"result_reconnect_with_mac_addr" = "Reconnect to the device through mac";
+"result_unknown" = "Unknown error";
+"result_disconnect" = "Device disconnected";
+"result_failed_connect_more" = "Firmware multiple connections, upgrade failed";
+"result_status_is_updating" = "Device is already being upgraded...";
+"result_fail_same_sn" = "Same SN";
+"result_cancel" = "User canceled";
+"unknown_type" = "Unknown Type";
+"ble_not_open" = "Bluetooth not ready";
+"need_upgrade_now" = "The device needs to be forced updated";
+
