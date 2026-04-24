@@ -137,7 +137,10 @@ MissingPluginException(No implementation found for method listen on channel com.
 `BlePlugin.register(with:)` 中强制要求 `rootViewController` 必须是 `FlutterViewController`：
 
 ```swift
-// ❌ 原代码：rootViewController 不是 FlutterViewController 时，整个 if 块跳过
+// ❌ 原代码：强制将 rootViewController 转换为 FlutterViewController 类型
+// 这在杰理 SDK 示例工程中可以正常工作，因为示例工程的 rootViewController 就是 FlutterViewController。
+// 但 party_x 等外部宿主应用可能使用 UINavigationController、UITabBarController 等作为 rootViewController，
+// 此时 as? FlutterViewController 转换失败，整个 if 块被跳过，导致 channel 未注册。
 if let window = UIApplication.shared.delegate?.window,
    let flutterViewController = window?.rootViewController as? FlutterViewController {
 
