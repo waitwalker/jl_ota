@@ -19,7 +19,9 @@ MissingPluginException(No implementation found for method xxx on channel com.jie
 `JlOtaPlugin.initializeBlePlugin()` 中对 Activity 做了强制类型检查：
 
 ```kotlin
-// ❌ 原代码：只有宿主的 Activity 是 MainActivity 时才初始化
+// ❌ 原代码：只有当宿主的 Activity 是杰理 SDK 示例工程中定义的 MainActivity 类时才初始化
+// 这里的 MainActivity 是 jl_ota 插件 example 工程里的类（com.jieli.otasdk.MainActivity），
+// 而非通用的 Activity。party_x 等外部宿主的 Activity 必然不是这个类，因此条件永远为 false。
 if (activity is MainActivity) {
     blePlugin = BlePlugin(binaryMessenger!!, activity as MainActivity)
 }
