@@ -79,9 +79,13 @@ class MethodChannelHandler: NSObject {
         case MethodChannelConstants.METHOD_GET_WIFI_IP_ADDRESS:
             OtaManager.shared.getWifiIpAddress(result: result)
         case MethodChannelConstants.METHOD_DOWNLOAD_FILE:
+            // 确保 eventSink 已设置
+            OtaManager.shared.setEventSink(sink: eventChannelHandler!.eventSink)
             OtaManager.shared.downloadFile(call: call, result: result)
             result(nil)
         case MethodChannelConstants.METHOD_START_OTA:
+            // 确保 eventSink 已设置，避免第三方集成时因未调用 readFileList 导致 OTA 回调丢失
+            OtaManager.shared.setEventSink(sink: eventChannelHandler!.eventSink)
             OtaManager.shared.startOTA(call: call, result: result)
         default:
             result(FlutterMethodNotImplemented)
