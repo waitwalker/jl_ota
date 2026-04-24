@@ -245,11 +245,82 @@ public static func register(with registrar: FlutterPluginRegistrar) {
 77cb4cc fix: 修复 iOS 侧 MissingPluginException 异常
 ```
 
+## 四、iOS 扫描设备 address 字段为空
+
+### 4.1 问题现象
+
+通过 `BleEventStream.scanDeviceListStream` 获取扫描设备列表时，iOS 侧返回的 `ScanDevice.description` 中 `address` 字段为空：
+
+```
+rssi: -65, address:       ← address 为空
+```
+
+而 Android 侧正常返回：
+
+```
+rssi: -65, address: AA:BB:CC:DD:EE:FF
+```
+
+### 4.2 根本原因
+
+两个平台获取设备地址的方式不同：
+
+| 平台 | 地址来源 | 是否始终可用 |
+|------|----------|:---:|
+| Android | `BluetoothDevice.address`（系统 API 直接提供 MAC 地址） | ✅ |
+| iOS（修复前） | `entity.edrMacAddress` / `entity.mEdr`（依赖设备固件广播 EDR 地址） | ❌ |
+
+iOS 侧原代码只使用了杰理 SDK 解析出的 EDR MAC 地址：
+
+```swift
+// ❌ 原代码：只使用 edrMacAddress，如果设备未广播 EDR 地址则为空
+let formattedMac = formatMacAddress(entity.edrMacAddress)  // JLBleEntity
+let formattedMac = formatMacAddress(entity.mEdr)           // JL_EntityM
+```
+
+`edrMacAddress` 和 `mEdr` 是杰理设备通过 BLE 广播数据自行解析出的 EDR MAC 地址，需要设备固件主动在广播包中携带该信息。如果设备未广播 EDR 地址，这两个属性就是空字符串。
+
+而 iOS 系统出于隐私保护**不暴露 BLE 设备的真实 MAC 地址**，但每个设备都有一个 `CBPeripheral.identifier`（UUID 格式），在同一台 iPhone 上对同一设备保持不变，可作为设备唯一标识。
+
+### 4.3 修复方案
+
+新增 `getDeviceAddress` 方法，优先使用 EDR MAC 地址，为空时回退到 `CBPeripheral.identifier`：
+
+```swift
+// ✅ 修复后：优先 EDR MAC，为空时回退 peripheral UUID
+private func getDeviceAddress(edrMac: String, peripheral: CBPeripheral) -> String {
+    let formatted = formatMacAddress(edrMac)
+    if !formatted.isEmpty {
+        return formatted
+    }
+    // iOS 不暴露真实 MAC 地址，使用 CBPeripheral.identifier 作为设备唯一标识
+    return peripheral.identifier.uuidString
+}
+```
+
+修复后 iOS 侧返回示例：
+
+```
+rssi: -65, address: 12345678-ABCD-1234-ABCD-1234567890AB
+```
+
+### 4.4 涉及文件
+
+| 文件 | 改动类型 |
+|------|----------|
+| `ios/Classes/EventChannelHandler.swift` | 新增 `getDeviceAddress` 方法，修改 `getDeviceDesc` 调用 |
+
+### 4.5 对应 Commit
+
+```
+232798f fix: 修复 iOS 侧扫描设备 address 字段为空的问题
+```
+
 ---
 
-## 三、问题本质总结
+## 五、问题本质总结
 
-Android 和 iOS 的问题**本质完全相同**：
+Android 和 iOS 的 MissingPluginException 问题**本质完全相同**：
 
 > 插件代码从 SDK 示例应用中迁移时，保留了对宿主应用特定类的硬编码依赖。
 > 当集成到不同宿主应用时，类型匹配失败，导致 MethodChannel / EventChannel 未注册。
@@ -263,7 +334,7 @@ Android 和 iOS 的问题**本质完全相同**：
 
 ---
 
-## 四、宿主应用集成注意事项
+## 六、宿主应用集成注意事项
 
 ### Android
 
@@ -276,3 +347,5 @@ Android 和 iOS 的问题**本质完全相同**：
 - 宿主应用**不需要** `rootViewController` 是 `FlutterViewController`
 - Channel 注册完全由 `FlutterPluginRegistrar` 驱动，与 ViewController 层级无关
 - 蓝牙权限需要在宿主应用的 `Info.plist` 中配置 `NSBluetoothAlwaysUsageDescription`
+- 扫描设备的 `address` 字段在无 EDR MAC 时返回 `CBPeripheral.identifier`（UUID 格式），与 Android 的 MAC 地址格式不同
+
