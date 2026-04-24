@@ -1,6 +1,7 @@
 package com.jieli.otasdk
 
 import android.Manifest
+import android.app.Activity
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -35,13 +36,16 @@ import kotlin.system.exitProcess
  * Modify date:
  * Modified by:
  */
-class MethodChannelHandler(private val activity: MainActivity) : MethodChannel.MethodCallHandler {
+class MethodChannelHandler(
+    private val activity: Activity,
+    private val plugin: JlOtaPlugin
+) : MethodChannel.MethodCallHandler {
     private val connectVM by lazy { ConnectViewModel.getInstance() }
     private val configHelper by lazy { ConfigHelper.getInstance() }
     private val logHelper by lazy { LogHelper.getInstance() }
-    private lateinit var downloadFileViewModel: DownloadFileViewModel
-    private lateinit var otaViewModel: OTAViewModel
-    private val storagePermissionHelper get() = activity.storagePermissionHelper
+    private val downloadFileViewModel by lazy { DownloadFileViewModel.getInstance() }
+    private val otaViewModel by lazy { OTAViewModel.getInstance() }
+    private val storagePermissionHelper get() = plugin.storagePermissionHelper
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
@@ -83,18 +87,6 @@ class MethodChannelHandler(private val activity: MainActivity) : MethodChannel.M
             else -> result.notImplemented()
         }
     }
-
-//    private fun checkBluetoothEnvironment(result: MethodChannel.Result) {
-//        BluetoothEnvironmentChecker.checkBluetoothEnvironment(activity, object : IActionCallback<Boolean> {
-//            override fun onSuccess(resultValue: Boolean?) {
-//                result.success(resultValue)
-//            }
-//
-//            override fun onError(p0: BaseError?) {
-//                result.error("BLUETOOTH_ENVIRONMENT_CHECK_FAILED", "Bluetooth environment check failed", null)
-//            }
-//        })
-//    }
 
     private fun startScan(result: MethodChannel.Result) {
         val checkResult = BluetoothEnvironmentChecker.checkBluetoothEnvironment(activity)
@@ -139,8 +131,8 @@ class MethodChannelHandler(private val activity: MainActivity) : MethodChannel.M
         }
 
         if (permissionsToRequest.isNotEmpty()) {
-            // 通过Activity请求权限
-            activity.requestMissingPermissions(permissionsToRequest.toTypedArray()) { granted ->
+            // 通过插件请求权限
+            plugin.requestMissingPermissions(permissionsToRequest.toTypedArray()) { granted ->
                 if (granted) {
                     // 权限授予成功，重新检查环境
                     val newCheckResult = BluetoothEnvironmentChecker.checkBluetoothEnvironment(activity)
@@ -272,7 +264,6 @@ class MethodChannelHandler(private val activity: MainActivity) : MethodChannel.M
     private fun downloadFile(call: MethodCall, result: MethodChannel.Result) {
         val httpUrl = call.argument<String>(MethodChannelConstants.ARG_HTTP_URL)
         if (httpUrl != null) {
-            downloadFileViewModel = DownloadFileViewModel.getInstance()
             downloadFileViewModel.downloadFile(httpUrl)
             result.success(null)
         } else {
@@ -281,12 +272,10 @@ class MethodChannelHandler(private val activity: MainActivity) : MethodChannel.M
     }
 
     private  fun isOTa(result: MethodChannel.Result) {
-        otaViewModel = OTAViewModel.getInstance()
         result.success(otaViewModel.isOTA())
     }
 
     private fun readFileList(result: MethodChannel.Result) {
-        otaViewModel = OTAViewModel.getInstance()
         otaViewModel.readFileList()
         result.success(null)
     }
@@ -387,7 +376,7 @@ class MethodChannelHandler(private val activity: MainActivity) : MethodChannel.M
     private fun handleFilePicked(call: MethodCall, result: MethodChannel.Result) {
         val fileName = call.argument<String>(MethodChannelConstants.ARG_FILE_NAME)
         if (fileName != null) {
-            MainActivity.selectedUri?.let {
+            JlOtaPlugin.selectedUri?.let {
                 FileTransferUtil.handleSelectFile(
                     MyApplication.getInstance(),
                     it,fileName,
@@ -475,7 +464,7 @@ class MethodChannelHandler(private val activity: MainActivity) : MethodChannel.M
     }
 
     private fun pickFile(result: MethodChannel.Result) {
-        activity.pickFile()
+        plugin.pickFile()
         result.success(null)
     }
 }

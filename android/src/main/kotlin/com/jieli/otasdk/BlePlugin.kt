@@ -1,7 +1,7 @@
 package com.jieli.otasdk
 
+import android.app.Activity
 import com.jieli.jl_bt_ota.util.JL_Log
-import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
@@ -16,7 +16,8 @@ import io.flutter.plugin.common.MethodChannel
  */
 class BlePlugin(
     binaryMessenger: BinaryMessenger,
-    private val activity: MainActivity
+    private val activity: Activity,
+    private val plugin: JlOtaPlugin
 ) {
     companion object {
         private const val METHOD_CHANNEL = "com.jieli.ble_plugin/methods"
@@ -26,7 +27,7 @@ class BlePlugin(
 
     private val methodChannel: MethodChannel by lazy {
         MethodChannel(binaryMessenger, METHOD_CHANNEL).apply {
-            setMethodCallHandler(MethodChannelHandler(activity))
+            setMethodCallHandler(MethodChannelHandler(activity, plugin))
         }
     }
 
