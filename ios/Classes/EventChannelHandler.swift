@@ -13,7 +13,7 @@ import CoreBluetooth
 /// Manages Bluetooth device discovery, connection states, and event streaming to Flutter.
 /// Listens for Bluetooth-related notifications and converts them into events for Flutter consumption.
 class EventChannelHandler: NSObject, FlutterStreamHandler {
-    private weak var flutterViewController: FlutterViewController?
+
     private var scanState: ScanState = .idle
     private static let DELAY_EXIT_TIME: Double = 0.5 // 延迟时间500毫秒
     private static let DELAY_EXIT_LONG_TIME: Double = 30.0 // 延迟时间30秒
@@ -36,9 +36,7 @@ class EventChannelHandler: NSObject, FlutterStreamHandler {
     }
     
     /// Initializes the event channel handler
-    /// - Parameter flutterViewController: The Flutter view controller
-    init(flutterViewController: FlutterViewController?) {
-        self.flutterViewController = flutterViewController
+    override init() {
         super.init()
         initData()
     }

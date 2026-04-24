@@ -39,25 +39,17 @@ public class BlePlugin: NSObject, FlutterPlugin {
             binaryMessenger: registrar.messenger()
         )
 
-        // Get FlutterViewController
-        if let window = UIApplication.shared.delegate?.window,
-        let flutterViewController = window?.rootViewController as? FlutterViewController {
+        // Create handlers - 不再强依赖 FlutterViewController
+        instance.eventChannelHandler = EventChannelHandler()
+        instance.methodChannelHandler = MethodChannelHandler(
+            eventChannelHandler: instance.eventChannelHandler
+        )
 
-            // Create handlers
-            instance.eventChannelHandler = EventChannelHandler(flutterViewController: flutterViewController)
-            instance.methodChannelHandler = MethodChannelHandler(
-                flutterViewController: flutterViewController,
-                eventChannelHandler: instance.eventChannelHandler
-            )
+        // Setup handlers - 无条件注册，确保 channel 始终可用
+        instance.methodChannel?.setMethodCallHandler(instance.methodChannelHandler?.handle)
+        instance.eventChannel?.setStreamHandler(instance.eventChannelHandler)
 
-            // Setup handlers
-            instance.methodChannel?.setMethodCallHandler(instance.methodChannelHandler?.handle)
-            instance.eventChannel?.setStreamHandler(instance.eventChannelHandler)
-
-            JLLogManager.logLevel(.DEBUG, content: "BLE Plugin registered successfully")
-        } else {
-            JLLogManager.logLevel(.ERROR, content: "Failed to obtain FlutterViewController for BLE Plugin")
-        }
+        JLLogManager.logLevel(.DEBUG, content: "BLE Plugin registered successfully")
 
         // Register this instance as the plugin
         registrar.addMethodCallDelegate(instance, channel: instance.methodChannel!)

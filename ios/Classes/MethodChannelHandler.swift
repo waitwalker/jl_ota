@@ -12,7 +12,6 @@ import Flutter
 /// Manages Bluetooth-related operations including device scanning, connection, disconnection,
 /// and log file path retrieval. Acts as a bridge for method calls from Flutter to native iOS functionality.
 class MethodChannelHandler: NSObject {
-    private weak var flutterViewController: FlutterViewController?
     private weak var eventChannelHandler: EventChannelHandler?
     
     /// 连接状态枚举
@@ -24,11 +23,8 @@ class MethodChannelHandler: NSObject {
     }
     
     /// Initializes the method channel handler
-    /// - Parameters:
-    ///   - flutterViewController: The Flutter view controller
-    ///   - eventChannelHandler: The event channel handler instance
-    init(flutterViewController: FlutterViewController?, eventChannelHandler: EventChannelHandler?) {
-        self.flutterViewController = flutterViewController
+    /// - Parameter eventChannelHandler: The event channel handler instance
+    init(eventChannelHandler: EventChannelHandler?) {
         self.eventChannelHandler = eventChannelHandler
         super.init()
     }
@@ -115,9 +111,9 @@ class MethodChannelHandler: NSObject {
     
     private func connectDevice(call: FlutterMethodCall, result: @escaping FlutterResult) {
         if !JLBleHandler.share().handleGetBleStatus() {
-            if let flutterViewController = UIApplication.shared.keyWindow?.rootViewController as? FlutterViewController {
+            if let rootVC = UIApplication.shared.keyWindow?.rootViewController {
                 let localizedText = DFUITools.languageText("ble_not_open" as String, table: "Localizable")
-                DFUITools.showText(localizedText, on: flutterViewController.view, delay: 1.0)
+                DFUITools.showText(localizedText, on: rootVC.view, delay: 1.0)
                 return
             }
         }
