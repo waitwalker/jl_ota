@@ -237,16 +237,27 @@ class EventChannelHandler: NSObject, FlutterStreamHandler {
         }
     }
     
-    /// Gets device description with RSSI and MAC address
+    /// Gets device description with RSSI and address
+    /// 优先使用 EDR MAC 地址，如果为空则回退使用 CBPeripheral.identifier（UUID）
     private func getDeviceDesc(_ device: Any) -> String {
         if let entity = device as? JLBleEntity {
-            let formattedMac = formatMacAddress(entity.edrMacAddress)
-            return String(format: "rssi: %d, address: %@", entity.mRSSI.intValue, formattedMac)
+            let address = getDeviceAddress(edrMac: entity.edrMacAddress, peripheral: entity.mPeripheral)
+            return String(format: "rssi: %d, address: %@", entity.mRSSI.intValue, address)
         } else if let entity = device as? JL_EntityM {
-            let formattedMac = formatMacAddress(entity.mEdr)
-            return String(format: "rssi: %d, address: %@", entity.mRSSI.intValue, formattedMac)
+            let address = getDeviceAddress(edrMac: entity.mEdr, peripheral: entity.mPeripheral)
+            return String(format: "rssi: %d, address: %@", entity.mRSSI.intValue, address)
         }
         return "N/A"
+    }
+    
+    /// 获取设备地址：优先使用格式化后的 EDR MAC，为空时回退到 peripheral UUID
+    private func getDeviceAddress(edrMac: String, peripheral: CBPeripheral) -> String {
+        let formatted = formatMacAddress(edrMac)
+        if !formatted.isEmpty {
+            return formatted
+        }
+        // iOS 不暴露真实 MAC 地址，使用 CBPeripheral.identifier 作为设备唯一标识
+        return peripheral.identifier.uuidString
     }
     
     /// Formats MAC address to colon-separated uppercase format
