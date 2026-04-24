@@ -87,8 +87,22 @@ private enum OtaConstants {
     func startOTA(call: FlutterMethodCall, result: @escaping FlutterResult) {
         guard let path = call.arguments as? [String: Any],
               let filePath = path[MethodChannelConstants.ARG_PATH] as? String else {
-            result(FlutterError(code: "INVALID_INDEX", message: "Index must be non-negative", details: nil))
+            result(FlutterError(code: "INVALID_ARGUMENT", message: "Missing filePath argument", details: nil))
             return
+        }
+        
+        // 检查文件是否存在
+        let fileManager = FileManager.default
+        guard fileManager.fileExists(atPath: filePath) else {
+            JLLogManager.logLevel(.DEBUG, content: "OTA file not found at path: \(filePath)")
+            result(FlutterError(code: "FILE_NOT_FOUND", message: "OTA file not found: \(filePath)", details: nil))
+            return
+        }
+        
+        // 检查文件大小
+        if let attrs = try? fileManager.attributesOfItem(atPath: filePath),
+           let fileSize = attrs[.size] as? Int {
+            JLLogManager.logLevel(.DEBUG, content: "OTA startOTA: filePath=\(filePath), fileSize=\(fileSize) bytes, isConnectBySDK=\(ToolsHelper.isConnectBySDK())")
         }
         
         JLBleHandler.share().handleOtaFunc(withFilePath: filePath)
@@ -110,6 +124,7 @@ private enum OtaConstants {
     
     // MARK: - OTA Callback
     func otaProgressOtaResult(_ result: JL_OTAResult, withProgress progress: Float) {
+        JLLogManager.logLevel(.DEBUG, content: "OTA callback: result=\(result.rawValue), progress=\(progress)")
         let eventData = handleOtaResult(result, progress: progress)
         sendEvent(type: EventChannelConstants.TYPE_OTA_STATE, data: eventData)
     }
