@@ -2,7 +2,7 @@
 
 ## 问题背景
 
-`jl_ota` 插件最初是从杰理 SDK 示例应用中提取的，代码直接依赖宿主应用的特定类（`MainActivity`、`MyApplication`、`FlutterViewController`）。当集成到 `party_x` 等第三方宿主应用时，会触发 `MissingPluginException`，导致插件完全不可用。
+`jl_ota` 插件最初是从杰理 SDK 示例应用中提取的，代码直接依赖示例工程中的特定类（`MainActivity`、`MyApplication`、`FlutterViewController`）。当作为依赖集成到第三方宿主应用时，会触发 `MissingPluginException`，导致插件完全不可用。
 
 ---
 
@@ -21,13 +21,13 @@ MissingPluginException(No implementation found for method xxx on channel com.jie
 ```kotlin
 // ❌ 原代码：只有当宿主的 Activity 是杰理 SDK 示例工程中定义的 MainActivity 类时才初始化
 // 这里的 MainActivity 是 jl_ota 插件 example 工程里的类（com.jieli.otasdk.MainActivity），
-// 而非通用的 Activity。party_x 等外部宿主的 Activity 必然不是这个类，因此条件永远为 false。
+// 而非通用的 Activity。任何第三方宿主应用的 Activity 都不可能是这个类，因此条件永远为 false。
 if (activity is MainActivity) {
     blePlugin = BlePlugin(binaryMessenger!!, activity as MainActivity)
 }
 ```
 
-宿主应用 `party_x` 的 Activity 不是 `MainActivity`，条件永远为 `false`，`BlePlugin` 不会被创建，所有 MethodChannel/EventChannel 都不会注册。
+第三方宿主应用的 Activity 不是杰理示例工程中的 `MainActivity`，条件永远为 `false`，`BlePlugin` 不会被创建，所有 MethodChannel/EventChannel 都不会注册。
 
 此外：
 - `MethodChannelHandler` 构造参数类型为 `MainActivity`，强依赖宿主类
@@ -139,7 +139,7 @@ MissingPluginException(No implementation found for method listen on channel com.
 ```swift
 // ❌ 原代码：强制将 rootViewController 转换为 FlutterViewController 类型
 // 这在杰理 SDK 示例工程中可以正常工作，因为示例工程的 rootViewController 就是 FlutterViewController。
-// 但 party_x 等外部宿主应用可能使用 UINavigationController、UITabBarController 等作为 rootViewController，
+// 但第三方宿主应用可能使用 UINavigationController、UITabBarController 等作为 rootViewController，
 // 此时 as? FlutterViewController 转换失败，整个 if 块被跳过，导致 channel 未注册。
 if let window = UIApplication.shared.delegate?.window,
    let flutterViewController = window?.rootViewController as? FlutterViewController {
@@ -155,7 +155,7 @@ if let window = UIApplication.shared.delegate?.window,
 }
 ```
 
-当 `party_x` 使用 `UINavigationController` 或其他 VC 作为 `rootViewController` 时，条件不满足 → `setStreamHandler` 不执行 → Flutter 侧 `EventChannel.receiveBroadcastStream()` 调用 `listen` 时找不到实现。
+当第三方宿主应用使用 `UINavigationController` 或其他 VC 作为 `rootViewController` 时，条件不满足 → `setStreamHandler` 不执行 → Flutter 侧 `EventChannel.receiveBroadcastStream()` 调用 `listen` 时找不到实现。
 
 ### 2.3 修复方案
 
