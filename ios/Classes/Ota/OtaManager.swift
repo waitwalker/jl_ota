@@ -21,6 +21,7 @@ private enum OtaConstants {
     private var eventSink: FlutterEventSink?
     private(set) var itemArray: [String] = []
     private var ipAddress: String?
+    private var isOtaFinished: Bool = false
 
     // MARK: - Initialization
     override init() {
@@ -106,6 +107,7 @@ private enum OtaConstants {
         }
         
         JLBleHandler.share().handleOtaFunc(withFilePath: filePath)
+        isOtaFinished = false
         result(true)
     }
     
@@ -125,8 +127,9 @@ private enum OtaConstants {
     // MARK: - OTA Callback
     func otaProgressOtaResult(_ result: JL_OTAResult, withProgress progress: Float) {
         JLLogManager.logLevel(.DEBUG, content: "OTA callback: result=\(result.rawValue), progress=\(progress)")
-        let eventData = handleOtaResult(result, progress: progress)
-        sendEvent(type: EventChannelConstants.TYPE_OTA_STATE, data: eventData)
+        if let eventData = handleOtaResult(result, progress: progress) {
+            sendEvent(type: EventChannelConstants.TYPE_OTA_STATE, data: eventData)
+        }
     }
     
     // MARK: - Private Methods
@@ -254,7 +257,7 @@ private enum OtaConstants {
     }
     
     /// 处理OTA结果
-    private func handleOtaResult(_ result: JL_OTAResult, progress: Float) -> [String: Any] {
+    private func handleOtaResult(_ result: JL_OTAResult, progress: Float) -> [String: Any]? {
         let resultOtaUpgradingDict = [
             EventChannelConstants.KEY_STATE: EventChannelConstants.STATE_WORKING,
             EventChannelConstants.KEY_TYPE: EventChannelConstants.MSG_UPGRADING,
@@ -286,6 +289,7 @@ private enum OtaConstants {
             ]
             
         case .success, .reboot:
+            isOtaFinished = true
             setKeepScreenOn(false)
             return [
                 EventChannelConstants.KEY_STATE: EventChannelConstants.STATE_IDLE,
@@ -299,6 +303,10 @@ private enum OtaConstants {
              .cancel, .failVerification, .failCompletely, .failKey, .failErrorFile,
              .failUboot, .failLenght, .failFlash, .failSameVersion, .failTWSDisconnect,
              .failNotInBin, .disconnect, .reconnectUpdateSource, .unknown:
+            if isOtaFinished {
+                return nil
+            }
+            isOtaFinished = true
             setKeepScreenOn(false)
             let errorReason = ToolsHelper.errorReason(result)
             return [

@@ -226,7 +226,21 @@ class _DevicesPageState extends State<DevicesPage> with WidgetsBindingObserver {
     _deviceConnectionSubscription =
         BleEventStream.deviceConnectionStream.listen(
               (connection) async {
-                log("Device connection status: ${connection.state}");
+                switch (connection.state) {
+                  case AppConstants.connectionDisconnect:
+                    log("[device page] device connection state: ${connection.state}, disconnect");
+                    break;
+                  case AppConstants.connectionOK:
+                    log("[device page] device connection state: ${connection.state}, connected");
+                    break;
+                  case AppConstants.connectionFailed:
+                    log("[device page] device connection state: ${connection.state}, connect failed");
+                    break;
+                  case AppConstants.connectionConnecting:
+                    log("[device page] device connection state: ${connection.state}, connecting");
+                    break;
+                  default:
+                }
 
                 if (connection.state == AppConstants.connectionConnecting) {
                   // Show loading dialog when the device is connecting
@@ -299,6 +313,8 @@ class _DevicesPageState extends State<DevicesPage> with WidgetsBindingObserver {
     // Try to extract address first
     final deviceAddress = _extractAddressFromDescription(device.description);
 
+    log('deviceAddress: $deviceAddress, device description: ${device.description}');
+
     int index;
 
     if (deviceAddress != null) {
@@ -346,11 +362,13 @@ class _DevicesPageState extends State<DevicesPage> with WidgetsBindingObserver {
     _otaConnectionSubscription = BleEventStream.otaConnectionStream.listen(
       (otaData) {
         if (mounted) {
+          // 更新状态数据回调=》通知到弹窗进度里面
+          log("[device page] OTA connection ota data: $otaData, notify dialog");
           Provider.of<DataNotifier>(context, listen: false).setOtaData(otaData);
         }
       },
       onError: (error) {
-        log("OTA connection stream error: $error");
+        log("[device page] OTA connection stream error: $error");
       },
     );
   }
@@ -359,6 +377,48 @@ class _DevicesPageState extends State<DevicesPage> with WidgetsBindingObserver {
   void _subscribeToOtaStateStream() {
     if (AppUtil.isIOS) {
       _otaStateSubscription = BleEventStream.otaStateStream.listen((otaData) {
+        switch (otaData[BleEventConstants.KEY_STATE]) {
+          /// 初始状态
+          case BleEventConstants.KEY_STATE_IDLE:
+            log("[device page] ota state: ${otaData[BleEventConstants.KEY_STATE]}, idle");
+            break;
+
+          /// 正在检查文件的类型
+          case BleEventConstants.KEY_CHECK_FILE:
+            log("[device page] ota state: ${otaData[BleEventConstants.KEY_STATE]}, checking file");
+            break;
+
+          /// 表示OTA的开始状态
+          case BleEventConstants.KEY_STATE_START:
+            log("[device page] ota state: ${otaData[BleEventConstants.KEY_STATE]}, start");
+            break;
+
+          /// 表示OTA的重新连接状态
+          case BleEventConstants.KEY_STATE_RECONNECT:
+            log("[device page] ota state: ${otaData[BleEventConstants.KEY_STATE]}, reconnect");
+            break;
+
+          /// 表示OTA的工作状态
+          case BleEventConstants.KEY_STATE_WORKING:
+            log("[device page] ota state: ${otaData[BleEventConstants.KEY_STATE]}, working");
+            break;
+
+          /// 用于在事件数据中标识进度信息的键。
+          case BleEventConstants.KEY_PROGRESS:
+            log("[device page] ota state: ${otaData[BleEventConstants.KEY_STATE]}, progress ${otaData[BleEventConstants.KEY_PROGRESS]}");
+            break;
+
+          /// 正在升级的类型
+          case BleEventConstants.KEY_UPGRADING:
+            log("[device page] ota state: ${otaData[BleEventConstants.KEY_STATE]}, upgrading");
+            break;
+
+          /// 未知错误
+          case BleEventConstants.KEY_STATE_UNKNOWN:
+            log("[device page] ota state: ${otaData[BleEventConstants.KEY_STATE]}, unknown");
+            break;
+          default:
+        }
         if (mounted) {
           setState(() {
             updateOtaState(otaData);

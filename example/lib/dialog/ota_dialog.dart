@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -43,6 +44,7 @@ class _OtaDialogConstants {
 }
 
 /// Custom OTA Dialog
+/// ota 弹窗
 class OtaDialog extends StatefulWidget {
   const OtaDialog({super.key});
 
@@ -132,6 +134,48 @@ class _OtaDialogState extends State<OtaDialog> {
   /// 监听OTA升级的状态
   void _startListeningToOtaState() {
     _otaStateSubscription = BleEventStream.otaStateStream.listen((otaData) {
+      switch (otaData[BleEventConstants.KEY_STATE]) {
+        /// 初始状态
+        case BleEventConstants.KEY_STATE_IDLE:
+          log("[dialog page] ota state: ${otaData[BleEventConstants.KEY_STATE]}, idle");
+          break;
+
+        /// 正在检查文件的类型
+        case BleEventConstants.KEY_CHECK_FILE:
+          log("[dialog page] ota state: ${otaData[BleEventConstants.KEY_STATE]}, checking file");
+          break;
+
+        /// 表示OTA的开始状态
+        case BleEventConstants.KEY_STATE_START:
+          log("[dialog page] ota state: ${otaData[BleEventConstants.KEY_STATE]}, start");
+          break;
+
+        /// 表示OTA的重新连接状态
+        case BleEventConstants.KEY_STATE_RECONNECT:
+          log("[dialog page] ota state: ${otaData[BleEventConstants.KEY_STATE]}, reconnect");
+          break;
+
+        /// 表示OTA的工作状态
+        case BleEventConstants.KEY_STATE_WORKING:
+          log("[dialog page] ota state: ${otaData[BleEventConstants.KEY_STATE]}, working");
+          break;
+
+        /// 用于在事件数据中标识进度信息的键。
+        case BleEventConstants.KEY_PROGRESS:
+          log("[dialog page] ota state: ${otaData[BleEventConstants.KEY_STATE]}, progress ${otaData[BleEventConstants.KEY_PROGRESS]}");
+          break;
+
+        /// 正在升级的类型
+        case BleEventConstants.KEY_UPGRADING:
+          log("[dialog page] ota state: ${otaData[BleEventConstants.KEY_STATE]}, upgrading");
+          break;
+
+        /// 未知错误
+        case BleEventConstants.KEY_STATE_UNKNOWN:
+          log("[dialog page] ota state: ${otaData[BleEventConstants.KEY_STATE]}, unknown");
+          break;
+        default:
+      }
       if (mounted) {
         setState(() {
           updateOtaState(otaData);

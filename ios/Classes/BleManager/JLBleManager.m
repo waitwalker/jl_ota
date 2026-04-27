@@ -441,7 +441,11 @@
     //TODO: 取消OTA升级回调
 }
 -(void)otaUpgradeResult:(JL_OTAResult)result Progress:(float)progress{
-    //TODO: 设备升级过程回调，包括进度状态
+    for (id<JLBleManagerOtaDelegate> delegate in self.delegates) {
+        if ([delegate respondsToSelector:@selector(otaProgressWithOtaResult:withProgress:)]) {
+            [delegate otaProgressWithOtaResult:result withProgress:progress];
+        }
+    }
 }
 
 -(void)otaDataSend:(NSData *)data{

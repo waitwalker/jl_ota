@@ -245,6 +245,70 @@ public static func register(with registrar: FlutterPluginRegistrar) {
 77cb4cc fix: 修复 iOS 侧 MissingPluginException 异常
 ```
 
+---
+
+## 三、iOS 侧 OTA 升级成功后立即提示断开失败
+
+### 3.1 问题现象
+
+在 iOS 侧进行 OTA 升级时，进度达到 100% 后会先弹出“升级成功”，但紧接着瞬间变为“升级失败：设备断开”。
+
+### 3.2 根本原因
+
+在固件升级成功后，设备通常会自动重启以应用新固件，这必然会导致当前的蓝牙连接物理断开。
+在原有逻辑中：
+1. 底层 OTA SDK 首先回调 `.success` 或 `.reboot` 状态。
+2. `OtaManager` 接收到成功状态，向 Flutter 端发送 `KEY_SUCCESS: true`，触发界面弹出 **“升级成功”**。
+3. 紧接着设备重启导致蓝牙断开，底层 OTA SDK 又抛出 `.disconnect` 错误回调。
+4. `OtaManager` 盲目处理了 `.disconnect`，将其误认为一次升级失败，立即向 Flutter 发送了 `KEY_SUCCESS: false` 和“设备断开”的错误信息。
+
+由于 Flutter 端的弹窗始终监听同一个事件流，导致 UI 在刚显示成功后马上被错误状态覆盖。而 Android 侧由于在底层有相应拦截，没有暴露此问题。
+
+### 3.3 修复方案
+
+在 `ios/Classes/Ota/OtaManager.swift` 中引入状态拦截机制：
+
+#### OtaManager.swift — 拦截已完成的 OTA 状态
+
+新增 `isOtaFinished` 标志位。在每次启动 OTA 时重置，在成功后标记，以此拦截随后的无效错误回调。
+
+```swift
+// 1. 新增标志位
+private var isOtaFinished: Bool = false
+
+// 2. 在 startOTA 中重置
+func startOTA(...) {
+    isOtaFinished = false
+    ...
+}
+
+// 3. 在处理结果时进行拦截
+private func handleOtaResult(_ result: JL_OTAResult, progress: Float) -> [String: Any]? {
+    switch result {
+    case .success, .reboot:
+        isOtaFinished = true // 标记升级已成功结束
+        ...
+        return [...]
+        
+    case .fail, ..., .disconnect:
+        if isOtaFinished {
+            return nil // 如果已经成功结束，忽略随后的断开等错误事件
+        }
+        isOtaFinished = true
+        ...
+        return [...]
+    }
+}
+```
+
+### 3.4 涉及文件
+
+| 文件 | 改动类型 |
+|------|----------|
+| `ios/Classes/Ota/OtaManager.swift` | 逻辑修复，增加状态拦截 |
+
+---
+
 ## 四、iOS 扫描设备 address 字段为空
 
 ### 4.1 问题现象
