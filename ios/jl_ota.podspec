@@ -14,7 +14,12 @@ This plugin provides the functionality to perform OTA firmware updates on Jielon
   s.platform = :ios, '12.0'
 
   # Flutter.framework does not contain a i386 slice.
-  s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES', 'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386' }
+  s.pod_target_xcconfig = { 
+    'DEFINES_MODULE' => 'YES', 
+    'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386',
+    'OTHER_LDFLAGS' => '-ObjC'
+  }
+  s.user_target_xcconfig = { 'OTHER_LDFLAGS' => '-ObjC' }
   s.swift_version = '5.0'
 
   # 资源文件与隐私清单声明

@@ -413,3 +413,19 @@ Android 和 iOS 的 MissingPluginException 问题**本质完全相同**：
 - 蓝牙权限需要在宿主应用的 `Info.plist` 中配置 `NSBluetoothAlwaysUsageDescription`
 - 扫描设备的 `address` 字段在无 EDR MAC 时返回 `CBPeripheral.identifier`（UUID 格式），与 Android 的 MAC 地址格式不同
 
+### 自动 OTA 调度注意事项
+
+`example` 是人工流程：用户先连接设备，再选择本地文件并点击 OTA。宿主 App 如果使用自动流程（下载固件 -> 断开业务连接 -> 扫描重连 -> 传入本地路径 -> OTA），需要额外处理以下时序问题：
+
+| 注意点 | 建议 |
+|------|------|
+| iOS 的 `otaConnection connected` 可能早于 OTA 通道真正可用 | 它可能只代表 BLE 物理连接成功，服务/特征、notify、设备认证、`getDeviceInfo` 还没完全完成。自动流程不要一收到该事件就无条件立刻 `startOTA`；短期可在 iOS 侧加 2~3 秒稳定等待，长期更推荐插件原生侧提供更准确的 `otaReady` 语义。 |
+| 不要在调用 `startOTA` 前预设“校验文件” | “校验文件”应来自 `otaStateStream` 的 `KEY_STATE_WORKING + KEY_TYPE == Checking file`，否则 UI 会误导为 SDK 已进入校验阶段，实际可能只是 `startOTA` 还没真正跑起来。 |
+| `connectDevice` 和 `startOTA` 应 `await` 并捕获异常 | MethodChannel 可能返回连接失败、文件不存在、路径无效等异常；自动流程必须把这些异常转成失败状态，否则会停在中间态。 |
+| 需要防止重复启动 OTA | iOS/Android 都可能多次收到 connected 或状态回放。宿主侧应加一次性标志位，避免重复调用 `startOTA(path)`。 |
+| 重新订阅事件流时可能收到上一次缓存状态 | 自动 OTA 处于 downloading/preparing/scanning/connecting 早期阶段时，应谨慎处理历史 `idle/error`，避免刚开始就被上一次失败状态打断。 |
+| 扫描匹配要保留原始列表 index | `connectDevice(index)` 需要原生扫描列表的原始 index。如果宿主为了匹配设备把列表转成 map，仍必须保留原始 `List<ScanDevice>`，匹配后用原始 index 连接。 |
+| iOS 设备地址格式不一定是 MAC | 宿主用业务设备 ID 匹配扫描结果时，要兼容 iOS `CBPeripheral.identifier` UUID 和 EDR MAC 两种格式；Android 通常是 MAC。 |
+| 设备认证默认开启 | `jl_ota` 默认开启杰理设备认证。宿主一般不需要手动设置；如果目标固件未启用认证，需要与固件侧确认后再关闭，否则认证失败会导致连接断开。 |
+
+宿主 App 可以采用的最小规避策略是：Android 保持连接后立即启动 OTA；iOS 收到 `otaConnection connected` 后先显示“正在启动 OTA”，等待约 2~3 秒再 `startOTA`，并且只有收到 SDK 的 `Checking file` 状态后才展示“正在校验文件”。这能接近 `example` 人工流程中的自然等待，但从插件设计上看，更彻底的方案仍是 iOS 原生在 paired/getDeviceInfo 完成后再发送明确的 OTA ready 事件。
