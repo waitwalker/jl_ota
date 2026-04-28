@@ -1,12 +1,10 @@
 package com.jieli.otasdk.model.ota
 
 import android.bluetooth.BluetoothDevice
-import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import androidx.lifecycle.MutableLiveData
-import com.jieli.otasdk.R
 import com.jieli.jl_bt_ota.constant.ErrorCode
 import com.jieli.jl_bt_ota.constant.StateCode
 import com.jieli.jl_bt_ota.interfaces.BtEventCallback
@@ -47,6 +45,8 @@ class OTAViewModel : BluetoothViewModel() {
         // String Constants
         private const val DEVICE_DISCONNECTED = "Device is disconnected"
         private const val OTA_IS_RUNNING = "Ota is running."
+        private const val OTA_COMPLETE = "Upgrade is complete"
+        private const val OTA_UPGRADE_CANCEL = "Upgrade cancelled"
 
         @Volatile
         private var instance: OTAViewModel? = null
@@ -145,9 +145,7 @@ class OTAViewModel : BluetoothViewModel() {
         }
         otaManager.bluetoothOption.firmwareFilePath = filePath
         otaManager.startOTA(
-            CustomUpdateCallback(
-                getContext(), device, this
-            )
+            CustomUpdateCallback(device, this)
         )
     }
 
@@ -172,7 +170,6 @@ class OTAViewModel : BluetoothViewModel() {
     }
 
     private class CustomUpdateCallback(
-        val context: Context,
         val device: BluetoothDevice?,
         val viewModel: OTAViewModel
     ) : IUpgradeCallback {
@@ -194,7 +191,7 @@ class OTAViewModel : BluetoothViewModel() {
 
         override fun onStopOTA() {
             viewModel.otaStateMLD.value =
-                OTAEnd(device, ErrorCode.ERR_NONE, context.getString(R.string.ota_complete))
+                OTAEnd(device, ErrorCode.ERR_NONE, OTA_COMPLETE)
             val handler = Handler(Looper.getMainLooper())
             handler.postDelayed({
                 // 变地址导致无法判断device是否一致
@@ -214,7 +211,7 @@ class OTAViewModel : BluetoothViewModel() {
                 OTAEnd(
                     device,
                     ErrorCode.ERR_UNKNOWN,
-                    context.getString(R.string.ota_upgrade_cancel)
+                    OTA_UPGRADE_CANCEL
                 )
         }
 

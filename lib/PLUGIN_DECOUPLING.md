@@ -577,7 +577,21 @@ xml/provider_paths
 
 ### 9.3 修复方案
 
-已从插件库 `jl_ota/android/src/main/res` 删除上述模板资源，只保留 `strings.xml` 中插件代码实际使用的设备类型、OTA 结果、文件传输和 Wi-Fi 提示文案。
+已从插件库 `jl_ota/android/src/main/res` 删除上述模板资源。对照 `party_x -> mix_device -> jl_ota` 的实际调用链后，剩余 `strings.xml` 文案也不会作为宿主用户可见文案展示，因此已将源码中的 `R.string.*` 依赖改为 native 常量，并删除插件库剩余的 Android string resources。
+
+不会进入 `party_x` UI 的剩余文案包括：
+
+```text
+classic_device_type
+ble_device_type
+dual_mode
+unknown_device
+ota_complete
+ota_upgrade_cancel
+update_file
+log_file
+connect_wifi_tips
+```
 
 未被源码实际引用的权限提示和设备强制升级提示也已删除：
 
@@ -590,7 +604,7 @@ grant_external_storage_permission
 device_must_mandatory_upgrade
 ```
 
-`example/android/app/src/main/res` 下的同名模板资源保留，示例 App 仍然正常使用自己的图标、启动页、主题和 provider 配置。
+`example/android/app/src/main/res` 下的同名模板资源和示例 App 文案保留，示例 App 仍然正常使用自己的图标、启动页、主题、provider 配置和多语言资源。
 
 ### 9.4 验证方式
 
@@ -601,4 +615,4 @@ device_must_mandatory_upgrade
 find jl_ota/android/src/main/res -type f
 ```
 
-宿主 App 重新解析依赖并构建后，检查合并资源中不应再出现插件库来源的模板资源覆盖宿主资源。
+宿主 App 重新解析依赖并构建后，检查合并资源中不应再出现插件库来源的模板资源或 `jl_ota` 插件库 Android string resources。

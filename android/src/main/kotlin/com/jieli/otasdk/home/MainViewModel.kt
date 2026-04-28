@@ -7,7 +7,6 @@ import com.jieli.jlFileTransfer.TransferFolder
 import com.jieli.jlFileTransfer.TransferFolderCallback
 import com.jieli.jlFileTransfer.WebService
 import com.jieli.otasdk.MyApplication
-import com.jieli.otasdk.R
 import com.jieli.otasdk.tool.bluetooth.BluetoothHelper
 import java.io.File
 
@@ -33,6 +32,8 @@ class MainViewModel : ViewModel() {
         private const val FOLDER_ID_LOG = 1
         private const val FOLDER_FILE_TYPE_UFW = ".ufw"
         private const val FOLDER_FILE_TYPE_TXT = ".txt"
+        private const val FOLDER_DESC_OTA = "Update file"
+        private const val FOLDER_DESC_LOG = "Log file"
 
         fun getInstance(): MainViewModel {
             return instance ?: synchronized(this) {
@@ -52,7 +53,7 @@ class MainViewModel : ViewModel() {
                 folderList.add(TransferFolder().run {
                     this.id = FOLDER_ID_OTA
                     this.folder = File(MyApplication.getInstance().otaFileDir)
-                    this.describe = context.getString(R.string.update_file)
+                    this.describe = FOLDER_DESC_OTA
                     this.fileType = FOLDER_FILE_TYPE_UFW
                     this.callback = object : TransferFolderCallback {
                         override fun onCreateFile(file: File?): Boolean {
@@ -68,7 +69,7 @@ class MainViewModel : ViewModel() {
                 folderList.add(TransferFolder().run {
                     this.id = FOLDER_ID_LOG
                     this.folder = File(MyApplication.getInstance().logFileDir)
-                    this.describe = context.getString(R.string.log_file)
+                    this.describe = FOLDER_DESC_LOG
                     this.fileType = FOLDER_FILE_TYPE_TXT
                     this.callback = object : TransferFolderCallback {
                         override fun onCreateFile(file: File?): Boolean {

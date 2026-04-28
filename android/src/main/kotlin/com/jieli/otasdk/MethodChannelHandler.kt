@@ -46,6 +46,9 @@ class MethodChannelHandler(
     private val downloadFileViewModel by lazy { DownloadFileViewModel.getInstance() }
     private val otaViewModel by lazy { OTAViewModel.getInstance() }
     private val storagePermissionHelper get() = plugin.storagePermissionHelper
+    private companion object {
+        const val CONNECT_WIFI_TIPS = "Please connect to an available WIFI"
+    }
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
@@ -345,7 +348,7 @@ class MethodChannelHandler(
         try {
             val ipAddress = NetworkUtil.getWifiIpAddress(activity)
             val url = if (ipAddress.isNullOrEmpty()) {
-                activity.getString(R.string.connect_wifi_tips)
+                CONNECT_WIFI_TIPS
             } else {
                 "http://$ipAddress:${Constants.HTTP_PORT}"
             }
