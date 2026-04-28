@@ -429,3 +429,59 @@ Android 和 iOS 的 MissingPluginException 问题**本质完全相同**：
 | 设备认证默认开启 | `jl_ota` 默认开启杰理设备认证。宿主一般不需要手动设置；如果目标固件未启用认证，需要与固件侧确认后再关闭，否则认证失败会导致连接断开。 |
 
 宿主 App 可以采用的最小规避策略是：Android 保持连接后立即启动 OTA；iOS 收到 `otaConnection connected` 后先显示“正在启动 OTA”，等待约 2~3 秒再 `startOTA`，并且只有收到 SDK 的 `Checking file` 状态后才展示“正在校验文件”。这能接近 `example` 人工流程中的自然等待，但从插件设计上看，更彻底的方案仍是 iOS 原生在 paired/getDeviceInfo 完成后再发送明确的 OTA ready 事件。
+
+---
+
+## 七、Android 16KB page size 兼容问题
+
+### 7.1 问题现象
+
+宿主 App 接入 `jl_ota` 后，Android arm64 包体增大约 5.5MB。对 release APK 做 Google 16KB memory page size 兼容检查时，发现 `libconscrypt_jni.so` 的 ELF `LOAD` 段仍是 4KB 对齐：
+
+```text
+libconscrypt_jni.so  min_align=0x1000  FAIL
+libjl_ota_auth.so    min_align=0x4000  OK
+```
+
+其中 `libjl_ota_auth.so` 来自杰理 OTA SDK，自身已经满足 16KB 对齐；失败项来自 `org.conscrypt:conscrypt-android:2.5.2` 间接引入的 `libconscrypt_jni.so`。
+
+### 7.2 根本原因
+
+`conscrypt-android:2.5.2` 内置的 64 位 so 使用旧的 4KB ELF segment alignment。Google 对 Android 15+ 目标设备的 16KB page size 要求中，64 位 native library 的 `LOAD` 段对齐不能低于 `2**14`，即 16KB。
+
+### 7.3 修复方案
+
+将 Android 侧 Conscrypt 依赖升级到 `2.5.3`：
+
+```diff
+- implementation "org.conscrypt:conscrypt-android:2.5.2"
++ implementation "org.conscrypt:conscrypt-android:2.5.3"
+```
+
+已单独验证 Maven Central 上的 `conscrypt-android:2.5.3`：
+
+```text
+jni/arm64-v8a/libconscrypt_jni.so  LOAD align 0x4000
+jni/x86_64/libconscrypt_jni.so     LOAD align 0x4000
+```
+
+### 7.4 验证方式
+
+宿主 App 重新打 release APK 后，需要同时验证 ELF 对齐和 APK zip 对齐。
+
+ELF 对齐检查：
+
+```bash
+unzip APK_NAME.apk 'lib/arm64-v8a/*.so' -d /tmp/apk_so_check
+$ANDROID_HOME/ndk/<ndk-version>/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-readelf -l /tmp/apk_so_check/lib/arm64-v8a/libconscrypt_jni.so
+```
+
+`LOAD` 行最后一列 `Align` 需要是 `0x4000` 或更大。
+
+APK zip 对齐检查：
+
+```bash
+$ANDROID_HOME/build-tools/<build-tools-version>/zipalign -c -P 16 -v 4 APK_NAME.apk
+```
+
+最后输出 `Verification successful` 才表示 APK zip 对齐通过。
