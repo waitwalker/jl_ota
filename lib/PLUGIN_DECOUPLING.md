@@ -405,6 +405,38 @@ Android 和 iOS 的 MissingPluginException 问题**本质完全相同**：
 - 宿主应用**不需要**继承 `MyApplication`，插件会自动通过 `initWith(context)` 完成 SDK 初始化
 - 宿主应用**不需要**特定的 Activity 名称或类型
 - 蓝牙权限会由插件通过 `ActivityPluginBinding` 自行请求
+- 如果宿主应用不通过蓝牙扫描结果推导物理位置，Android 12+ 应使用 `BLUETOOTH_SCAN` 的 `neverForLocation`，并将 `ACCESS_FINE_LOCATION` / `ACCESS_COARSE_LOCATION` 限制到 Android 11 及以下，避免 Android 12+ 包继续声明定位权限。`nordic_dfu` 等依赖可能通过 `uses-permission-sdk-23` 带入定位权限，宿主 Manifest 也需要移除这些节点。
+
+```xml
+<uses-permission
+    android:name="android.permission.BLUETOOTH_SCAN"
+    android:usesPermissionFlags="neverForLocation"
+    tools:node="replace" />
+
+<uses-permission
+    android:name="android.permission.ACCESS_FINE_LOCATION"
+    android:maxSdkVersion="30"
+    tools:node="replace" />
+<uses-permission
+    android:name="android.permission.ACCESS_COARSE_LOCATION"
+    android:maxSdkVersion="30"
+    tools:node="replace" />
+
+<uses-permission-sdk-23
+    android:name="android.permission.ACCESS_FINE_LOCATION"
+    tools:node="remove" />
+<uses-permission-sdk-23
+    android:name="android.permission.ACCESS_COARSE_LOCATION"
+    tools:node="remove" />
+```
+
+- 宿主应用如果接入 `jl_file_transfer_V1.0.0-release.aar`，需要在宿主 Manifest 中移除 `android.permission.MANAGE_EXTERNAL_STORAGE`。该权限属于 Android “所有文件访问”高敏权限，会影响 Google Play 等应用市场上架审核；`jl_ota` 的 OTA 文件选择与升级流程不应依赖该权限。
+
+```xml
+<uses-permission
+    android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
+    tools:node="remove" />
+```
 
 ### iOS
 
