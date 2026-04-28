@@ -139,10 +139,6 @@ class EventChannelHandler(private val activity: Activity) : EventChannel.StreamH
                     EventChannelConstants.KEY_IS_REQUIRED to (device != null)
                 )
             )
-
-//            if (!otaViewModel.isOTA()) {
-//                ToastUtil.showToastShort(R.string.device_must_mandatory_upgrade)
-//            }
         }
 
         otaViewModel.otaStateMLD.observeForever { otaState ->

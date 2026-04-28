@@ -15,13 +15,4 @@
     <string name="log_file">打印日志</string>
     <string name="connect_wifi_tips">请连接到可用的WIFI上</string>
 
-    <!--Permissions-->
-    <string name="open_gpg_tip">操作附近的蓝牙设备需要使用GPS功能，请打开定位服务才可继续</string>
-    <string name="open_bluetooth_tip">操作附近的蓝牙设备需要蓝牙功能，请打开蓝牙才可继续</string>
-    <string name="grant_bluetooth_permission">操作附近的蓝牙设备需要蓝牙权限，请授予后才可继续</string>
-    <string name="grant_location_permission">操作附近的蓝牙设备需要定位权限，请授予后才可继续</string>
-    <string name="grant_external_storage_permission">添加文件需要存储权限，请授予后才可继续</string>
-
-    <!--Device Status-->
-    <string name="device_must_mandatory_upgrade">设备需要强制升级</string>
 </resources>

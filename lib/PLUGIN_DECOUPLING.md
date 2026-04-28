@@ -577,7 +577,18 @@ xml/provider_paths
 
 ### 9.3 修复方案
 
-已从插件库 `jl_ota/android/src/main/res` 删除上述模板资源，只保留 `strings.xml` 中插件代码实际使用的 OTA/权限/设备类型文案。
+已从插件库 `jl_ota/android/src/main/res` 删除上述模板资源，只保留 `strings.xml` 中插件代码实际使用的设备类型、OTA 结果、文件传输和 Wi-Fi 提示文案。
+
+未被源码实际引用的权限提示和设备强制升级提示也已删除：
+
+```text
+open_gpg_tip
+open_bluetooth_tip
+grant_bluetooth_permission
+grant_location_permission
+grant_external_storage_permission
+device_must_mandatory_upgrade
+```
 
 `example/android/app/src/main/res` 下的同名模板资源保留，示例 App 仍然正常使用自己的图标、启动页、主题和 provider 配置。
 
