@@ -485,3 +485,109 @@ $ANDROID_HOME/build-tools/<build-tools-version>/zipalign -c -P 16 -v 4 APK_NAME.
 ```
 
 最后输出 `Verification successful` 才表示 APK zip 对齐通过。
+
+---
+
+## 八、Android 插件资源污染宿主 app name 问题
+
+### 8.1 问题现象
+
+宿主 App 调试安装后，桌面显示名称变成了 `jl_ota` 示例应用的名称，例如中文简体环境下显示为“杰理OTA升级”。
+
+### 8.2 根本原因
+
+问题不是 `example` 的 `AndroidManifest.xml` 被合入宿主 App。`jl_ota/android/src/main/AndroidManifest.xml` 没有声明 `application android:label`。
+
+真正原因是插件库自身的 Android resources 定义了通用资源名 `app_name`：
+
+```text
+android/src/main/res/values/strings.xml
+android/src/main/res/values-zh-rCN/strings.xml
+android/src/main/res/values-ko-rKR/strings.xml
+```
+
+宿主 App 通常会在 Manifest 中使用：
+
+```xml
+android:label="@string/app_name"
+```
+
+当插件库也导出同名 `app_name`，资源合并后可能按 locale 命中插件侧资源。比如宿主只有默认 `values/app_name`，而插件提供了 `values-zh-rCN/app_name`，中文简体设备上会优先显示插件侧“杰理OTA升级”。
+
+### 8.3 修复方案
+
+插件库不应导出 `app_name` 这种宿主高概率使用的通用资源名。已从 `jl_ota/android/src/main/res` 删除插件库的 `app_name` 资源：
+
+```text
+android/src/main/res/values/strings.xml
+android/src/main/res/values-zh-rCN/strings.xml
+android/src/main/res/values-ko-rKR/strings.xml
+```
+
+`example/android/app/src/main/res` 下的 `app_name` 保留，示例应用仍可继续使用自己的显示名称。
+
+### 8.4 验证方式
+
+宿主 App 重新执行依赖解析和构建后，检查合并资源：
+
+```bash
+rg -n 'name="app_name"|杰理OTA|Jieli OTA' build/app/intermediates/incremental/<variant>/merge<Variant>Resources/merged.dir/values*
+```
+
+预期结果是宿主 variant 的 `app_name` 全部来自宿主 App，不再出现 `jl_ota` 插件库的 `Jieli OTA`、`杰理OTA升级`、`JieLi OTA`。
+
+---
+
+## 九、Android 模板资源污染宿主问题
+
+### 9.1 问题现象
+
+除了 `app_name`，插件库中还残留了从 Flutter example 工程带过来的模板资源。这些资源名称非常通用，宿主 App 也经常会使用同名资源，合并后可能影响宿主启动页、图标、主题等资源解析。
+
+与宿主 App 资源重名的典型项：
+
+```text
+drawable/launch_background
+mipmap/ic_launcher
+style/LaunchTheme
+style/NormalTheme
+```
+
+### 9.2 根本原因
+
+这些资源属于示例 App 的 UI/启动页资源，不属于 Flutter 插件库的运行依赖。插件库导出这类通用资源名，会扩大宿主资源命名空间污染面。
+
+`jl_ota/android/src/main/AndroidManifest.xml` 没有引用这些资源，插件代码也没有引用以下模板资源：
+
+```text
+drawable/launch_background
+mipmap/ic_launcher
+mipmap/ic_logo
+style/LaunchTheme
+style/NormalTheme
+style/AppTheme
+color/colorPrimary
+color/colorPrimaryDark
+color/colorAccent
+color/white
+color/main_color
+color/blue_398BFF
+xml/provider_paths
+```
+
+### 9.3 修复方案
+
+已从插件库 `jl_ota/android/src/main/res` 删除上述模板资源，只保留 `strings.xml` 中插件代码实际使用的 OTA/权限/设备类型文案。
+
+`example/android/app/src/main/res` 下的同名模板资源保留，示例 App 仍然正常使用自己的图标、启动页、主题和 provider 配置。
+
+### 9.4 验证方式
+
+检查插件库资源和宿主资源交集：
+
+```bash
+# 目标：插件库不再导出 launch_background、ic_launcher、LaunchTheme、NormalTheme 等宿主常用资源名
+find jl_ota/android/src/main/res -type f
+```
+
+宿主 App 重新解析依赖并构建后，检查合并资源中不应再出现插件库来源的模板资源覆盖宿主资源。
