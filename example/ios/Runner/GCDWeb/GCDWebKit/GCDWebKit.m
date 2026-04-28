@@ -11,6 +11,10 @@
 #import "AFNetworking.h"
 #import <DFUnits/DFUnits.h>
 
+static inline NSString *JLExampleText(const char *key) {
+    return [DFUITools languageText:[NSString stringWithUTF8String:key] Table:@"Localizable"];
+}
+
 @interface GCDWebKit()<GCDWebUploaderDelegate>{
     GCDWebUploader      *webServer;
     GCDWebKit_BK        webKit_bk;
@@ -88,30 +92,30 @@ static GCDWebKit *ME = nil;
     // 限制文件上传类型
     webServer.allowedFileExtensions = @[@"ufw", @"zip"];
     // 设置网页标题
-    webServer.title = kJL_TXT("ota_update");
+    webServer.title = JLExampleText("ota_update");
     // 设置展示在网页上的文字(开场白)
-    webServer.prologue = kJL_TXT("wecome_to_use_ota");
+    webServer.prologue = JLExampleText("wecome_to_use_ota");
     // 设置展示在网页上的文字(收场白)
-    webServer.epilogue = kJL_TXT("drag_the_update_file");
+    webServer.epilogue = JLExampleText("drag_the_update_file");
     // 设置页尾文字
     webServer.footer = @"lifang@zh-jieli.com";
     
     NSString* device = [[UIDevice currentDevice] name];
     webServer.variables = @{
         @"device" : device,
-        @"title" : kJL_TXT("ota_update"),
-        @"header" : kJL_TXT("ota_update"),
-        @"prologue" : kJL_TXT("wecome_to_use_ota"),
-        @"epilogue" : kJL_TXT("drag_the_update_file"),
+        @"title" : JLExampleText("ota_update"),
+        @"header" : JLExampleText("ota_update"),
+        @"prologue" : JLExampleText("wecome_to_use_ota"),
+        @"epilogue" : JLExampleText("drag_the_update_file"),
         @"footer" : @"lifang@zh-jieli.com",
-        @"Upload Files":kJL_TXT("upload_Files"),
-        @"Create Folder":kJL_TXT("create_folder"),
-        @"Refresh":kJL_TXT("refresh"),
-        @"File Uploads in Progress":kJL_TXT("file_uploads_in_progress"),
-        @"Please enter the name of the folder to be created:":kJL_TXT("please_enter_the_name_of_the_folder_to_be_created:"),
-        @"Cancel":kJL_TXT("cancel"),
-        @"Move Item":kJL_TXT("move_item"),
-        @"Please enter the new location for this item:":kJL_TXT("please_enter_the_new_location_for_this_item:")
+        @"Upload Files":JLExampleText("upload_Files"),
+        @"Create Folder":JLExampleText("create_folder"),
+        @"Refresh":JLExampleText("refresh"),
+        @"File Uploads in Progress":JLExampleText("file_uploads_in_progress"),
+        @"Please enter the name of the folder to be created:":JLExampleText("please_enter_the_name_of_the_folder_to_be_created:"),
+        @"Cancel":JLExampleText("cancel"),
+        @"Move Item":JLExampleText("move_item"),
+        @"Please enter the new location for this item:":JLExampleText("please_enter_the_new_location_for_this_item:")
     };
     if ([webServer start]) {
         NSString *wifi_IP = [SJXCSMIPHelper deviceIPAdress];

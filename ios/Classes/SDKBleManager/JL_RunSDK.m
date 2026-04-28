@@ -18,14 +18,14 @@
 
 
 + (NSString *)textEntityStatus:(JL_EntityM_Status)status {
-    if (status < 0) return kJL_TXT("unknown_error");
-    NSArray *arr = @[kJL_TXT("bluetooth_off"), kJL_TXT("bt_connect_failed"), kJL_TXT("device_connecting"), kJL_TXT("repeated_connection"),
-                     kJL_TXT("connect_timeout"), kJL_TXT("reject_by_device"), kJL_TXT("paire_failed"), kJL_TXT("paire_timeout"), kJL_TXT("paire_ok"),
-                     kJL_TXT("master_slave_switch"), kJL_TXT("disconnect_success"), kJL_TXT("open_bluetooth")];
+    if (status < 0) return @"Unknown Error";
+    NSArray *arr = @[@"Bluetooth is not on", @"The connection fails", @"is connectioning", @"reconnectioning",
+                     @"Connection timeout", @"Connection rejected", @"Pairing failure", @"Pairing timeout", @"Paired",
+                     @"Switching between master and slave", @"Disconnect the success", @"Please turn on Bluetooth"];
     if (status+1 <= arr.count) {
         return arr[status];
     } else {
-        return kJL_TXT("unknown_error");
+        return @"Unknown Error";
     }
 }
 

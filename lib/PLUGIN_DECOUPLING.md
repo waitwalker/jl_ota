@@ -616,3 +616,66 @@ find jl_ota/android/src/main/res -type f
 ```
 
 宿主 App 重新解析依赖并构建后，检查合并资源中不应再出现插件库来源的模板资源或 `jl_ota` 插件库 Android string resources。
+
+---
+
+## 十、iOS 插件资源隔离与文案清理
+
+### 10.1 检查结论
+
+iOS 没有发现与 Android `app_name` 相同的宿主显示名称污染问题。`jl_ota` 插件库本身没有提供 `InfoPlist.strings` 或 `CFBundleDisplayName`，这些只存在于 `example/ios/Runner/Sources`，属于示例 App 自己的资源。
+
+原 podspec 使用 `resource_bundles` 打包插件资源：
+
+```ruby
+s.resource_bundles = {
+  'JlOta' => ['Resources/**/*'],
+  'jl_ota_privacy' => ['Resources/PrivacyInfo.xcprivacy']
+}
+```
+
+`resource_bundles` 会生成独立 bundle，不会像 Android resources 那样直接合并成宿主主资源表。不过 `Resources/**/*` 会把示例 `Localizable.strings` 和 `PrivacyInfo.xcprivacy` 一起打入 `JlOta.bundle`，同时又通过 `jl_ota_privacy` 打一次隐私清单，资源边界不够干净。
+
+### 10.2 修复方案
+
+对照 `party_x -> mix_device -> jl_ota` 的实际 OTA 调用链，用户可见文案由 `party_x` 的 `R.tr.device.device_ota_preparing` 和 `R.tr.device.device_ota_checking_file` 处理，插件原生 `Localizable.strings` 不应参与宿主 UI。
+
+因此 iOS 侧已做以下清理：
+
+```text
+ios/Resources/en.lproj/Localizable.strings
+ios/Resources/ko.lproj/Localizable.strings
+ios/Resources/zh-Hans.lproj/Localizable.strings
+```
+
+插件源码中原先读取 `Localizable` 的位置已改为内部英文常量，仅作为 native 错误 message 或 toast fallback，不作为宿主 App 多语言展示来源。`example/ios/Runner/Sources` 下的 `Localizable.strings` 和 `InfoPlist.strings` 保留，示例 App 仍可使用自己的多语言文案和显示名称。
+
+podspec 已调整为只保留 iOS 隐私清单：
+
+```ruby
+s.resource_bundles = {
+  'jl_ota_privacy' => ['Resources/PrivacyInfo.xcprivacy']
+}
+```
+
+### 10.3 验证方式
+
+检查插件库不再导出业务多语言资源：
+
+```bash
+find jl_ota/ios/Resources -maxdepth 3 -type f
+```
+
+预期只剩：
+
+```text
+jl_ota/ios/Resources/PrivacyInfo.xcprivacy
+```
+
+检查插件库源码不再读取 `Localizable`：
+
+```bash
+rg -n 'Localizable|languageText|kJL_TXT|CFBundleDisplayName|InfoPlist.strings' jl_ota/ios/Classes jl_ota/ios/Resources jl_ota/ios/jl_ota.podspec
+```
+
+预期不再出现插件业务文案资源读取；`CFBundleDisplayName` 和 `InfoPlist.strings` 只应出现在 `example/ios/Runner`。

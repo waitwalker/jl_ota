@@ -172,7 +172,7 @@ NSString *const kFLT_BLE_OTA_CALLBACK = @"kFLT_BLE_OTA_CALLBACK";     // BLEæ–­å
         case JL_DeviceTypeTradition:
             return DeviceTypeTradition;
         default:
-            return kJL_TXT("unknown_type");
+            return @"Unknown Type";
     }
 }
 

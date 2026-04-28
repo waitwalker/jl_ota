@@ -8,6 +8,10 @@
 import Foundation
 import Flutter
 
+private enum MethodChannelMessages {
+    static let bluetoothNotReady = "Bluetooth not ready"
+}
+
 /// Handles method channel communication between Flutter and native iOS code.
 /// Manages Bluetooth-related operations including device scanning, connection, disconnection,
 /// and log file path retrieval. Acts as a bridge for method calls from Flutter to native iOS functionality.
@@ -116,8 +120,7 @@ class MethodChannelHandler: NSObject {
     private func connectDevice(call: FlutterMethodCall, result: @escaping FlutterResult) {
         if !JLBleHandler.share().handleGetBleStatus() {
             if let rootVC = UIApplication.shared.keyWindow?.rootViewController {
-                let localizedText = DFUITools.languageText("ble_not_open" as String, table: "Localizable")
-                DFUITools.showText(localizedText, on: rootVC.view, delay: 1.0)
+                DFUITools.showText(MethodChannelMessages.bluetoothNotReady, on: rootVC.view, delay: 1.0)
                 return
             }
         }

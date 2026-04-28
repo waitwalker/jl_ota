@@ -16,8 +16,6 @@
 
 #define OTA_UPGRADE @"upgrade"
 
-#define kJL_TXT(key)    [DFUITools languageText:@(key) Table:@"Localizable"]
-
 NS_ASSUME_NONNULL_BEGIN
 
 @protocol JL_RunSDKOtaDelegate <NSObject>

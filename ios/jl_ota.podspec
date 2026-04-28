@@ -22,9 +22,8 @@ This plugin provides the functionality to perform OTA firmware updates on Jielon
   s.user_target_xcconfig = { 'OTHER_LDFLAGS' => '-ObjC' }
   s.swift_version = '5.0'
 
-  # 资源文件与隐私清单声明
+  # 仅保留隐私清单；插件业务文案不再作为资源打入宿主。
   s.resource_bundles = {
-    'JlOta' => ['Resources/**/*'], # 插件自己的资源
     'jl_ota_privacy' => ['Resources/PrivacyInfo.xcprivacy'] # 隐私清单
   }
 

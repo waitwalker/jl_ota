@@ -123,11 +123,6 @@ class EventChannelHandler: NSObject, FlutterStreamHandler {
                                 self.sendEvent(EventChannelConstants.TYPE_MANDATORY_UPGRADE, data: [
                                     EventChannelConstants.KEY_IS_REQUIRED: true
                                 ])
-//                                if let flutterViewController = UIApplication.shared.keyWindow?.rootViewController as? FlutterViewController {
-//                                    let localizedText = DFUITools.languageText("need_upgrade_now" as String, table: "Localizable")
-//                                    DFUITools.showText(localizedText, on: flutterViewController.view, delay: 1.0)
-//                                    return
-//                                }
                             }
                         }
                     }
@@ -173,11 +168,6 @@ class EventChannelHandler: NSObject, FlutterStreamHandler {
                                 self.sendEvent(EventChannelConstants.TYPE_MANDATORY_UPGRADE, data: [
                                     EventChannelConstants.KEY_IS_REQUIRED: true
                                 ])
-//                                if let flutterViewController = UIApplication.shared.keyWindow?.rootViewController as? FlutterViewController {
-//                                    let localizedText = DFUITools.languageText("need_upgrade_now" as String, table: "Localizable")
-//                                    DFUITools.showText(localizedText, on: flutterViewController.view, delay: 1.0)
-//                                    return
-//                                }
                             }
                         }
                     }

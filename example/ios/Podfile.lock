@@ -62,7 +62,7 @@ SPEC CHECKSUMS:
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   image_picker_ios: 7fe1ff8e34c1790d6fff70a32484959f563a928a
   integration_test: 4a889634ef21a45d28d50d622cf412dc6d9f586e
-  jl_ota: 42b4180e7b4e7277dd7c08980d7dd679b3a0461e
+  jl_ota: ebc49116c992222b41e45c3cc0a3fa80e7038d90
   mobile_scanner: 9157936403f5a0644ca3779a38ff8404c5434a93
   permission_handler_apple: 4ed2196e43d0651e8ff7ca3483a069d469701f2d
   shared_preferences_foundation: 9e1978ff2562383bd5676f64ec4e9aa8fa06a6f7

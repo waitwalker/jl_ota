@@ -198,97 +198,97 @@
 +(NSString *)errorReason:(JL_OTAResult)result{
     switch (result) {
         case JL_OTAResultSuccess:
-            return kJL_TXT("result_success");
+            return @"Upgrade successful";
             break;
         case JL_OTAResultFail:
-            return kJL_TXT("result_fail");
+            return @"Upgrade failed";
             break;
         case JL_OTAResultDataIsNull:
-            return kJL_TXT("result_data_is_null");
+            return @"Upgrade data is null";
             break;
         case JL_OTAResultCommandFail:
-            return kJL_TXT("result_command_fail");
+            return @"Command failed";
             break;
         case JL_OTAResultSeekFail:
-            return kJL_TXT("result_seek_fail");
+            return @"Failed to find the mark offset";
             break;
         case JL_OTAResultInfoFail:
-            return kJL_TXT("result_info_fail");
+            return @"Firmware information error";
             break;
         case JL_OTAResultLowPower:
-            return kJL_TXT("result_low_power");
+            return @"Low power";
             break;
         case JL_OTAResultEnterFail:
-            return kJL_TXT("result_enter_fail");
+            return @"Unable to enter OTA upgrade";
             break;
         case JL_OTAResultUpgrading:
-            return kJL_TXT("result_upgrading");
+            return @"Upgrading";
             break;
         case JL_OTAResultReconnect:
-            return kJL_TXT("result_reconnect");
+            return @"Reconnecting";
             break;
         case JL_OTAResultReboot:
-            return kJL_TXT("result_reboot");
+            return @"Device restarting";
             break;
         case JL_OTAResultPreparing:
-            return kJL_TXT("result_preparing");
+            return @"Preparing...";
             break;
         case JL_OTAResultPrepared:
-            return kJL_TXT("result_prepared");
+            return @"Prepared...";
             break;
         case JL_OTAResultFailVerification:
-            return kJL_TXT("result_fail_verification");
+            return @"Firmware verification failed";
             break;
         case JL_OTAResultFailCompletely:
-            return kJL_TXT("result_fail_completely");
+            return @"Data verification failed";
             break;
         case JL_OTAResultFailKey:
-            return kJL_TXT("result_fail_key");
+            return @"Incorrect key for the upgrade file";
             break;
         case JL_OTAResultFailErrorFile:
-            return kJL_TXT("result_fail_error_file");
+            return @"Error in the upgrade file";
             break;
         case JL_OTAResultFailUboot:
-            return kJL_TXT("result_fail_uboot");
+            return @"Uboot content does not match";
             break;
         case JL_OTAResultFailLenght:
-            return kJL_TXT("result_fail_lenght");
+            return @"Error in the transmission length";
             break;
         case JL_OTAResultFailFlash:
-            return kJL_TXT("result_fail_flash");
+            return @"Flash read and write failed during the upgrade";
             break;
         case JL_OTAResultFailCmdTimeout:
-            return kJL_TXT("result_fail_cmd_timeout");
+            return @"Command sent to device, reply timed out";
             break;
         case JL_OTAResultFailSameVersion:
-            return kJL_TXT("result_fail_same_version");
+            return @"Same firmware";
             break;
         case JL_OTAResultFailTWSDisconnect:
-            return kJL_TXT("result_fail_tws_disconnect");
+            return @"TWS headset is not connected";
             break;
         case JL_OTAResultFailNotInBin:
-            return kJL_TXT("result_fail_not_in_bin");
+            return @"The headset is not in the charging case";
             break;
         case JL_OTAResultReconnectWithMacAddr:
-            return kJL_TXT("result_reconnect_with_mac_addr");
+            return @"Reconnect to the device through mac";
             break;
         case JL_OTAResultUnknown:
-            return kJL_TXT("result_unknown");
+            return @"Unknown error";
             break;
         case JL_OTAResultDisconnect:
-            return kJL_TXT("result_disconnect");
+            return @"Device disconnected";
             break;
         case JL_OTAResultFailedConnectMore:
-            return kJL_TXT("result_failed_connect_more");
+            return @"Firmware multiple connections, upgrade failed";
             break;
         case JL_OTAResultStatusIsUpdating:
-            return kJL_TXT("result_status_is_updating");
+            return @"Device is already being upgraded...";
             break;
         case JL_OTAResultFailSameSN:
-            return kJL_TXT("result_fail_same_sn");
+            return @"Same SN";
             break;
         case JL_OTAResultCancel:
-            return kJL_TXT("result_cancel");
+            return @"User canceled";
             break;
     }
     return @"";
