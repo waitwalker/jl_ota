@@ -61,6 +61,9 @@ public class AppUtil {
      * @return True if either coarse or fine location permission is granted.
      */
     public static boolean isHasLocationPermission(Context context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            return true;
+        }
         return isHasPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION)
                 || isHasPermission(context, Manifest.permission.ACCESS_FINE_LOCATION);
     }
