@@ -1,7 +1,9 @@
 package com.jieli.otasdk
 
+import android.Manifest
 import android.app.Activity
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
@@ -176,9 +178,7 @@ class JlOtaPlugin : FlutterPlugin, ActivityAware, PluginRegistry.ActivityResultL
     ): Boolean {
         when (requestCode) {
             PERMISSION_REQUEST_CODE -> {
-                val allGranted = grantResults.isNotEmpty() &&
-                        grantResults.all { it == android.content.pm.PackageManager.PERMISSION_GRANTED }
-                permissionCallback?.invoke(allGranted)
+                permissionCallback?.invoke(isPermissionRequestSatisfied(permissions, grantResults))
                 permissionCallback = null
                 return true
             }
@@ -188,6 +188,29 @@ class JlOtaPlugin : FlutterPlugin, ActivityAware, PluginRegistry.ActivityResultL
             }
         }
         return false
+    }
+
+    private fun isPermissionRequestSatisfied(
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ): Boolean {
+        if (permissions.isEmpty() || permissions.size != grantResults.size) return false
+
+        val grantMap = permissions.indices.associate { index -> permissions[index] to grantResults[index] }
+        val locationRequested =
+            grantMap.containsKey(Manifest.permission.ACCESS_FINE_LOCATION) ||
+                grantMap.containsKey(Manifest.permission.ACCESS_COARSE_LOCATION)
+        val locationGranted =
+            !locationRequested ||
+                grantMap[Manifest.permission.ACCESS_FINE_LOCATION] == PackageManager.PERMISSION_GRANTED ||
+                grantMap[Manifest.permission.ACCESS_COARSE_LOCATION] == PackageManager.PERMISSION_GRANTED
+
+        return locationGranted && grantMap.entries
+            .filterNot {
+                it.key == Manifest.permission.ACCESS_FINE_LOCATION ||
+                        it.key == Manifest.permission.ACCESS_COARSE_LOCATION
+            }
+            .all { it.value == PackageManager.PERMISSION_GRANTED }
     }
     // endregion
 }

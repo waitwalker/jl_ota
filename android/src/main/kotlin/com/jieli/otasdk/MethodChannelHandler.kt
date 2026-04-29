@@ -128,9 +128,10 @@ class MethodChannelHandler(
             permissionsToRequest.add(Manifest.permission.BLUETOOTH_CONNECT)
         }
 
-        // Android 11 及以下蓝牙扫描需要定位权限
+        // 当前底层 BLE 扫描实现仍会检查定位权限
         if (!checkResult.hasLocationPermission) {
             permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
+            permissionsToRequest.add(Manifest.permission.ACCESS_COARSE_LOCATION)
         }
 
         if (permissionsToRequest.isNotEmpty()) {

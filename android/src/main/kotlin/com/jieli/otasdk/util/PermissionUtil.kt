@@ -16,23 +16,16 @@ import permissions.dispatcher.PermissionUtils
 object PermissionUtil {
 
     /**
-     * Android 11 及以下蓝牙扫描需要定位权限；Android 12+ 使用 Nearby devices 权限。
-     */
-    fun requiresLocationForBluetoothScan(): Boolean {
-        return Build.VERSION.SDK_INT < Build.VERSION_CODES.S
-    }
-
-    /**
      * 应用是否具有位置权限
      *
      * @param context Context 上下文
      * @return Boolean 结果
      */
     fun hasLocationPermission(context: Context): Boolean {
-        if (!requiresLocationForBluetoothScan()) {
-            return true
-        }
-        return PermissionUtils.hasSelfPermissions(context, Manifest.permission.ACCESS_FINE_LOCATION)
+        return PermissionUtils.hasSelfPermissions(
+            context,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) || PermissionUtils.hasSelfPermissions(context, Manifest.permission.ACCESS_COARSE_LOCATION)
     }
 
     /**
@@ -80,9 +73,6 @@ object PermissionUtil {
      * @return Boolean 结果
      */
     fun isLocationServiceEnabled(context: Context): Boolean {
-        if (!requiresLocationForBluetoothScan()) {
-            return true
-        }
         val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
         return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
                 || locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)

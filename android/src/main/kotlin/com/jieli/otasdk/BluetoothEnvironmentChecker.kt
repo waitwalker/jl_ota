@@ -20,9 +20,9 @@ object BluetoothEnvironmentChecker {
     /**
      * 检查蓝牙环境：
      * 1. 蓝牙权限
-     * 2. Android 11 及以下定位权限
+     * 2. 定位权限
      * 3. 蓝牙是否启用
-     * 4. Android 11 及以下定位服务是否启用
+     * 4. 定位服务是否启用
      *
      * @param context 上下文
      * @param callback 回调接口
