@@ -707,3 +707,960 @@ rg -n 'Localizable|languageText|kJL_TXT|CFBundleDisplayName|InfoPlist.strings' j
 ```
 
 预期不再出现插件业务文案资源读取；`CFBundleDisplayName` 和 `InfoPlist.strings` 只应出现在 `example/ios/Runner`。
+
+---
+
+## 十一、Android BLE OTA 特征值、MTU 协商与分包逻辑
+
+### 11.1 实际使用的 OTA GATT 通道
+
+对小米 12、Android 15.0 连接 `MonsterHub` 的日志分析，设备暴露了多组私有服务：
+
+```text
+0000ae30-0000-1000-8000-00805f9b34fb
+00009000-0000-1000-8000-00805f9b34fb
+0000ae00-0000-1000-8000-00805f9b34fb
+```
+
+本插件 Android BLE OTA 实际使用的是 `0000ae00` 服务：
+
+```text
+Service:         0000ae00-0000-1000-8000-00805f9b34fb
+Write Char:      0000ae01-0000-1000-8000-00805f9b34fb
+Notify Char:     0000ae02-0000-1000-8000-00805f9b34fb
+CCCD Descriptor: 00002902-0000-1000-8000-00805f9b34fb
+```
+
+日志证据：
+
+```text
+setCharacteristicNotification() - uuid: 0000ae02-0000-1000-8000-00805f9b34fb enable: true
+onDescriptorWrite ... serviceUuid = 0000ae00..., characteristicUuid = 0000ae02..., descriptor = 00002902..., status = 0
+onCharacteristicWrite ... serviceUuid = 0000ae00..., characteristicUuid = 0000ae01..., status = 0
+onCharacteristicChanged ... serviceUuid = 0000ae00..., characteristicUuid = 0000ae02...
+```
+
+所以实际链路是：
+
+```text
+App -> ae01 写入 OTA/RCSP 数据
+设备 -> ae02 notify 返回认证、命令响应和 OTA 协议数据
+```
+
+源码对应关系：
+
+```text
+android/src/main/kotlin/com/jieli/otasdk/tool/ota/ble/BleManager.java
+BLE_UUID_SERVICE      = BluetoothConstant.UUID_SERVICE
+BLE_UUID_WRITE        = BluetoothConstant.UUID_WRITE
+BLE_UUID_NOTIFICATION = BluetoothConstant.UUID_NOTIFICATION
+```
+
+### 11.2 写入类型
+
+日志中 `0000ae01` 的 `write type` 是 `1`：
+
+```text
+characteristic:0000ae01-0000-1000-8000-00805f9b34fb, write type : 1
+```
+
+Android 常量含义：
+
+```text
+BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE = 1
+BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT     = 2
+BluetoothGattCharacteristic.WRITE_TYPE_SIGNED      = 4
+```
+
+因此当前实际 OTA 写入特征 `ae01` 是 `writeWithoutResponse`。
+
+源码中没有显式调用：
+
+```java
+setWriteType(...)
+```
+
+发送时只执行：
+
+```java
+gattCharacteristic.setValue(data);
+ret = gatt.writeCharacteristic(gattCharacteristic);
+```
+
+也就是说，插件没有强制指定 `writeWithoutResponse` 或 `writeWithResponse`，实际写入类型来自系统发现到的 `BluetoothGattCharacteristic` 默认 `writeType`。当前设备日志显示 `ae01` 的默认写入类型就是 `WRITE_TYPE_NO_RESPONSE`。
+
+### 11.3 MTU 协商过程
+
+Android 端会主动发起 BLE MTU 协商。默认请求值来自：
+
+```kotlin
+ConfigHelper.getBleRequestMtu()
+```
+
+未保存过设置时默认取：
+
+```text
+BluetoothConstant.BLE_MTU_MAX = 509
+```
+
+连接流程中，在 notify descriptor 写入成功后调用：
+
+```java
+startChangeMtu(gatt, requestMTU);
+```
+
+实际请求时会加上 ATT header 的 3 个字节：
+
+```java
+gatt.requestMtu(mtu + 3);
+```
+
+本次日志中协商结果为：
+
+```text
+requestMtu : true, mtu : 509
+configureMTU() ... mtu: 512
+onConfigureMTU() ... mtu=512 status=0
+onMtuChanged ... mtu = 512, status = 0
+```
+
+因此本次连接的 ATT MTU 协商成功，最终 ATT MTU 是 `512`。
+
+`onMtuChanged` 回调中，插件会减去 3 字节 ATT header，保存为 BLE payload MTU：
+
+```java
+int bleMtu = status == BluetoothGatt.GATT_SUCCESS ? mtu - 3 : BluetoothConstant.BLE_MTU_MIN;
+bleDevice.setMtu(bleMtu);
+```
+
+本次连接：
+
+```text
+ATT MTU        = 512
+BLE payload MTU = 512 - 3 = 509
+```
+
+如果 MTU 协商失败，代码会退回到：
+
+```text
+BluetoothConstant.BLE_MTU_MIN = 20
+```
+
+### 11.4 实际分包大小
+
+虽然 payload MTU 保存为 `509`，但真正给发送线程使用时，`BleDevice.getMtu()` 还有一次处理：
+
+```java
+public int getMtu() {
+    int realMtu = mtu;
+    if (realMtu > 128) {
+        realMtu -= 6;
+    }
+    return realMtu;
+}
+```
+
+因此本次连接的实际发送分包大小是：
+
+```text
+512 - 3 = 509
+509 - 6 = 503 bytes
+```
+
+日志也确认了这一点：
+
+```text
+SendBleDataThread: addSendTask : 503
+```
+
+这里的 `503` 才是 Android BLE 发送线程实际用于切包的长度。
+
+### 11.5 分包实现位置
+
+Android BLE 分包发生在：
+
+```text
+android/src/main/kotlin/com/jieli/otasdk/tool/ota/ble/SendBleDataThread.java
+```
+
+调用链：
+
+```text
+OTAManager.sendDataToDevice()
+ -> BluetoothHelper.writeDataToDevice()
+ -> BleManager.writeDataByBleAsync()
+ -> BleManager.addSendTask()
+ -> BleDevice.addSendTask()
+ -> SendBleDataThread.addSendTask()
+```
+
+分包核心逻辑：
+
+```java
+int mtu = mBleManager.getBleMtu();
+int dataLen = data.length;
+int blockCount = dataLen / mtu;
+
+for (int i = 0; i < blockCount; i++) {
+    byte[] mBlockData = new byte[mtu];
+    System.arraycopy(data, i * mtu, mBlockData, 0, mBlockData.length);
+    ret = addSendData(gatt, serviceUUID, characteristicUUID, mBlockData, callback);
+}
+
+if (0 != dataLen % mtu) {
+    byte[] noBlockData = new byte[dataLen % mtu];
+    System.arraycopy(data, dataLen - dataLen % mtu, noBlockData, 0, noBlockData.length);
+    ret = addSendData(gatt, serviceUUID, characteristicUUID, noBlockData, callback);
+}
+```
+
+行为总结：
+
+```text
+data.length > mtu  -> 切成多个 mtu 长度的包
+data.length % mtu  -> 最后补一个余数包
+每个包进入 LinkedBlockingQueue 等待发送
+```
+
+### 11.6 发送节奏与 onCharacteristicWrite 含义
+
+当前实现不是连续灌包，而是单包串行发送：
+
+```text
+写一包 -> 等 onCharacteristicWrite -> 检查 status -> 发下一包
+```
+
+发送线程逻辑：
+
+```java
+isWaitingForCallback = mBleManager.writeDataByBle(...);
+if (isWaitingForCallback) {
+    mQueue.wait(BleManager.SEND_DATA_MAX_TIMEOUT);
+}
+```
+
+`BluetoothGattCallback.onCharacteristicWrite()` 回来后唤醒发送线程：
+
+```java
+wakeupSendThread(gatt, serviceUUID, characteristicUUID, status, data);
+```
+
+`status == 0` 表示：
+
+```text
+BluetoothGatt.GATT_SUCCESS
+```
+
+对于本次 `ae01` 的 `writeWithoutResponse` 来说，`onCharacteristicWrite` 不代表外设 ATT Write Response，也不代表 OTA 业务层已经处理完成。它只表示 Android BLE 栈这次写操作已经完成，可以继续提交下一包。
+
+需要区分：
+
+```text
+writeCharacteristic 返回 true
+  表示写请求成功提交给 Android BLE 栈。
+
+onCharacteristicWrite status == GATT_SUCCESS
+  表示这次 BLE 写操作在 Android BLE 栈层面完成。
+
+ae02 notify / OTA SDK callback
+  表示设备侧 OTA/RCSP 协议层返回数据或状态。
+```
+
+失败处理：
+
+```java
+if (mCurrentTask.getStatus() != BluetoothGatt.GATT_SUCCESS) {
+    retryNum++;
+    if (retryNum >= 3) {
+        callbackResult(mCurrentTask, false);
+        mQueue.clear();
+    }
+}
+```
+
+即每包最多重试 3 次，超过后清空发送队列并回调失败。
+
+### 11.7 本次日志对应的性能判断
+
+测试数据：
+
+```text
+设备: MonsterHub
+手机: 小米 12
+系统: Android 15.0
+固件大小: 627KB
+总耗时: 约 45s
+```
+
+粗略吞吐：
+
+```text
+627KB / 45s ≈ 13.9KB/s
+```
+
+按实际分包 `503 bytes` 粗算：
+
+```text
+627KB / 503 bytes ≈ 1277 包
+1277 包 / 45s ≈ 28 包/s
+平均每包 ≈ 35ms
+```
+
+连接参数日志：
+
+```text
+onConnectionUpdated ... interval=6  latency=0 timeout=500 status=0
+onConnectionUpdated ... interval=24 latency=0 timeout=500 status=0
+```
+
+BLE 连接间隔单位是 1.25ms：
+
+```text
+interval=6  -> 7.5ms
+interval=24 -> 30ms
+```
+
+后续连接间隔变为约 30ms。在 `writeWithoutResponse` 但发送线程仍等待 `onCharacteristicWrite` 的实现下，`627KB` 固件约 `45s` 属于合理范围，不像 MTU 未生效或明显异常慢。
+
+### 11.8 设备协议层 MTU 与 BLE ATT MTU 的区别
+
+设备信息解析中出现：
+
+```text
+TargetInfoResponse{..., communicationMtu=540, receiveMtu=128}
+RcspParser: mtu = 530
+```
+
+这些属于杰理 RCSP/OTA 协议层或设备能力信息，不等同于 Android BLE ATT MTU。
+
+本次连接需要分开理解：
+
+```text
+BLE ATT MTU:       512
+BLE payload MTU:   509
+SDK 实际分包大小: 503
+设备协议能力:      communicationMtu=540, receiveMtu=128
+```
+
+实际 BLE 写入切包仍以 `SendBleDataThread` 读取到的 `503` 为准。
+
+### 11.9 Android OTA 完整时序与结束日志
+
+本次 Android OTA 文件路径和文件大小：
+
+```text
+/storage/emulated/0/Android/data/com.jieli.otasdk/files/upgrade/4162-G1_MonsterHub_6B44_106_20260331.ufw
+length = 642016
+```
+
+OTA SDK 解析后，设备通过 `e8 NotifyUpdateContentSizeCmd` 通知本次实际升级内容长度：
+
+```text
+NotifyUpdateContentSizeParam{contentSize=197276, currentProgress=0}
+```
+
+这不是整个 `.ufw` 文件大小，而是设备本轮实际拉取的升级数据段大小。
+
+这里需要把两个概念分开：
+
+```text
+.ufw 文件大小:
+  手机本地文件系统看到的升级包容器大小。
+
+OTA 传输内容长度:
+  杰理 OTA SDK 解析 .ufw 后，结合设备能力和升级策略，本轮实际需要写入设备的内容段长度。
+```
+
+`.ufw` 不是裸固件流，里面通常会包含包头、升级描述信息、校验信息、分区/镜像索引、可能的多段镜像、对齐填充、加密或签名相关数据等。SDK 会读取完整 `.ufw` 做解析和校验，但 OTA 传输阶段由设备按 `e5 offset/len` 拉取它需要的升级内容段，不会简单把整个 `.ufw` 文件逐字节发给设备。
+
+结束段日志可以对上这个传输内容长度：
+
+```text
+主数据段起始 offset: 5152
+主数据段最后 offset: 202272
+尾包长度:             156
+
+202272 - 5152 + 156 = 197276
+```
+
+末段设备仍然按 `e5 FirmwareUpdateBlockCmd` 拉取数据：
+
+```text
+sn=130 offset=198176 len=512 progress=98.10418
+sn=131 offset=198688 len=512 progress=98.363716
+sn=132 offset=199200 len=512 progress=98.623245
+sn=133 offset=199712 len=512 progress=98.88278
+sn=134 offset=200224 len=512 progress=99.14232
+sn=135 offset=200736 len=512 progress=99.401855
+sn=136 offset=201248 len=512 progress=99.661385
+sn=137 offset=201760 len=512 progress=99.92092
+sn=138 offset=202272 len=156 progress=99.9
+```
+
+`sn=138` 是主数据段尾包。对应发送参数：
+
+```text
+paramLen=158
+nextUpdateBlockLen=156
+```
+
+这里 `158 = 156 bytes 固件数据 + 2 bytes OTA 数据字段`，与常规 `512 bytes` 数据块时 `paramLen=514` 一致。该尾包总 BLE 写入数据小于 `503`，所以 Android 只需要一次 `writeDataByBle`，不会再拆成两包。
+
+尾包后设备又请求了一次早期偏移：
+
+```text
+sn=139 offset=5184 len=512
+```
+
+这类请求出现在 `99.9%` 之后，属于设备侧额外读取、校验或补读行为，不代表主数据段长度继续增长。随后设备发出结束拉取请求：
+
+```text
+sn=140 offset=0 len=0
+read data over.
+```
+
+Android 侧随即发送 `e5` 空数据确认，并查询升级状态：
+
+```text
+FEDCBA00E50002008CEF    // e5 read data over ack
+FEDCBAC0E60001ECEF      // e6 FirmwareUpdateStatusCmd
+```
+
+设备返回：
+
+```text
+FEDCBA00E6000300EC00EF
+FirmwareUpdateStatusResponse{result=0}
+Step05.询问升级状态, 结果码: 0
+```
+
+`result=0` 表示设备侧升级状态成功。之后 Android 发 `e7`：
+
+```text
+FEDCBAC0E70002ED00EF
+```
+
+随后 SDK 回调 OTA 完成并停止 OTA：
+
+```text
+[MSG_CALLBACK_OTA_FINISH]
+[callbackStopOTA]
+ota state: idle
+```
+
+Android 简单流程：
+
+```text
+1. App 读取完整 .ufw 文件。
+2. SDK 解析 .ufw，执行 e1/e2/e3 进入升级。
+3. 设备通过 e5 按 offset/len 拉取需要的升级内容。
+4. App 按设备请求读取对应数据，并通过 AE01 写回。
+5. 大块数据按 Android 实际 503 bytes BLE 分片发送。
+6. 设备通过 e8 通知本轮实际升级内容长度。
+7. 设备请求 offset=0,len=0，表示读取结束。
+8. App 发送 e5 空包确认，再发 e6 查询升级状态。
+9. 设备返回 e6 result=0，表示升级成功。
+10. App 发 e7，SDK 回调完成，并主动断开 BLE。
+```
+
+完整时序可以按下面理解：
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant UI as Flutter/OTAViewModel
+    participant OTA as OTAManager
+    participant Send as SendBleDataThread/BleManager
+    participant Dev as MonsterHub
+
+    UI->>OTA: startOTA(filePath)
+    OTA->>OTA: ReadFileThread 读取 .ufw(length=642016)
+    OTA->>Send: e1 GetUpdateFileOffsetCmd
+    Send->>Dev: AE01 write
+    Dev-->>OTA: AE02 notify e1(offset=0,len=0)
+    OTA->>Send: e2 InquireUpdateCmd
+    Send->>Dev: AE01 write
+    Dev-->>OTA: AE02 notify e2(canUpdateFlag=0)
+    OTA->>Send: e3 EnterUpdateModeCmd
+    Send->>Dev: AE01 write
+    Dev-->>OTA: AE02 notify e3(canUpdateFlag=0)
+
+    loop 设备通过 e5 拉取升级数据
+        Dev-->>OTA: AE02 notify e5(offset,len)
+        OTA->>OTA: read data by offset/len
+        OTA->>Send: e5 data block
+        Send->>Send: 按 503 bytes BLE payload 分包
+        Send->>Dev: AE01 writeWithoutResponse 分片1..N
+    end
+
+    Dev-->>OTA: e8 contentSize=197276
+    OTA->>Send: e8 ack
+    Send->>Dev: AE01 write
+
+    Dev-->>OTA: e5 offset=202272 len=156
+    OTA->>Send: e5 tail data(paramLen=158)
+    Send->>Dev: AE01 write 单包
+    Dev-->>OTA: e5 offset=5184 len=512
+    OTA->>Send: e5 extra read data
+    Send->>Dev: AE01 write 分片
+    Dev-->>OTA: e5 offset=0 len=0
+    OTA->>Send: e5 empty ack
+    Send->>Dev: AE01 write
+
+    OTA->>Send: e6 FirmwareUpdateStatusCmd
+    Send->>Dev: AE01 write
+    Dev-->>OTA: e6 result=0
+    OTA->>Send: e7 通知设备结束/重启
+    Send->>Dev: AE01 write
+    OTA-->>UI: MSG_CALLBACK_OTA_FINISH
+    OTA->>Send: callbackStopOTA
+    Send->>Dev: disconnectBleDevice()
+```
+
+Android 结束后的断开是 SDK/插件主动清理连接，不是异常断开：
+
+```text
+onStopOTA: disconnectDevice
+disconnectBleDevice ... mtu=509
+Gatt#disconnect
+onConnectionStateChange status=0 newState=0
+closeGatt
+SendBleDataThread exit
+CONNECTION_DISCONNECT(0)
+releaseDataHandler
+isOTA=false, isWaitingForUpdate=false
+```
+
+这和 iOS 结束时设备重启触发 BLE 断开不同。Android 这里已经先收到 `e6 result=0` 和 `MSG_CALLBACK_OTA_FINISH`，随后才由应用侧主动 `disconnectDevice`。
+
+Android 与 iOS 的关键差异：
+
+```text
+GATT 通道:
+  Android/iOS 都是 AE00 + AE01 write + AE02 notify。
+
+传输模型:
+  Android/iOS 都是设备通过 e5 拉取数据块，App 按 offset/len 回写。
+
+BLE 分片:
+  Android: ATT MTU=512, payload=509, SDK 实际分片=503。
+  iOS:     ATT MTU 由系统协商，当前 write payload=182。
+
+完成断开:
+  Android: e6 result=0 -> e7 -> MSG_CALLBACK_OTA_FINISH -> App 主动 disconnect/close。
+  iOS:     result=0 -> e7 -> 设备重启断开 -> SDK 额外回调 reboot/disconnect。
+```
+
+### 11.10 OTA 数据块封装思路和优缺点
+
+下面是基于当前 Android/iOS 日志、公开头文件和插件源码能确认的大概实现思路。杰理 OTA SDK 核心解析逻辑在闭源库里，因此不要把这里理解成逐行源码实现，但整体数据流可以这样看：
+
+```text
+.ufw 完整升级包
+ -> 杰理 OTA SDK 解析包头、子文件、长度、地址、校验等信息
+ -> 设备通过 e5 请求 offset/len
+ -> SDK 取出对应升级内容
+ -> SDK 封装为 e5 OTA/RCSP 协议帧
+ -> BLE 层再按当前平台 MTU 分片写入 AE01
+```
+
+也就是说，BLE 层不会直接发送裸 `512 bytes` 固件数据，而是发送一个完整的杰理 OTA 协议帧。以设备常规请求 `len=512` 为例：
+
+```text
+设备请求的升级数据: 512 bytes
+e5 paramLen:         514 bytes
+完整 e5 发送帧:      约 522 bytes
+```
+
+可以近似理解为：
+
+```text
+512 bytes 固件数据
++ 2 bytes OTA 数据字段
++ 8 bytes RCSP 外层封装
+= 约 522 bytes
+```
+
+因此 `522 bytes` 不是 BLE MTU，也不是固定的“每次 BLE 写入大小”。它只是当设备请求 `512 bytes` 升级数据时，SDK 封装出来的常规 `e5` 协议帧大小。
+
+如果是尾包，请求长度会变小：
+
+```text
+Android 尾包:
+  nextUpdateBlockLen=156
+  paramLen=158
+  完整帧约 166 bytes
+
+iOS 尾包:
+  seek=202272 len=188
+  完整帧约 198 bytes
+```
+
+BLE 分片发生在协议帧之后：
+
+```text
+Android:
+  完整 e5 帧约 522 bytes
+  SDK 实际 BLE 分片 503 bytes
+  所以一个常规 512-byte OTA 块会写 2 次 BLE:
+    503 + 约 19
+
+iOS:
+  完整 e5 帧约 522 bytes
+  writeWithoutResponse payload 182 bytes
+  所以一个常规 512-byte OTA 块会写 3 次 BLE:
+    182 + 182 + 约 158
+```
+
+这种设计的主要优点：
+
+```text
+1. 设备能识别业务包边界
+   BLE 可能拆成多片，但设备最终要按完整 e5 协议包解析。
+
+2. Android/iOS 底层分片可以不同
+   Android 是 503，iOS 是 182，但上层 e5 协议包语义一致。
+
+3. 支持完整 OTA 状态机
+   e1/e2/e3/e5/e6/e7/e8 分别负责偏移、可升级判断、进入升级、数据传输、状态查询、重启和内容大小通知。
+
+4. 支持断点、补读和设备主动节奏控制
+   设备可以请求 offset=198176，也可以在尾部后再次请求 offset=5184。
+
+5. 便于做校验和错误处理
+   .ufw 结构里能看到 CRC 字段，设备最终通过 e6 result=0 确认升级状态。
+   但仅凭当前日志不能断言每个 e5 数据块内部都有独立 CRC 字段。
+```
+
+主要缺点：
+
+```text
+1. 有协议开销
+   常规块从 512 bytes 变成约 522 bytes，开销约 10 bytes。
+
+2. 可能增加 BLE 分片次数
+   如果协议帧刚好跨过 MTU 边界，可能从 1 片变 2 片，或从 2 片变 3 片。
+
+3. 实现复杂度更高
+   App SDK 和设备都要维护协议解析、组包、状态机、超时、补读和完成状态。
+
+4. 吞吐受 OTA 协议节奏限制
+   速度不只取决于 BLE MTU，还取决于设备请求下一块、写 flash、校验和状态响应的速度。
+```
+
+所以更准确的分层结论是：
+
+```text
+.ufw 文件大小:
+  升级包容器大小。
+
+contentSize / Total len:
+  SDK 解析后，本轮设备实际拉取的 OTA 主升级内容长度。
+
+约 522-byte e5 帧:
+  常规 512-byte OTA 数据块经过杰理协议封装后的业务帧大小。
+
+503 / 182:
+  Android / iOS 最终执行 BLE 写入时的分片大小。
+```
+
+---
+
+## 十二、iOS BLE OTA 连接、MTU、分包与完成时序
+
+### 12.1 关键结论
+
+iOS 侧本次日志确认走的是插件自管理 BLE 链路：
+
+```text
+OTA startOTA ... isConnectBySDK=false
+```
+
+因此调用路径是：
+
+```text
+OtaManager.startOTA()
+ -> JLBleHandler.handleOtaFuncWithFilePath()
+ -> JLBleManager.otaFuncWithFilePath()
+ -> JL_OTAManager.cmdOTAData()
+```
+
+iOS 侧使用的 OTA GATT 通道与 Android 一致：
+
+```text
+Service:     AE00
+Write Char:  AE01
+Notify Char: AE02
+```
+
+日志证据：
+
+```text
+BLE Service ---> AE00
+BLE Get Rcsp(Write) Channel ---> AE01
+BLE Get Rcsp(Read) Channel ---> AE02
+```
+
+iOS 侧需要把“底层 ATT MTU 交换”和“插件主动请求 MTU”分开理解：
+
+```text
+底层 BLE/ATT 协议层：
+  有 MTU 交换过程，由 iOS/CoreBluetooth 与设备在连接后自动完成。
+
+插件源码层：
+  没有 Android `requestMtu()` 这种主动请求接口，也没有可配置的 iOS request MTU 调用。
+```
+
+也就是说，iOS 不是“没有 MTU 协商”，而是“插件不主动发起、不直接控制 MTU 协商”。`AE02` notify 开启成功后，插件读取 CoreBluetooth 当前允许的无响应写最大 value 长度：
+
+```objc
+self.bleMtu = [peripheral maximumWriteValueLengthForType:CBCharacteristicWriteWithoutResponse];
+```
+
+源码位置：
+
+```text
+ios/Classes/BleManager/JLBleManager.m
+peripheral:didUpdateNotificationStateForCharacteristic:error:
+```
+
+关键代码：
+
+```objc
+if ([characteristic.service.UUID.UUIDString isEqual:FLT_BLE_SERVICE] &&
+    [characteristic.UUID.UUIDString isEqual:FLT_BLE_RCSP_R] &&
+    characteristic.isNotifying == YES)
+{
+    self.bleMtu = [peripheral maximumWriteValueLengthForType:CBCharacteristicWriteWithoutResponse];
+    kJLLog(JLLOG_DEBUG, @"BLE ---> MTU:%lu",(unsigned long)self.bleMtu);
+}
+```
+
+本次日志：
+
+```text
+BLE ---> MTU:182
+```
+
+这里日志里的 `182` 不是 ATT MTU 原值，而是 `writeWithoutResponse` 单次可写 value payload 长度。按 BLE ATT 写入包结构换算：
+
+```text
+ATT MTU:           185
+ATT header:        3
+write value 最大值: 185 - 3 = 182
+```
+
+所以你之前验证的“协商 MTU=185，payload=182”与源码和日志是一致的。之后 `writeDataByCbp` 会按 `_bleMtu=182` 对写入 `AE01` 的数据做 BLE 分片。
+
+这里还有一个容易混淆的点：iOS 工程里虽然定义了 `getBleRequestMtu` / `setBleRequestMtu` 的 MethodChannel 常量，但 `MethodChannelHandler.swift` 当前没有处理这两个 case。因此设置页里的“请求 MTU”配置不是 iOS 侧主动协商入口；iOS 当前实际使用的是上述连接后获取到的 CoreBluetooth 可写 payload。
+
+### 12.2 iOS OTA 总体时序图
+
+iOS 简单流程：
+
+```text
+1. CoreBluetooth 连接设备并开启 AE02 notify。
+2. iOS 底层完成 ATT MTU 交换，插件读取 writeWithoutResponse payload=182。
+3. SDK 完成 JL_Assist pairing 和目标信息读取。
+4. App 读取完整 .ufw 文件并交给 JL_OTAManager。
+5. SDK 解析 .ufw，执行 e1/e2/e3 进入升级。
+6. 设备通过 e5 按 seek/len 拉取需要的升级内容。
+7. App 按设备请求读取对应数据，并通过 AE01 写回。
+8. 大块数据按 iOS 实际 182 bytes BLE 分片发送。
+9. 设备返回 e6 升级成功，SDK 回调 result=0。
+10. SDK 发 e7 通知设备重启，设备重启导致 BLE 断开。
+```
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Flutter as Flutter/宿主App
+    participant Plugin as OtaManager.swift/JLBleHandler
+    participant BLE as JLBleManager/CoreBluetooth
+    participant SDK as JL_OTAManager/JL_Assist
+    participant Dev as MonsterHub
+
+    Dev-->>BLE: BLE Connected
+    BLE->>Dev: ATT Exchange MTU Request
+    Dev-->>BLE: ATT Exchange MTU Response(MTU=185)
+    Note over BLE,Dev: 底层协商 ATT MTU=185<br/>App 不主动 requestMtu
+    BLE->>Dev: discoverServices()
+    Dev-->>BLE: Services: AE30, 9000, AE00
+    BLE->>Dev: discoverCharacteristics(AE00)
+    Dev-->>BLE: AE01 Write, AE02 Notify
+    BLE->>Dev: setNotifyValue(true, AE02)
+    Dev-->>BLE: didUpdateNotificationState(AE02, notifying=true)
+    BLE->>BLE: maximumWriteValueLengthForType(.withoutResponse)
+    Note over BLE: 读取到 write payload bleMtu=182<br/>182 = ATT MTU 185 - ATT header 3
+
+    BLE->>SDK: 开始 JL_Assist pairing
+    SDK->>BLE: pairing 数据
+    BLE->>Dev: AE01 writeWithoutResponse
+    Dev-->>BLE: AE02 notify pairing 数据
+    BLE->>SDK: inputPairData()
+    SDK-->>BLE: pairing success
+    BLE->>SDK: noteEntityConnected()
+
+    SDK->>BLE: cmdTargetFeature(opCode=3)
+    BLE->>Dev: AE01 writeWithoutResponse
+    Dev-->>BLE: AE02 notify TargetInfo
+    BLE->>SDK: cmdOtaDataReceive()
+    SDK-->>BLE: otaFeatureResult()
+    SDK->>BLE: cmdSystemFunction(opCode=7)
+    BLE->>Dev: AE01 writeWithoutResponse
+    Dev-->>BLE: AE02 notify system function
+
+    Flutter->>Plugin: startOTA(filePath)
+    Plugin->>Plugin: 校验文件存在与文件大小
+    Plugin->>BLE: otaFuncWithFilePath(filePath)
+    BLE->>SDK: cmdOTAData(otaData)
+
+    SDK->>BLE: opCode e1, 读 OTA 文件信息
+    BLE->>Dev: AE01 writeWithoutResponse
+    Dev-->>BLE: AE02 notify e1 response
+    BLE->>SDK: cmdOtaDataReceive()
+
+    SDK->>BLE: opCode e2, 检查是否可升级
+    BLE->>Dev: AE01 writeWithoutResponse
+    Dev-->>BLE: AE02 notify e2 response
+    BLE->>SDK: cmdOtaDataReceive()
+
+    SDK->>BLE: opCode e3, 进入升级
+    BLE->>Dev: AE01 writeWithoutResponse
+    Dev-->>BLE: AE02 notify e3 response
+    BLE->>SDK: cmdOtaDataReceive()
+
+    loop 设备按 e5 请求数据块
+        Dev-->>BLE: AE02 notify e5(seek,len)
+        BLE->>SDK: cmdOtaDataReceive()
+        SDK->>BLE: otaDataSend(data)
+        BLE->>BLE: writeDataByCbp 按 bleMtu=182 分片
+        BLE->>Dev: AE01 writeWithoutResponse 分片1..N
+    end
+
+    Dev-->>BLE: AE02 notify e8(totalLen)
+    BLE->>SDK: cmdOtaDataReceive()
+    SDK->>BLE: e8 response
+    BLE->>Dev: AE01 writeWithoutResponse
+
+    Dev-->>BLE: AE02 notify e6 查询升级状态响应
+    BLE->>SDK: cmdOtaDataReceive()
+    SDK-->>Plugin: JL_OTAResultSuccess(result=0, progress=1.0)
+    Plugin-->>Flutter: OTA 成功
+
+    SDK->>BLE: opCode e7, 通知设备重启
+    BLE->>Dev: AE01 writeWithoutResponse
+    Dev-->>BLE: BLE Disconnect / reboot
+    BLE-->>Plugin: JL_OTAResultReboot(result=10, progress=1.0)
+    Plugin-->>Flutter: 设备重启断开
+```
+
+### 12.3 OTA 数据阶段的实际行为
+
+本次 iOS 全量日志里，固件文件大小是：
+
+```text
+fileSize=642016 bytes
+```
+
+但杰理 OTA SDK 解析后，本次实际传输的升级数据段长度是：
+
+```text
+OTA --> Total len:197308
+```
+
+原因与 Android 一样：`642016 bytes` 是 `.ufw` 升级包容器在文件系统里的完整大小，`197308 bytes` 是 SDK 解析后，本轮设备实际需要拉取并写入的升级内容段大小。
+
+也就是说：
+
+```text
+fileSize=642016
+  表示 App 读到的完整 .ufw 文件大小。
+
+OTA --> Total len:197308
+  表示 JL_OTAManager 解析后，当前设备本轮 OTA 主数据段的传输长度。
+```
+
+这两个值不要求相等。`.ufw` 中未被本轮设备请求的包头、索引、校验、填充、其他镜像或元数据不会作为主 OTA 数据段完整传输。真正传输什么，以设备后续 `e5 seek/len` 请求和 SDK 解析出的 OTA 内容映射为准。
+
+Android 日志里的 `contentSize=197276` 与 iOS 日志里的 `Total len=197308` 也不需要强行一致；两段日志对应的固件版本不同，解析出的实际升级内容长度可以不同。它们共同说明的是同一个机制：文件大小是容器大小，OTA 传输大小是解析后被设备拉取的内容段大小。
+
+稳定传输阶段由设备通过 `AE02 notify` 发起 `opCode=e5` 请求，App 再按请求的 `seek` 和 `len` 回写数据：
+
+```text
+OTA GET --> opCode:e5 SN:9 data:c0e5000709000014200200
+OTA --> seek:5152 len:512
+opcode:e5 SN:9 playloadLen:1028
+```
+
+后续主数据段基本是每次 `512 bytes`：
+
+```text
+seek:5152  len:512
+seek:5664  len:512
+seek:6176  len:512
+...
+seek:201760 len:512
+seek:202272 len:188
+```
+
+因此 iOS 侧不是 App 自己连续推完整文件，而是设备按 `e5` 请求拉取数据块，App 每收到一个请求后回写对应数据。每个 OTA 协议数据块内部再由 `writeDataByCbp` 按 `182` 拆成多个 BLE `writeWithoutResponse` 分片。
+
+以常见的 `512 bytes` OTA 数据块估算：
+
+```text
+iOS BLE 单片最大 value: 182 bytes
+512 bytes OTA 数据块:   约 3 个 BLE writeWithoutResponse 分片
+```
+
+源码发送方式：
+
+```objc
+[_mBlePeripheral writeValue:data
+  forCharacteristic:self.mRcspWrite
+               type:CBCharacteristicWriteWithoutResponse];
+```
+
+当前源码中：
+
+```objc
+#define SENDBYSINGLE  0
+```
+
+所以默认没有走 `SingleDataSender` 的等待队列，也没有依赖 `peripheralIsReadyToSendWriteWithoutResponse` 逐片放行。BLE 分片层是直接循环写入；OTA 协议层则由设备的 `e5` notify 请求控制节奏。
+
+### 12.4 完成与断开含义
+
+日志结尾：
+
+```text
+OTA --> 5 (Upgrade successful!)
+OTA callback: result=0, progress=1.0
+opcode:e7 playload:0600
+BLE Disconnect ---> Device MonsterHub error:6
+OTA --> Disconnected
+Reboot without resp...
+OTA callback: result=10, progress=1.0
+```
+
+这里需要区分：
+
+```text
+result=0
+  表示 OTA 已成功。
+
+opCode=e7
+  表示 SDK 通知设备进入重启流程。
+
+result=10
+  表示设备重启导致 BLE 断开，不应按升级失败处理。
+```
+
+所以本次 iOS 日志的完整 OTA 结论是：
+
+```text
+连接成功 -> AE02 notify 开启 -> 读取 iOS writeWithoutResponse MTU=182
+-> 配对认证成功 -> 获取 TargetInfo/SystemFunction
+-> e1/e2/e3 进入 OTA -> e5 拉取式传输数据
+-> e6 查询升级状态成功 -> e7 重启 -> BLE 断开
+```
