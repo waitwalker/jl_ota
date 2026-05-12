@@ -22,6 +22,7 @@ private enum OtaConstants {
     private(set) var itemArray: [String] = []
     private var ipAddress: String?
     private var isOtaFinished: Bool = false
+    private var downloadObservation: NSKeyValueObservation?
 
     // MARK: - Initialization
     override init() {
@@ -196,44 +197,48 @@ private enum OtaConstants {
     
     /// 下载文件操作
     private func downloadAction(url: String) {
-        let configuration = URLSessionConfiguration.default
-        let manager = AFURLSessionManager(sessionConfiguration: configuration)
-        
-        guard let URL = URL(string: url) else {
+        guard let downloadURL = URL(string: url) else {
             sendDownloadStatusEvent(status: EventChannelConstants.STATUS_ON_ERROR, errorMsg: "Invalid URL")
             return
         }
-        
-        let request = URLRequest(url: URL)
+
         let fileName = (url as NSString).lastPathComponent
-        
-        let downloadTask = manager.downloadTask(
-            with: request,
-            progress: { [weak self] downloadProgress in
-                let progressValue = Int(downloadProgress.fractionCompleted * Double(OtaConstants.PROGRESS_MAX_PERCENT))
-                self?.sendDownloadStatusEvent(
-                    status: EventChannelConstants.STATUS_ON_PROGRESS,
-                    progress: progressValue
-                )
-            },
-            destination: { targetPath, response in
-                let suggestedFilename = response.suggestedFilename ?? fileName
-                return ToolsHelper.targetSavePath(suggestedFilename)
-            },
-            completionHandler: { [weak self] response, filePath, error in
-                if let error = error {
-                    self?.sendDownloadStatusEvent(
-                        status: EventChannelConstants.STATUS_ON_ERROR,
-                        errorMsg: error.localizedDescription
-                    )
-                } else if filePath != nil {
-                    self?.scanForUpdateFiles()
-                    self?.sendDownloadStatusEvent(status: EventChannelConstants.STATUS_ON_STOP)
-                }
+
+        let task = URLSession.shared.downloadTask(with: URLRequest(url: downloadURL)) { [weak self] tempURL, response, error in
+            self?.downloadObservation = nil
+
+            if let error = error {
+                self?.sendDownloadStatusEvent(status: EventChannelConstants.STATUS_ON_ERROR, errorMsg: error.localizedDescription)
+                return
             }
-        )
-        
-        downloadTask.resume()
+
+            guard let tempURL = tempURL else {
+                self?.sendDownloadStatusEvent(status: EventChannelConstants.STATUS_ON_ERROR, errorMsg: "Download failed: no file received")
+                return
+            }
+
+            let suggestedFilename = response?.suggestedFilename ?? fileName
+            let destinationURL = ToolsHelper.targetSavePath(suggestedFilename)
+
+            do {
+                let fm = FileManager.default
+                if fm.fileExists(atPath: destinationURL.path) {
+                    try fm.removeItem(at: destinationURL)
+                }
+                try fm.moveItem(at: tempURL, to: destinationURL)
+                self?.scanForUpdateFiles()
+                self?.sendDownloadStatusEvent(status: EventChannelConstants.STATUS_ON_STOP)
+            } catch {
+                self?.sendDownloadStatusEvent(status: EventChannelConstants.STATUS_ON_ERROR, errorMsg: error.localizedDescription)
+            }
+        }
+
+        downloadObservation = task.progress.observe(\.fractionCompleted) { [weak self] progress, _ in
+            let progressValue = Int(progress.fractionCompleted * Double(OtaConstants.PROGRESS_MAX_PERCENT))
+            self?.sendDownloadStatusEvent(status: EventChannelConstants.STATUS_ON_PROGRESS, progress: progressValue)
+        }
+
+        task.resume()
     }
     
     /// 发送下载状态事件

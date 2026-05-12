@@ -23,24 +23,6 @@
 		C27F36DE2E97D2E000A1E337 /* JLLogHelper.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C27F36D42E97D2E000A1E337 /* JLLogHelper.framework */; };
 		C27F36E02E97D2E000A1E337 /* DFUnits.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C27F36D52E97D2E000A1E337 /* DFUnits.framework */; };
 		C297928A2E7CF1BE009542FC /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = C29792892E7CF1BE009542FC /* InfoPlist.strings */; };
-		C2D6A5842E7E57A400007B7F /* GCDWebUploader.bundle in Resources */ = {isa = PBXBuildFile; fileRef = C2D6A57A2E7E57A400007B7F /* GCDWebUploader.bundle */; };
-		C2D6A5852E7E57A400007B7F /* GCDWebServerConnection.m in Sources */ = {isa = PBXBuildFile; fileRef = C2D6A55A2E7E57A400007B7F /* GCDWebServerConnection.m */; };
-		C2D6A5862E7E57A400007B7F /* GCDWebDAVServer.m in Sources */ = {isa = PBXBuildFile; fileRef = C2D6A5782E7E57A400007B7F /* GCDWebDAVServer.m */; };
-		C2D6A5872E7E57A400007B7F /* GCDWebServerDataRequest.m in Sources */ = {isa = PBXBuildFile; fileRef = C2D6A5652E7E57A400007B7F /* GCDWebServerDataRequest.m */; };
-		C2D6A5882E7E57A400007B7F /* SJXCSMIPHelper.m in Sources */ = {isa = PBXBuildFile; fileRef = C2D6A5812E7E57A400007B7F /* SJXCSMIPHelper.m */; };
-		C2D6A5892E7E57A400007B7F /* GCDWebServerMultiPartFormRequest.m in Sources */ = {isa = PBXBuildFile; fileRef = C2D6A5692E7E57A400007B7F /* GCDWebServerMultiPartFormRequest.m */; };
-		C2D6A58A2E7E57A400007B7F /* GCDWebServerResponse.m in Sources */ = {isa = PBXBuildFile; fileRef = C2D6A5622E7E57A400007B7F /* GCDWebServerResponse.m */; };
-		C2D6A58B2E7E57A400007B7F /* GCDWebServerStreamedResponse.m in Sources */ = {isa = PBXBuildFile; fileRef = C2D6A5742E7E57A400007B7F /* GCDWebServerStreamedResponse.m */; };
-		C2D6A58C2E7E57A400007B7F /* GCDWebServerRequest.m in Sources */ = {isa = PBXBuildFile; fileRef = C2D6A5602E7E57A400007B7F /* GCDWebServerRequest.m */; };
-		C2D6A58D2E7E57A400007B7F /* GCDWebServerDataResponse.m in Sources */ = {isa = PBXBuildFile; fileRef = C2D6A56E2E7E57A400007B7F /* GCDWebServerDataResponse.m */; };
-		C2D6A58E2E7E57A400007B7F /* GCDWebServerFileResponse.m in Sources */ = {isa = PBXBuildFile; fileRef = C2D6A5722E7E57A400007B7F /* GCDWebServerFileResponse.m */; };
-		C2D6A58F2E7E57A400007B7F /* GCDWebServer.m in Sources */ = {isa = PBXBuildFile; fileRef = C2D6A5582E7E57A400007B7F /* GCDWebServer.m */; };
-		C2D6A5902E7E57A400007B7F /* GCDWebKit.m in Sources */ = {isa = PBXBuildFile; fileRef = C2D6A57F2E7E57A400007B7F /* GCDWebKit.m */; };
-		C2D6A5912E7E57A400007B7F /* GCDWebServerErrorResponse.m in Sources */ = {isa = PBXBuildFile; fileRef = C2D6A5702E7E57A400007B7F /* GCDWebServerErrorResponse.m */; };
-		C2D6A5922E7E57A400007B7F /* GCDWebServerURLEncodedFormRequest.m in Sources */ = {isa = PBXBuildFile; fileRef = C2D6A56B2E7E57A400007B7F /* GCDWebServerURLEncodedFormRequest.m */; };
-		C2D6A5932E7E57A400007B7F /* GCDWebServerFunctions.m in Sources */ = {isa = PBXBuildFile; fileRef = C2D6A55C2E7E57A400007B7F /* GCDWebServerFunctions.m */; };
-		C2D6A5942E7E57A400007B7F /* GCDWebUploader.m in Sources */ = {isa = PBXBuildFile; fileRef = C2D6A57C2E7E57A400007B7F /* GCDWebUploader.m */; };
-		C2D6A5952E7E57A400007B7F /* GCDWebServerFileRequest.m in Sources */ = {isa = PBXBuildFile; fileRef = C2D6A5672E7E57A400007B7F /* GCDWebServerFileRequest.m */; };
 		C2D6A59A2E7E57BE00007B7F /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = C2D6A5992E7E57BE00007B7F /* Localizable.strings */; };
 /* End PBXBuildFile section */
 
@@ -86,43 +68,6 @@
 		C29792862E7CF1BE009542FC /* InfoPlist.strings */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = InfoPlist.strings; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		C29792872E7CF1BE009542FC /* InfoPlist.strings */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = InfoPlist.strings; path = "zh-Hans.lproj/InfoPlist.strings"; sourceTree = "<group>"; };
 		C29792882E7CF1BE009542FC /* InfoPlist.strings */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = InfoPlist.strings; path = ko.lproj/InfoPlist.strings; sourceTree = "<group>"; };
-		C2D6A5572E7E57A400007B7F /* GCDWebServer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GCDWebServer.h; sourceTree = "<group>"; };
-		C2D6A5582E7E57A400007B7F /* GCDWebServer.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GCDWebServer.m; sourceTree = "<group>"; };
-		C2D6A5592E7E57A400007B7F /* GCDWebServerConnection.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GCDWebServerConnection.h; sourceTree = "<group>"; };
-		C2D6A55A2E7E57A400007B7F /* GCDWebServerConnection.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GCDWebServerConnection.m; sourceTree = "<group>"; };
-		C2D6A55B2E7E57A400007B7F /* GCDWebServerFunctions.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GCDWebServerFunctions.h; sourceTree = "<group>"; };
-		C2D6A55C2E7E57A400007B7F /* GCDWebServerFunctions.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GCDWebServerFunctions.m; sourceTree = "<group>"; };
-		C2D6A55D2E7E57A400007B7F /* GCDWebServerHTTPStatusCodes.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GCDWebServerHTTPStatusCodes.h; sourceTree = "<group>"; };
-		C2D6A55E2E7E57A400007B7F /* GCDWebServerPrivate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GCDWebServerPrivate.h; sourceTree = "<group>"; };
-		C2D6A55F2E7E57A400007B7F /* GCDWebServerRequest.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GCDWebServerRequest.h; sourceTree = "<group>"; };
-		C2D6A5602E7E57A400007B7F /* GCDWebServerRequest.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GCDWebServerRequest.m; sourceTree = "<group>"; };
-		C2D6A5612E7E57A400007B7F /* GCDWebServerResponse.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GCDWebServerResponse.h; sourceTree = "<group>"; };
-		C2D6A5622E7E57A400007B7F /* GCDWebServerResponse.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GCDWebServerResponse.m; sourceTree = "<group>"; };
-		C2D6A5642E7E57A400007B7F /* GCDWebServerDataRequest.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GCDWebServerDataRequest.h; sourceTree = "<group>"; };
-		C2D6A5652E7E57A400007B7F /* GCDWebServerDataRequest.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GCDWebServerDataRequest.m; sourceTree = "<group>"; };
-		C2D6A5662E7E57A400007B7F /* GCDWebServerFileRequest.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GCDWebServerFileRequest.h; sourceTree = "<group>"; };
-		C2D6A5672E7E57A400007B7F /* GCDWebServerFileRequest.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GCDWebServerFileRequest.m; sourceTree = "<group>"; };
-		C2D6A5682E7E57A400007B7F /* GCDWebServerMultiPartFormRequest.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GCDWebServerMultiPartFormRequest.h; sourceTree = "<group>"; };
-		C2D6A5692E7E57A400007B7F /* GCDWebServerMultiPartFormRequest.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GCDWebServerMultiPartFormRequest.m; sourceTree = "<group>"; };
-		C2D6A56A2E7E57A400007B7F /* GCDWebServerURLEncodedFormRequest.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GCDWebServerURLEncodedFormRequest.h; sourceTree = "<group>"; };
-		C2D6A56B2E7E57A400007B7F /* GCDWebServerURLEncodedFormRequest.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GCDWebServerURLEncodedFormRequest.m; sourceTree = "<group>"; };
-		C2D6A56D2E7E57A400007B7F /* GCDWebServerDataResponse.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GCDWebServerDataResponse.h; sourceTree = "<group>"; };
-		C2D6A56E2E7E57A400007B7F /* GCDWebServerDataResponse.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GCDWebServerDataResponse.m; sourceTree = "<group>"; };
-		C2D6A56F2E7E57A400007B7F /* GCDWebServerErrorResponse.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GCDWebServerErrorResponse.h; sourceTree = "<group>"; };
-		C2D6A5702E7E57A400007B7F /* GCDWebServerErrorResponse.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GCDWebServerErrorResponse.m; sourceTree = "<group>"; };
-		C2D6A5712E7E57A400007B7F /* GCDWebServerFileResponse.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GCDWebServerFileResponse.h; sourceTree = "<group>"; };
-		C2D6A5722E7E57A400007B7F /* GCDWebServerFileResponse.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GCDWebServerFileResponse.m; sourceTree = "<group>"; };
-		C2D6A5732E7E57A400007B7F /* GCDWebServerStreamedResponse.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GCDWebServerStreamedResponse.h; sourceTree = "<group>"; };
-		C2D6A5742E7E57A400007B7F /* GCDWebServerStreamedResponse.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GCDWebServerStreamedResponse.m; sourceTree = "<group>"; };
-		C2D6A5772E7E57A400007B7F /* GCDWebDAVServer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GCDWebDAVServer.h; sourceTree = "<group>"; };
-		C2D6A5782E7E57A400007B7F /* GCDWebDAVServer.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GCDWebDAVServer.m; sourceTree = "<group>"; };
-		C2D6A57A2E7E57A400007B7F /* GCDWebUploader.bundle */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.plug-in"; path = GCDWebUploader.bundle; sourceTree = "<group>"; };
-		C2D6A57B2E7E57A400007B7F /* GCDWebUploader.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GCDWebUploader.h; sourceTree = "<group>"; };
-		C2D6A57C2E7E57A400007B7F /* GCDWebUploader.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GCDWebUploader.m; sourceTree = "<group>"; };
-		C2D6A57E2E7E57A400007B7F /* GCDWebKit.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GCDWebKit.h; sourceTree = "<group>"; };
-		C2D6A57F2E7E57A400007B7F /* GCDWebKit.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GCDWebKit.m; sourceTree = "<group>"; };
-		C2D6A5802E7E57A400007B7F /* SJXCSMIPHelper.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SJXCSMIPHelper.h; sourceTree = "<group>"; };
-		C2D6A5812E7E57A400007B7F /* SJXCSMIPHelper.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SJXCSMIPHelper.m; sourceTree = "<group>"; };
 		C2D6A5962E7E57BE00007B7F /* Localizable.strings */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = Localizable.strings; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
 		C2D6A5972E7E57BE00007B7F /* Localizable.strings */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = Localizable.strings; path = "zh-Hans.lproj/Localizable.strings"; sourceTree = "<group>"; };
 		C2D6A5982E7E57BE00007B7F /* Localizable.strings */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = Localizable.strings; path = ko.lproj/Localizable.strings; sourceTree = "<group>"; };
@@ -211,7 +156,6 @@
 		97C146F01CF9000F007C117D /* Runner */ = {
 			isa = PBXGroup;
 			children = (
-				C2D6A5832E7E57A400007B7F /* GCDWeb */,
 				C29792852E7CF1B7009542FC /* Sources */,
 				97C146FA1CF9000F007C117D /* Main.storyboard */,
 				97C146FD1CF9000F007C117D /* Assets.xcassets */,
@@ -232,106 +176,6 @@
 				C29792892E7CF1BE009542FC /* InfoPlist.strings */,
 			);
 			path = Sources;
-			sourceTree = "<group>";
-		};
-		C2D6A5632E7E57A400007B7F /* Core */ = {
-			isa = PBXGroup;
-			children = (
-				C2D6A5572E7E57A400007B7F /* GCDWebServer.h */,
-				C2D6A5582E7E57A400007B7F /* GCDWebServer.m */,
-				C2D6A5592E7E57A400007B7F /* GCDWebServerConnection.h */,
-				C2D6A55A2E7E57A400007B7F /* GCDWebServerConnection.m */,
-				C2D6A55B2E7E57A400007B7F /* GCDWebServerFunctions.h */,
-				C2D6A55C2E7E57A400007B7F /* GCDWebServerFunctions.m */,
-				C2D6A55D2E7E57A400007B7F /* GCDWebServerHTTPStatusCodes.h */,
-				C2D6A55E2E7E57A400007B7F /* GCDWebServerPrivate.h */,
-				C2D6A55F2E7E57A400007B7F /* GCDWebServerRequest.h */,
-				C2D6A5602E7E57A400007B7F /* GCDWebServerRequest.m */,
-				C2D6A5612E7E57A400007B7F /* GCDWebServerResponse.h */,
-				C2D6A5622E7E57A400007B7F /* GCDWebServerResponse.m */,
-			);
-			path = Core;
-			sourceTree = "<group>";
-		};
-		C2D6A56C2E7E57A400007B7F /* Requests */ = {
-			isa = PBXGroup;
-			children = (
-				C2D6A5642E7E57A400007B7F /* GCDWebServerDataRequest.h */,
-				C2D6A5652E7E57A400007B7F /* GCDWebServerDataRequest.m */,
-				C2D6A5662E7E57A400007B7F /* GCDWebServerFileRequest.h */,
-				C2D6A5672E7E57A400007B7F /* GCDWebServerFileRequest.m */,
-				C2D6A5682E7E57A400007B7F /* GCDWebServerMultiPartFormRequest.h */,
-				C2D6A5692E7E57A400007B7F /* GCDWebServerMultiPartFormRequest.m */,
-				C2D6A56A2E7E57A400007B7F /* GCDWebServerURLEncodedFormRequest.h */,
-				C2D6A56B2E7E57A400007B7F /* GCDWebServerURLEncodedFormRequest.m */,
-			);
-			path = Requests;
-			sourceTree = "<group>";
-		};
-		C2D6A5752E7E57A400007B7F /* Responses */ = {
-			isa = PBXGroup;
-			children = (
-				C2D6A56D2E7E57A400007B7F /* GCDWebServerDataResponse.h */,
-				C2D6A56E2E7E57A400007B7F /* GCDWebServerDataResponse.m */,
-				C2D6A56F2E7E57A400007B7F /* GCDWebServerErrorResponse.h */,
-				C2D6A5702E7E57A400007B7F /* GCDWebServerErrorResponse.m */,
-				C2D6A5712E7E57A400007B7F /* GCDWebServerFileResponse.h */,
-				C2D6A5722E7E57A400007B7F /* GCDWebServerFileResponse.m */,
-				C2D6A5732E7E57A400007B7F /* GCDWebServerStreamedResponse.h */,
-				C2D6A5742E7E57A400007B7F /* GCDWebServerStreamedResponse.m */,
-			);
-			path = Responses;
-			sourceTree = "<group>";
-		};
-		C2D6A5762E7E57A400007B7F /* GCDWebServer */ = {
-			isa = PBXGroup;
-			children = (
-				C2D6A5632E7E57A400007B7F /* Core */,
-				C2D6A56C2E7E57A400007B7F /* Requests */,
-				C2D6A5752E7E57A400007B7F /* Responses */,
-			);
-			path = GCDWebServer;
-			sourceTree = "<group>";
-		};
-		C2D6A5792E7E57A400007B7F /* GCDWebDAVServer */ = {
-			isa = PBXGroup;
-			children = (
-				C2D6A5772E7E57A400007B7F /* GCDWebDAVServer.h */,
-				C2D6A5782E7E57A400007B7F /* GCDWebDAVServer.m */,
-			);
-			path = GCDWebDAVServer;
-			sourceTree = "<group>";
-		};
-		C2D6A57D2E7E57A400007B7F /* GCDWebUploader */ = {
-			isa = PBXGroup;
-			children = (
-				C2D6A57A2E7E57A400007B7F /* GCDWebUploader.bundle */,
-				C2D6A57B2E7E57A400007B7F /* GCDWebUploader.h */,
-				C2D6A57C2E7E57A400007B7F /* GCDWebUploader.m */,
-			);
-			path = GCDWebUploader;
-			sourceTree = "<group>";
-		};
-		C2D6A5822E7E57A400007B7F /* GCDWebKit */ = {
-			isa = PBXGroup;
-			children = (
-				C2D6A57E2E7E57A400007B7F /* GCDWebKit.h */,
-				C2D6A57F2E7E57A400007B7F /* GCDWebKit.m */,
-				C2D6A5802E7E57A400007B7F /* SJXCSMIPHelper.h */,
-				C2D6A5812E7E57A400007B7F /* SJXCSMIPHelper.m */,
-			);
-			path = GCDWebKit;
-			sourceTree = "<group>";
-		};
-		C2D6A5832E7E57A400007B7F /* GCDWeb */ = {
-			isa = PBXGroup;
-			children = (
-				C2D6A5762E7E57A400007B7F /* GCDWebServer */,
-				C2D6A5792E7E57A400007B7F /* GCDWebDAVServer */,
-				C2D6A57D2E7E57A400007B7F /* GCDWebUploader */,
-				C2D6A5822E7E57A400007B7F /* GCDWebKit */,
-			);
-			path = GCDWeb;
 			sourceTree = "<group>";
 		};
 		D95EE6EB592EC6D384BE27E4 /* Frameworks */ = {
@@ -450,7 +294,6 @@
 				3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */,
 				97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */,
 				C2D6A59A2E7E57BE00007B7F /* Localizable.strings in Resources */,
-				C2D6A5842E7E57A400007B7F /* GCDWebUploader.bundle in Resources */,
 				97C146FC1CF9000F007C117D /* Main.storyboard in Resources */,
 				C297928A2E7CF1BE009542FC /* InfoPlist.strings in Resources */,
 			);
@@ -583,23 +426,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				C2D6A5852E7E57A400007B7F /* GCDWebServerConnection.m in Sources */,
-				C2D6A5862E7E57A400007B7F /* GCDWebDAVServer.m in Sources */,
-				C2D6A5872E7E57A400007B7F /* GCDWebServerDataRequest.m in Sources */,
-				C2D6A5882E7E57A400007B7F /* SJXCSMIPHelper.m in Sources */,
-				C2D6A5892E7E57A400007B7F /* GCDWebServerMultiPartFormRequest.m in Sources */,
-				C2D6A58A2E7E57A400007B7F /* GCDWebServerResponse.m in Sources */,
-				C2D6A58B2E7E57A400007B7F /* GCDWebServerStreamedResponse.m in Sources */,
-				C2D6A58C2E7E57A400007B7F /* GCDWebServerRequest.m in Sources */,
-				C2D6A58D2E7E57A400007B7F /* GCDWebServerDataResponse.m in Sources */,
-				C2D6A58E2E7E57A400007B7F /* GCDWebServerFileResponse.m in Sources */,
-				C2D6A58F2E7E57A400007B7F /* GCDWebServer.m in Sources */,
-				C2D6A5902E7E57A400007B7F /* GCDWebKit.m in Sources */,
-				C2D6A5912E7E57A400007B7F /* GCDWebServerErrorResponse.m in Sources */,
-				C2D6A5922E7E57A400007B7F /* GCDWebServerURLEncodedFormRequest.m in Sources */,
-				C2D6A5932E7E57A400007B7F /* GCDWebServerFunctions.m in Sources */,
-				C2D6A5942E7E57A400007B7F /* GCDWebUploader.m in Sources */,
-				C2D6A5952E7E57A400007B7F /* GCDWebServerFileRequest.m in Sources */,
 				74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
 			);

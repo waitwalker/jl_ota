@@ -10,24 +10,6 @@ import jl_ota
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
     ) -> Bool {
         GeneratedPluginRegistrant.register(with: self)
-        GCDWebKit.start { (status, ipAddress, port) in
-            switch status {
-            case .start:
-                if let ip = ipAddress {
-                    let serverURL = "http://\(ip):\(port)/"
-                    let otaPlugin = JlOtaPlugin()
-                    otaPlugin.setWifiIpAddress(serverURL)
-                } else {
-                    JLLogManager.logLevel(.DEBUG, content: "Failed to get IP address")
-                }
-            case .fail:
-                JLLogManager.logLevel(.DEBUG, content: "Server failed to start")
-            case .wifiDisable:
-                JLLogManager.logLevel(.DEBUG, content: "WiFi is disabled")
-            default:
-                break
-            }
-        }
         return super.application(application, didFinishLaunchingWithOptions: launchOptions)
     }
     

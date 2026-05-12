@@ -1664,3 +1664,127 @@ result=10
 -> e1/e2/e3 进入 OTA -> e5 拉取式传输数据
 -> e6 查询升级状态成功 -> e7 重启 -> BLE 断开
 ```
+
+---
+
+## 十三、iOS 移除 AFNetworking 依赖与 GCDWebServer 清理
+
+### 13.1 问题现象
+
+Xcode 16+ 编译 iOS 时报错：
+
+```
+Lexical or Preprocessor Issue (Xcode): Use of private header from outside its module: 'netinet6/in6.h'
+```
+
+出错位置：
+
+```text
+ios/Classes/ThirdParty/AFNetworking/AFNetworkReachabilityManager.m:26
+ios/Classes/ThirdParty/AFNetworking/AFHTTPSessionManager.m:32
+```
+
+### 13.2 根本原因
+
+插件以源码方式内嵌了 AFNetworking（14 个文件在 `ios/Classes/ThirdParty/AFNetworking/`）。`AFNetworkReachabilityManager.m` 和 `AFHTTPSessionManager.m` 中 `#import <netinet6/in6.h>`，该头文件在新版 Xcode SDK 中被标记为**模块私有**，当 podspec 中 `DEFINES_MODULE=YES` 时触发编译错误。
+
+AFNetworking 已于 2022 年停止维护，不会有官方修复。
+
+### 13.3 影响范围分析
+
+整个插件中**仅 1 处** Swift 代码使用了 AFNetworking：
+
+```swift
+// ios/Classes/Ota/OtaManager.swift:200
+let manager = AFURLSessionManager(sessionConfiguration: configuration)
+let downloadTask = manager.downloadTask(with: request, progress: ..., destination: ..., completionHandler: ...)
+```
+
+功能：下载 OTA 固件文件（`downloadAction` 方法）。
+
+AFNetworking 的其他组件（`AFHTTPSessionManager`、`AFNetworkReachabilityManager`、`AFSecurityPolicy` 等）均未被业务代码调用。
+
+### 13.4 修复方案
+
+#### 13.4.1 插件侧：URLSession 原生替换
+
+将 `OtaManager.swift` 的 `downloadAction(url:)` 方法从 `AFURLSessionManager` 改为 `URLSession.shared.downloadTask`：
+
+```diff
++ private var downloadObservation: NSKeyValueObservation?
+
+  private func downloadAction(url: String) {
+-     let configuration = URLSessionConfiguration.default
+-     let manager = AFURLSessionManager(configuration: configuration)
+-     guard let URL = URL(string: url) else { ... }
+-     let downloadTask = manager.downloadTask(
+-         with: request,
+-         progress: { ... },
+-         destination: { targetPath, response in
+-             return ToolsHelper.targetSavePath(suggestedFilename)
+-         },
+-         completionHandler: { ... }
+-     )
+-     downloadTask.resume()
++     guard let downloadURL = URL(string: url) else { ... }
++     let task = URLSession.shared.downloadTask(with: URLRequest(url: downloadURL)) {
++         [weak self] tempURL, response, error in
++         self?.downloadObservation = nil
++         guard let tempURL = tempURL else { ... }
++         let destinationURL = ToolsHelper.targetSavePath(suggestedFilename)
++         try FileManager.default.moveItem(at: tempURL, to: destinationURL)
++         ...
++     }
++     downloadObservation = task.progress.observe(\.fractionCompleted) { ... }
++     task.resume()
+  }
+```
+
+关键差异：
+- 进度回调：AFN 通过 `progress` block 提供；原生通过 KVO 观察 `task.progress.fractionCompleted` 实现
+- 文件保存：AFN 在 `destination` block 中自动移动临时文件；原生需要在 completion handler 中手动 `FileManager.moveItem`
+- `sendEvent` 内部已 `DispatchQueue.main.async`，无需额外线程调度
+
+删除整个 `ios/Classes/ThirdParty/AFNetworking/` 目录（14 个文件）。
+
+#### 13.4.2 Example 侧：移除 GCDWebServer
+
+编译时还报错 `'AFNetworking.h' file not found`，来自 `example/ios/Runner/GCDWeb/GCDWebKit/GCDWebKit.m`。
+
+GCDWebServer 的用途是在 example app 中启动一个本地 HTTP 文件上传服务器，让用户通过浏览器上传 OTA 固件到手机。`GCDWebKit.m` 中使用 `AFNetworkReachabilityManager` 监听 WiFi 网络状态，决定是否启停本地服务器。
+
+该功能仅属于 example 的演示辅助功能，不是插件核心能力。已删除：
+
+1. `example/ios/Runner/GCDWeb/` 整个目录
+2. `Runner-Bridging-Header.h` 中移除 `#import "GCDWebKit.h"`
+3. `AppDelegate.swift` 中移除 `GCDWebKit.start { ... }` 代码块
+4. `Runner.xcodeproj/project.pbxproj` 中使用 `xcodeproj` gem 移除所有 GCDWeb 和 SJXCSMIPHelper 的文件引用和编译阶段引用
+
+### 13.5 涉及文件
+
+| 文件 | 改动类型 |
+|------|----------|
+| `ios/Classes/Ota/OtaManager.swift` | 重写 `downloadAction`，新增 `downloadObservation` 属性 |
+| `ios/Classes/ThirdParty/AFNetworking/`（14 个文件） | 删除 |
+| `example/ios/Runner/GCDWeb/`（整个目录） | 删除 |
+| `example/ios/Runner/AppDelegate.swift` | 移除 GCDWebKit 调用 |
+| `example/ios/Runner/Runner-Bridging-Header.h` | 移除 GCDWebKit 导入 |
+| `example/ios/Runner.xcodeproj/project.pbxproj` | 移除 GCDWeb 文件引用 |
+
+### 13.6 验证方式
+
+```bash
+# 确认插件中无 AFNetworking 残留
+grep -r "AFNetworking\|AFURLSession\|AFHTTPSession\|AFNetworkReachability" ios/Classes/
+
+# 确认 example 中无 GCDWeb 残留
+grep -r "GCDWeb\|SJXCSMIPHelper" example/ios/Runner/
+
+# 确认 Xcode 工程文件有效
+plutil -lint example/ios/Runner.xcodeproj/project.pbxproj
+
+# 重新编译验证
+cd example && fvm flutter clean && fvm flutter pub get
+cd ios && pod install && cd ..
+fvm flutter build ios --no-codesign
+```
