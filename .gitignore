@@ -66,5 +66,8 @@ build/
 .symlinks/
 Pods/
 
+# SwiftPM
+**/.swiftpm/
+
 # FVM
 .fvm/
