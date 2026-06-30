@@ -6,7 +6,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 group = "com.jieli.otasdk"
 version = "1.0-SNAPSHOT"
 
-val kotlinVersion = "2.1.0"
+val kotlinVersion = "2.2.20"
 
 buildscript {
     repositories {
@@ -17,8 +17,8 @@ buildscript {
     }
 
     dependencies {
-        classpath("com.android.tools.build:gradle:8.7.3")
-        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:2.1.0")
+        classpath("com.android.tools.build:gradle:8.12.1")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:2.2.20")
     }
 }
 
