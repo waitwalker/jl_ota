@@ -33,6 +33,7 @@ build/
 # Android related
 **/android/**/gradle-wrapper.jar
 **/android/.gradle
+**/android/.kotlin/
 **/android/captures/
 **/android/gradlew
 **/android/gradlew.bat
@@ -53,6 +54,7 @@ build/
 **/ios/Flutter/app.zip
 **/ios/Flutter/flutter_assets/
 **/ios/Flutter/flutter_export_environment.sh
+**/ios/Flutter/ephemeral/
 **/ios/ServiceDefinitions.json
 **/ios/Runner/GeneratedPluginRegistrant.*
 **/ios/Runner.xcworkspace/xcuserdata
