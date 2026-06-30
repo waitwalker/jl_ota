@@ -114,6 +114,7 @@ Future<void> _checkPrivacyPolicyAccepted(BuildContext context) async {
   if (!agreePolicyState && context.mounted) {
     _showPrivacyPolicyDialog(context);
   } else if (context.mounted) {
+    // 延迟 1s 进入主页
     _navigateToMainPageAfterDelay(context, _WelcomePageState.delayMilliseconds);
   }
 }

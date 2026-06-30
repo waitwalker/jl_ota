@@ -13,6 +13,7 @@ import '../utils/app_util.dart';
 import '../widgets/toast_utils.dart';
 import 'devices_page.dart';
 
+// 主要 底部 页签：设备 更新 设置
 enum MainPageTab { devices, update, settings }
 
 /// Enumeration representing the different tabs available in the main page
@@ -32,6 +33,7 @@ class MainPageState extends State<MainPage> {
   // Constant for top padding of tab icons
   static const double tabIconTopPadding = 8.0;
 
+  // 页面：设备 更新 设置
   final Map<MainPageTab, Widget> _pages = {MainPageTab.devices: DevicesPage(), MainPageTab.update: UpdatePage(), MainPageTab.settings: SettingPage()};
 
   @override
