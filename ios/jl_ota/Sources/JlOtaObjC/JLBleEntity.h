@@ -1,0 +1,1 @@
+BleManager/JLBleEntity.h

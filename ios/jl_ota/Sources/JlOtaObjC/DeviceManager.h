@@ -1,0 +1,1 @@
+BroadcastSpeakers/BroadcastBle/DeviceManager.h
