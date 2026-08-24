@@ -12,7 +12,6 @@ import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.le.BluetoothLeScanner;
 import android.bluetooth.le.ScanCallback;
-import android.bluetooth.le.ScanFilter;
 import android.bluetooth.le.ScanResult;
 import android.bluetooth.le.ScanSettings;
 import android.content.BroadcastReceiver;
@@ -266,6 +265,11 @@ public class BleManager {
             JL_Log.w(TAG, "startLeScan", "Missing location permissions.");
             return false;
         }
+        // 蓝牙开关切换后 scanner 实例会失效，这里兜底重新获取，
+        // 避免因单例创建时蓝牙未开启导致 mBluetoothLeScanner 为 null 而退回废弃的 startLeScan 通道
+        if (Build.VERSION.SDK_INT >= LOLLIPOP && mBluetoothAdapter != null && mBluetoothLeScanner == null) {
+            mBluetoothLeScanner = mBluetoothAdapter.getBluetoothLeScanner();
+        }
         if (timeout <= 0) timeout = SCAN_BLE_TIMEOUT;
         if (isBleScanning()) {
             JL_Log.i(TAG, "startLeScan", "BLE is searching.");
@@ -297,9 +301,14 @@ public class BleManager {
                         .setScanMode(scanMode)
                         .build();
             }
-            List<ScanFilter> filters = new ArrayList<>();
-            mBluetoothLeScanner.startScan(filters, scanSettings, mScanCallback);
-            ret = true;
+            try {
+                // 传 null 表示不过滤；部分机型对 empty list 会当成“匹配不到任何设备”
+                mBluetoothLeScanner.startScan(null, scanSettings, mScanCallback);
+                ret = true;
+            } catch (Exception e) {
+                JL_Log.e(TAG, "startLeScan", "startScan failed: " + e.getMessage());
+                ret = false;
+            }
         } else {
             ret = mBluetoothAdapter.startLeScan(mLeScanCallback);
         }

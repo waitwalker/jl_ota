@@ -204,18 +204,72 @@ class EventChannelHandler(private val activity: Activity) : EventChannel.StreamH
         sendEvent(EventChannelConstants.TYPE_DOWNLOAD_STATUS, eventMap)
     }
 
+    /**
+     * 从原始 BLE 广播包 (scanRecord) 中解析并提取纯 0xFF 厂商自定义数据
+     */
+    private fun extractManufacturerData(scanRecord: ByteArray?): ByteArray? {
+        if (scanRecord == null || scanRecord.isEmpty()) return null
+        var index = 0
+        while (index < scanRecord.size) {
+            val length = scanRecord[index].toInt() and 0xFF
+            if (length == 0 || index + 1 + length > scanRecord.size) break
+
+            val type = scanRecord[index + 1].toInt() and 0xFF
+            if (type == 0xFF && length >= 3) {
+                // 命中 0xFF 厂商数据，截取 0xFF 之后、长度为 length - 1 的纯厂商数据
+                return scanRecord.copyOfRange(index + 2, index + 1 + length)
+            }
+            index += 1 + length
+        }
+        return null
+    }
+
+    /**
+     * 从原始 BLE 广播包 (scanRecord) 中解析设备名称 (Type 0x08 Shortened 或 0x09 Complete Local Name)
+     */
+    private fun extractLocalName(scanRecord: ByteArray?): String? {
+        if (scanRecord == null || scanRecord.isEmpty()) return null
+        var index = 0
+        while (index < scanRecord.size) {
+            val length = scanRecord[index].toInt() and 0xFF
+            if (length == 0 || index + 1 + length > scanRecord.size) break
+
+            val type = scanRecord[index + 1].toInt() and 0xFF
+            if ((type == 0x08 || type == 0x09) && length > 1) {
+                return try {
+                    String(scanRecord, index + 2, length - 1, Charsets.UTF_8).trim()
+                } catch (e: Exception) {
+                    null
+                }
+            }
+            index += 1 + length
+        }
+        return null
+    }
+
     private fun deviceToMap(item: ScanDevice): Map<String, Any?> {
-        val rawHex = if (item.data != null && item.data!!.isNotEmpty()) {
-            CHexConver.byte2HexStr(item.data)
+        // 优先提取纯 0xFF 厂商数据；若不是标准 TLV 则回退使用 item.data
+        val mfgBytes = extractManufacturerData(item.data) ?: item.data
+        val rawHex = if (mfgBytes != null && mfgBytes.isNotEmpty()) {
+            CHexConver.byte2HexStr(mfgBytes)
         } else {
             ""
         }
+
+        // 优先使用系统名称，若为空则从广播包中提取 Local Name 兜底
+        val localName = extractLocalName(item.data)
+        val bleName = item.device.name?.takeIf { it.isNotBlank() } ?: localName ?: ""
+
         val advData = mutableMapOf<String, Any?>()
         advData["manufacturer_data"] = rawHex
-        advData["ble_name"] = item.device.name ?: ""
+        advData["ble_name"] = bleName
+
+        val devName = DeviceUtil.getDeviceName(activity, item.device).takeIf { it != "N/A" && it.isNotBlank() }
+            ?: localName
+            ?: "N/A"
 
         return mapOf(
-            EventChannelConstants.KEY_NAME to DeviceUtil.getDeviceName(activity, item.device),
+            EventChannelConstants.KEY_NAME to devName,
             EventChannelConstants.KEY_DESC to DeviceUtil.getDeviceDesc(item),
             EventChannelConstants.KEY_STATUS to item.isDevConnected(),
             "adv_data" to advData

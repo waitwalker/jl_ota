@@ -104,13 +104,17 @@ class ConnectViewModel private constructor() : BluetoothViewModel() {
 
     fun isScanning(): Boolean = bluetoothHelper.isScanning()
 
-    fun startScan(timeout: Long = OtaConstant.SCAN_TIMEOUT) {
+    /**
+     * 启动扫描
+     * @return true 表示扫描已启动（或本就在扫描中）；false 表示启动失败（如蓝牙未开启、权限缺失等）
+     */
+    fun startScan(timeout: Long = OtaConstant.SCAN_TIMEOUT): Boolean {
         if (!BluetoothUtil.isBluetoothEnable()) {
             AppUtil.enableBluetooth(getContext())
-            return
+            return false
         }
-        if (isScanning()) return
-        bluetoothHelper.startScan(timeout)
+        if (isScanning()) return true
+        return bluetoothHelper.startScan(timeout)
     }
 
     fun stopScan() {

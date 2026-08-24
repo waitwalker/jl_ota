@@ -405,7 +405,7 @@ Android 和 iOS 的 MissingPluginException 问题**本质完全相同**：
 - 宿主应用**不需要**继承 `MyApplication`，插件会自动通过 `initWith(context)` 完成 SDK 初始化
 - 宿主应用**不需要**特定的 Activity 名称或类型
 - 插件库不声明蓝牙/定位权限，避免通过库 Manifest 影响宿主权限策略。`example` 仅作为演示 App 自行声明所需权限。
-- 宿主 App 必须在自己的 Manifest 中声明 BLE 扫描/连接所需权限；插件只通过 `ActivityPluginBinding` 做运行时检查和权限请求。Android 12+ 使用 Nearby devices 权限，Android 11 及以下才需要定位权限和定位服务。
+- 宿主 App 必须在自己的 Manifest 中声明 BLE 扫描/连接所需权限；插件只通过 `ActivityPluginBinding` 做运行时检查和权限请求。当前 Android 侧底层 `BleManager.startLeScan()` 仍会检查定位权限，因此宿主不能把 `ACCESS_FINE_LOCATION` / `ACCESS_COARSE_LOCATION` 统一限制到 Android 11 及以下，也不应给 `BLUETOOTH_SCAN` 添加 `neverForLocation`，否则 Android 12+ 可能出现扫描未真正启动或部分广播被系统过滤的问题。
 
 ```xml
 <uses-permission
@@ -415,11 +415,9 @@ Android 和 iOS 的 MissingPluginException 问题**本质完全相同**：
     android:name="android.permission.BLUETOOTH_ADMIN"
     android:maxSdkVersion="30" />
 <uses-permission
-    android:name="android.permission.ACCESS_FINE_LOCATION"
-    android:maxSdkVersion="30" />
+    android:name="android.permission.ACCESS_FINE_LOCATION" />
 <uses-permission
-    android:name="android.permission.ACCESS_COARSE_LOCATION"
-    android:maxSdkVersion="30" />
+    android:name="android.permission.ACCESS_COARSE_LOCATION" />
 <uses-permission
     android:name="android.permission.BLUETOOTH_SCAN" />
 <uses-permission

@@ -113,8 +113,11 @@ class MethodChannelHandler(
         }
 
         val timeout = (call.argument<Number>("timeout")?.toLong()) ?: OtaConstant.SCAN_TIMEOUT
-        connectVM.startScan(timeout)
-        result.success(true)
+        if (connectVM.startScan(timeout)) {
+            result.success(true)
+        } else {
+            result.error("SCAN_START_FAILED", "Failed to start BLE scan", null)
+        }
     }
 
     /**
@@ -129,7 +132,7 @@ class MethodChannelHandler(
             permissionsToRequest.add(Manifest.permission.BLUETOOTH_CONNECT)
         }
 
-        // Android 11 及以下 BLE 扫描需要定位权限
+        // 未声明 neverForLocation 时，Android 12+ 同样需要定位权限，否则扫描结果为空
         if (!checkResult.hasLocationPermission) {
             permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
             permissionsToRequest.add(Manifest.permission.ACCESS_COARSE_LOCATION)
@@ -142,8 +145,11 @@ class MethodChannelHandler(
                     // 权限授予成功，重新检查环境
                     val newCheckResult = BluetoothEnvironmentChecker.checkBluetoothEnvironment(activity)
                     if (newCheckResult.isAllReady) {
-                        connectVM.startScan()
-                        result.success(true)
+                        if (connectVM.startScan()) {
+                            result.success(true)
+                        } else {
+                            result.error("SCAN_START_FAILED", "Failed to start BLE scan after permissions granted", null)
+                        }
                     } else {
                         handleUnreadyEnvironment(newCheckResult, result)
                     }

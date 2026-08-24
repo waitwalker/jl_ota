@@ -18,12 +18,20 @@
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     <uses-permission android:name="android.permission.ACCESS_MEDIA_LOCATION" />
 
-    <!--位置权限-->
+    <!--位置权限：Android 11 及以下 BLE 扫描需要定位权限与定位服务；Android 12+ 已通过 BLUETOOTH_SCAN 的 neverForLocation 声明解除定位依赖 -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <!--蓝牙权限-->
-    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+    <!-- neverForLocation：向系统声明"不会通过蓝牙扫描结果推导物理位置"。
+         注意：若 BLUETOOTH_SCAN 不带该标记（旧写法），Android 12+ 会把它当作与定位相关的扫描：
+         应用未授予 ACCESS_FINE_LOCATION 或系统定位服务未开启时，
+         startScan 能正常启动，但系统会静默过滤掉全部扫描结果（不回调任何设备）。
+         本插件在 Android 12+ 不申请定位权限，因此必须加此标记才能扫到设备。 -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation"
+        tools:targetApi="s" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 
     <!-- 扫描二维码 -->
