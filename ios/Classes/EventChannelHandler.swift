@@ -361,15 +361,25 @@ class EventChannelHandler: NSObject, FlutterStreamHandler {
     /// Gets device description with RSSI and MAC address
     private func getDeviceDesc(_ device: Any) -> String {
         if let entity = device as? JLBleEntity {
-            let formattedMac = formatMacAddress(entity.edrMacAddress)
+            let address = getDeviceAddress(edrMac: entity.edrMacAddress, peripheral: entity.mPeripheral)
             let rssiValue = entity.mRSSI.intValue
-            return String(format: "rssi: %d, address: %@", rssiValue, formattedMac)
+            return String(format: "rssi: %d, address: %@", rssiValue, address)
         } else if let entity = device as? JL_EntityM {
-            let formattedMac = formatMacAddress(entity.mEdr)
+            let address = getDeviceAddress(edrMac: entity.mEdr, peripheral: entity.mPeripheral)
             let rssiValue = entity.mRSSI.intValue
-            return String(format: "rssi: %d, address: %@", rssiValue, formattedMac)
+            return String(format: "rssi: %d, address: %@", rssiValue, address)
         }
         return ""
+    }
+
+    /// 获取设备地址：优先使用格式化后的 EDR MAC，为空时回退到 peripheral UUID
+    private func getDeviceAddress(edrMac: String, peripheral: CBPeripheral) -> String {
+        let formatted = formatMacAddress(edrMac)
+        if !formatted.isEmpty {
+            return formatted
+        }
+        // iOS 不暴露真实 MAC 地址，使用 CBPeripheral.identifier 作为设备唯一标识
+        return peripheral.identifier.uuidString
     }
     
     /// Formats MAC address to colon-separated uppercase format
@@ -407,7 +417,30 @@ class EventChannelHandler: NSObject, FlutterStreamHandler {
     private func getDeviceStatus(_ device: Any) -> Bool {
         return getPeripheral(from: device)?.state == .connected
     }
-    
+
+    /// Gets device broadcast advertisement data dictionary
+    private func getDeviceAdvData(_ device: Any) -> [String: Any]? {
+        var rawInfo: [String: Any]?
+        if let entity = device as? JLBleEntity {
+            rawInfo = entity.advInfo as? [String: Any]
+        }
+        guard let info = rawInfo else { return nil }
+
+        var advData: [String: Any] = [:]
+        advData["manufacturer_data"] = info["ADVDATA"] ?? ""
+        advData["ble_name"] = info["BLE_NAME"] ?? ""
+        advData["edr"] = info["EDR"] ?? ""
+        advData["is_bound"] = (info["ISBOUND"] as? NSNumber)?.boolValue ?? (info["ISBOUND"] as? Int == 1)
+        advData["is_charging"] = (info["ISCHARGING"] as? NSNumber)?.boolValue ?? (info["ISCHARGING"] as? Int == 1)
+        advData["is_linked"] = (info["ISLINKED"] as? NSNumber)?.boolValue ?? (info["ISLINKED"] as? Int == 1)
+        advData["is_ok"] = (info["ISOK"] as? NSNumber)?.boolValue ?? (info["ISOK"] as? Int == 1)
+        advData["pid"] = info["PID"] != nil ? "\(info["PID"]!)" : ""
+        advData["power"] = (info["POWER"] as? NSNumber)?.intValue ?? 0
+        advData["type"] = (info["TYPE"] as? NSNumber)?.intValue ?? Int("\(info["TYPE"] ?? "-1")") ?? -1
+        advData["uid"] = (info["UID"] as? NSNumber)?.intValue ?? Int("\(info["UID"] ?? "0")") ?? 0
+        return advData
+    }
+
     /// Converts device list to dictionary format for Flutter consumption
     private func convertDeviceListToDictionary() -> [[String: Any]] {
         var deviceList: [[String: Any]] = []
@@ -415,11 +448,14 @@ class EventChannelHandler: NSObject, FlutterStreamHandler {
         // Thread-safe read
         serialQueue.sync {
             for item in btEnityList {
-                let deviceInfo: [String: Any] = [
+                var deviceInfo: [String: Any] = [
                     EventChannelConstants.KEY_NAME: getDeviceName(item),
                     EventChannelConstants.KEY_DESC: getDeviceDesc(item),
                     EventChannelConstants.KEY_STATUS: getDeviceStatus(item)
                 ]
+                if let advData = getDeviceAdvData(item) {
+                    deviceInfo["adv_data"] = advData
+                }
                 deviceList.append(deviceInfo)
             }
         }
