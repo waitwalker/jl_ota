@@ -208,6 +208,7 @@
     if (ble_name.length == 0) return;
     
     kJLLog(JLLOG_DEBUG, @"Found ----> NAME:%@ RSSI:%@ AD:%@", ble_name,RSSI,ble_AD);
+    kJLLog(JLLOG_DEBUG, @"Parsed Adv Info: %@", info);
     
 //    NSString *key = [[FittingView getFitterKey] uppercaseString];
 //    if ([key isEqualToString:@""]) {

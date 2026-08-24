@@ -76,6 +76,7 @@ class ConnectViewModel private constructor() : BluetoothViewModel() {
 
         override fun onDiscovery(device: BluetoothDevice?, bleScanMessage: BleScanInfo?) {
             if (null == device) return
+            com.jieli.jl_bt_ota.util.JL_Log.d("ConnectViewModel", "Found Dev: address = ${device.address}, info = $bleScanMessage")
             val data = bleScanMessage?.rawData ?: ByteArray(0)
             val result = ScanResult(
                 ScanResult.SCAN_STATUS_FOUND_DEV,
