@@ -7,18 +7,18 @@ import android.content.Context
 import com.jieli.jl_bt_ota.constant.BluetoothConstant
 import com.jieli.jl_bt_ota.constant.StateCode
 import com.jieli.jl_bt_ota.impl.BluetoothOTAManager
-import com.jieli.jl_bt_ota.impl.RcspAuth
 import com.jieli.jl_bt_ota.model.BluetoothOTAConfigure
+import com.jieli.jl_bt_ota.model.ble.BleConnectParam
 import com.jieli.jl_bt_ota.util.BluetoothUtil
 import com.jieli.jl_bt_ota.util.CHexConver
 import com.jieli.jl_bt_ota.util.JL_Log
+import com.jieli.otasdk.data.constant.OtaConstant
 import com.jieli.otasdk.tool.bluetooth.BluetoothHelper
 import com.jieli.otasdk.tool.bluetooth.OnBTEventCallback
 import com.jieli.otasdk.tool.config.ConfigHelper
 import com.jieli.otasdk.tool.ota.spp.SppManager
 import com.jieli.otasdk.util.AppUtil
-import com.jieli.otasdk.data.constant.OtaConstant
-import java.util.*
+import java.util.UUID
 
 /**
  * 用于RCSP的第三方SDK接入OTA流程
@@ -58,7 +58,7 @@ class OTAManager(context: Context) : BluetoothOTAManager(context) {
 
         override fun onBleMtuChange(device: BluetoothDevice?, mtu: Int, status: Int) {
             super.onBleMtuChange(device, mtu, status)
-            onMtuChanged(bluetoothHelper.getConnectedGatt(), mtu, status)
+            onMtuChanged(bluetoothHelper.getConnectedGatt(device), mtu, status)
         }
 
     }
@@ -66,10 +66,10 @@ class OTAManager(context: Context) : BluetoothOTAManager(context) {
     init {
         val bluetoothOption = BluetoothOTAConfigure()
         //选择通讯方式
-        bluetoothOption.priority = if (configHelper.isBleWay()) {
-            BluetoothOTAConfigure.PREFER_BLE
-        } else {
+        bluetoothOption.priority = if (configHelper.isSppWay()) {
             BluetoothOTAConfigure.PREFER_SPP
+        } else {
+            BluetoothOTAConfigure.PREFER_BLE
         }
         //是否需要自定义回连方式(默认不需要，如需要自定义回连方式，需要客户自行实现)
         bluetoothOption.isUseReconnect =
@@ -84,34 +84,33 @@ class OTAManager(context: Context) : BluetoothOTAManager(context) {
         bluetoothOption.isUseJLServer = false
         //设置回连搜索设备模式 -- 设置为高性能模式，只能在应用前台使用
         bluetoothOption.bleScanMode = ScanSettings.SCAN_MODE_LOW_LATENCY
+        //设置开启库内自动回连设备
+        bluetoothOption.bleConnectParam = BleConnectParam()
 
         //配置OTA参数
         configure(bluetoothOption)
-        RcspAuth.setAuthTimeout(5000)
         bluetoothHelper.registerCallback(btEventCallback)
         if (bluetoothHelper.isConnected()) {
-            onBtDeviceConnection(bluetoothHelper.getConnectedDevice(), StateCode.CONNECTION_OK)
-            if (configHelper.isBleWay()) {
-                onMtuChanged(
-                    bluetoothHelper.getConnectedGatt(),
-                    bluetoothHelper.getBleMtu() + 3,
-                    BluetoothGatt.GATT_SUCCESS
-                )
+            bluetoothHelper.getConnectedDevice()?.let { connectedDevice ->
+                onBtDeviceConnection(connectedDevice, StateCode.CONNECTION_OK)
+                if (configHelper.isBleWay()) {
+                    onMtuChanged(
+                        bluetoothHelper.getConnectedGatt(connectedDevice),
+                        bluetoothHelper.getBleMtu() + 3,
+                        BluetoothGatt.GATT_SUCCESS
+                    )
+                }
             }
+
         }
     }
 
 
     override fun getConnectedDevice(): BluetoothDevice? = bluetoothHelper.getConnectedDevice()
 
-    override fun getConnectedBluetoothGatt(): BluetoothGatt? = bluetoothHelper.getConnectedGatt()
+    override fun getConnectedBluetoothGatt(): BluetoothGatt? = bluetoothHelper.getConnectedGatt(getConnectedDevice())
 
     override fun connectBluetoothDevice(bluetoothDevice: BluetoothDevice?) {
-        //仅仅作为回连设备，回连设备现在仅支持BLE
-        val result: Boolean = bluetoothHelper.connectBleDevice(bluetoothDevice)
-        if (!result) {
-            onBtDeviceConnection(bluetoothDevice, StateCode.CONNECTION_FAILED)
-        }
     }
 
     override fun disconnectBluetoothDevice(bluetoothDevice: BluetoothDevice?) {

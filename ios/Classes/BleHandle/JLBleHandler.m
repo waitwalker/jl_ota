@@ -8,21 +8,32 @@
 
 #import "JLBleHandler.h"
 #import "ToolsHelper.h"
-#import "DeviceTypeConstants.h"
 
-NSString *const kFLT_BLE_OTA_CALLBACK = @"kFLT_BLE_OTA_CALLBACK";     // BLE断开连接
+NSString *kFLT_BLE_OTA_CALLBACK = @"kFLT_BLE_OTA_CALLBACK";
 
-@interface JLBleHandler()<JLBleManagerOtaDelegate, JL_RunSDKOtaDelegate>
+static NSString * const kDeviceTypeSoundBox = @"sound box";
+static NSString * const kDeviceTypeChargingBin = @"charging box";
+static NSString * const kDeviceTypeTWS = @"TWS";
+static NSString * const kDeviceTypeHeadset = @"headset";
+static NSString * const kDeviceTypeSoundCard = @"sound card";
+static NSString * const kDeviceTypeWatch = @"watch";
+static NSString * const kDeviceTypeTradition = @"tradition";
+static NSString * const kDeviceTypeUnknown = @"unKnow";
 
-@property (nonatomic, strong) JL_BLEMultiple *sdkManager;
-@property (nonatomic, strong) JLBleManager *userManager;
+static NSString * const kLogTagReconnectByMac = @"---> OTA SDK attempt to reconnect to the device using its MAC address... %@";
+static NSString * const kLogTagReconnectByMacCustom = @"---> OTA reconnecting via MAC... %@";
+static NSString * const kLogTagReconnectByUUID = @"---> OTA SDK reconnecting device... %@";
+static NSString * const kLogTagReconnectByUUIDCustom = @"---> OTA SDK reconnecting device by custom ... %@,%@";
 
+@interface JLBleHandler() <JLBleManagerOtaDelegate, JL_RunSDKOtaDelegate> {
+    JL_BLEMultiple  *sdkManager;
+    JLBleManager    *userManager;
+}
 @end
 
 @implementation JLBleHandler
 
-#pragma mark - Singleton
-+ (instancetype)share {
++(instancetype)share {
     static JLBleHandler *handler;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
@@ -31,111 +42,119 @@ NSString *const kFLT_BLE_OTA_CALLBACK = @"kFLT_BLE_OTA_CALLBACK";     // BLE断�
     return handler;
 }
 
-#pragma mark - Initialization
 - (instancetype)init {
     self = [super init];
     if (self) {
-        _sdkManager = [JL_RunSDK sharedInstance].mBleMultiple;
-        [JL_RunSDK sharedInstance].otaDelegate = self;
-        _sdkManager.BLE_FILTER_ENABLE = NO;
-        
-        _userManager = [JLBleManager sharedInstance];
-        [_userManager addDelegate:self];
+        [self setupManagers];
     }
     return self;
 }
 
-#pragma mark - Properties
+- (void)setupManagers {
+    sdkManager = [JL_RunSDK sharedInstance].mBleMultiple;
+    [JL_RunSDK sharedInstance].otaDelegate = self;
+    sdkManager.BLE_FILTER_ENABLE = YES;
+    
+    userManager = [JLBleManager sharedInstance];
+    [userManager addDelegate:self];
+}
+
 - (void)setDelegate:(id<JLBleHandlDelegate>)delegate {
     _delegate = delegate;
     [JL_RunSDK sharedInstance].otaDelegate = self;
 }
 
-#pragma mark - Connection Status
 - (BOOL)isConnected {
     if ([ToolsHelper isConnectBySDK]) {
-        return [JL_RunSDK sharedInstance].mBleEntityM.mBLE_IS_PAIRED;
+        JL_EntityM *entity = [JL_RunSDK sharedInstance].mBleEntityM;
+        return entity.mIsAuth;
     } else {
-        return self.userManager.isConnected;
+        return [[JLBleManager sharedInstance] isConnected];
     }
 }
 
 - (BOOL)handleWeatherNeedUpdate {
-    JL_OtaStatus upSt = JL_OtaStatusNormal;
+    JL_OtaStatus otaStatus = [self getCurrentOtaStatus];
+    return (otaStatus == JL_OtaStatusForce);
+}
+
+- (JL_OtaStatus)getCurrentOtaStatus {
     if ([ToolsHelper isConnectBySDK]) {
-        JLModel_Device *model = [[JL_RunSDK sharedInstance].mBleEntityM.mCmdManager outputDeviceModel];
-        upSt = model.otaStatus;
+        JLModel_Device *model = [[[JL_RunSDK sharedInstance] mBleEntityM].mCmdManager outputDeviceModel];
+        return model.otaStatus;
     } else {
-        upSt = self.userManager.otaManager.otaStatus;
+        return userManager.otaManager.otaStatus;
     }
-    
-    return (upSt == JL_OtaStatusForce);
 }
 
 - (NSString *)handleDeviceNowUUID {
     if ([ToolsHelper isConnectBySDK]) {
         return [JL_RunSDK sharedInstance].mBleEntityM.mPeripheral.identifier.UUIDString;
     } else {
-        return self.userManager.mBlePeripheral.identifier.UUIDString;
+        return [JLBleManager sharedInstance].mBlePeripheral.identifier.UUIDString;
     }
 }
 
 - (BOOL)handleGetBleStatus {
+    BOOL isPoweredOn = NO;
+    
     if ([ToolsHelper isConnectBySDK]) {
-        return (self.sdkManager.bleManagerState == CBManagerStatePoweredOn);
+        isPoweredOn = (sdkManager.bleManagerState == CBManagerStatePoweredOn);
     } else {
-        return (self.userManager.mBleManagerState == CBManagerStatePoweredOn);
+        isPoweredOn = ([JLBleManager sharedInstance].mBleManagerState == CBManagerStatePoweredOn);
     }
+    
+    return isPoweredOn;
 }
 
-#pragma mark - Scan Control
 - (void)handleScanDevice {
     if ([ToolsHelper isConnectBySDK]) {
-        [self.sdkManager scanStart];
+        [sdkManager scanStart];
     } else {
-        [self.userManager startScanBLE];
+        [userManager startScanBLE];
     }
 }
 
 - (void)handleStopScanDevice {
     if ([ToolsHelper isConnectBySDK]) {
-        [self.sdkManager scanStop];
+        [sdkManager scanStop];
     } else {
-        [self.userManager stopScanBLE];
+        [userManager stopScanBLE];
     }
 }
 
-#pragma mark - Connection Control
 - (void)handleDisconnect {
-    JL_EntityM *entity = [JL_RunSDK sharedInstance].mBleEntityM;
-    [self.sdkManager disconnectEntity:entity Result:^(JL_EntityM_Status status) {
-        // 断开连接完成回调
+    JL_EntityM *entity = [[JL_RunSDK sharedInstance] mBleEntityM];
+    [sdkManager disconnectEntity:entity Result:^(JL_EntityM_Status status) {
+        // Disconnect result handled internally
     }];
-    
-    [self.userManager disconnectBLE];
+    [userManager disconnectBLE];
 }
 
 - (void)handleReconnectByMac {
     if ([ToolsHelper isConnectBySDK]) {
-        kJLLog(JLLOG_DEBUG, @"---> OTA SDK attempt to reconnect to the device using its MAC address... %@", [JL_RunSDK sharedInstance].mBleEntityM.mBleAddr);
-        [self.sdkManager scanStart];
+        kJLLog(JLLOG_DEBUG, kLogTagReconnectByMac, [JL_RunSDK sharedInstance].mBleEntityM.mBleAddr);
+        [sdkManager scanStart];
     } else {
-        kJLLog(JLLOG_DEBUG, @"---> OTA reconnecting via MAC... %@", self.userManager.otaManager.bleAddr);
-        self.userManager.lastBleMacAddress = self.userManager.otaManager.bleAddr;
-        [self.userManager startScanBLE];
+        kJLLog(JLLOG_DEBUG, kLogTagReconnectByMacCustom, userManager.otaManager.bleAddr);
+        [JLBleManager sharedInstance].lastBleMacAddress = userManager.otaManager.bleAddr;
+        [[JLBleManager sharedInstance] startScanBLE];
     }
 }
 
 - (void)handleReconnectByUUID {
     if ([ToolsHelper isConnectBySDK]) {
-        self.sdkManager.BLE_PAIR_ENABLE = [ToolsHelper isSupportPair];
-        kJLLog(JLLOG_DEBUG, @"---> OTA SDK reconnecting device... %@", [JL_RunSDK sharedInstance].mBleEntityM.mItem);
-        [self.sdkManager connectEntityForMac:[JL_RunSDK sharedInstance].mBleEntityM.mEdr Result:^(JL_EntityM_Status status) {
-            // 连接结果回调
+        sdkManager.BLE_PAIR_ENABLE = [ToolsHelper isSupportPair];
+        kJLLog(JLLOG_DEBUG, kLogTagReconnectByUUID, [JL_RunSDK sharedInstance].mBleEntityM.mItem);
+        
+        JL_EntityM *entity = [sdkManager makeEntityWithUUID:[JL_RunSDK sharedInstance].lastUUID];
+        [sdkManager connectEntity:entity Result:^(JL_EntityM_Status status) {
+            // Connection result handled internally
         }];
     } else {
-        kJLLog(JLLOG_DEBUG, @"---> OTA SDK reconnecting device by custom ... %@,%@", self.userManager.mBlePeripheral.name, self.userManager.lastUUID);
-        [self.userManager connectPeripheralWithUUID:self.userManager.lastUUID];
+        kJLLog(JLLOG_DEBUG, kLogTagReconnectByUUIDCustom,
+               userManager.mBlePeripheral.name, userManager.lastUUID);
+        [userManager connectPeripheralWithUUID:userManager.lastUUID];
     }
 }
 
@@ -143,71 +162,86 @@ NSString *const kFLT_BLE_OTA_CALLBACK = @"kFLT_BLE_OTA_CALLBACK";     // BLE断�
     if ([ToolsHelper isConnectBySDK]) {
         [[JL_RunSDK sharedInstance] startLoopConnect:uuid];
     } else {
-        [self.userManager connectPeripheralWithUUID:uuid];
+        [userManager connectPeripheralWithUUID:uuid];
     }
 }
 
-#pragma mark - Device Type
-+ (NSString *)deviceType {
-    JL_DeviceType type = JL_DeviceTypeTradition;
-    if ([ToolsHelper isConnectBySDK]) {
-        type = [JL_RunSDK sharedInstance].mBleEntityM.mType;
-    } else {
-        type = [JLBleManager sharedInstance].currentEntity.mType;
-    }
-    
-    switch (type) {
-        case JL_DeviceTypeSoundBox:
-            return DeviceTypeSoundBox;
-        case JL_DeviceTypeChargingBin:
-            return DeviceTypeChargingBin;
-        case JL_DeviceTypeTWS:
-            return DeviceTypeTWS;
-        case JL_DeviceTypeHeadset:
-            return DeviceTypeHeadset;
-        case JL_DeviceTypeSoundCard:
-            return DeviceTypeSoundCard;
-        case JL_DeviceTypeWatch:
-            return DeviceTypeWatch;
-        case JL_DeviceTypeTradition:
-            return DeviceTypeTradition;
-        default:
-            return @"Unknown Type";
-    }
-}
-
-#pragma mark - OTA Functions
 - (void)handleOtaFuncWithFilePath:(NSString *)otaFilePath {
     if ([ToolsHelper isConnectBySDK]) {
         [[JL_RunSDK sharedInstance] otaFuncWithFilePath:otaFilePath];
     } else {
-        [self.userManager otaFuncWithFilePath:otaFilePath];
+        [[JLBleManager sharedInstance] otaFuncWithFilePath:otaFilePath];
     }
 }
 
 - (void)handleOtaCancelUpdate:(void(^)(JL_CMDStatus status))block {
+    if (!block) return;
+    
     if ([ToolsHelper isConnectBySDK]) {
-        JL_EntityM *entity = [JL_RunSDK sharedInstance].mBleEntityM;
-        if (entity) {
-            [entity.mCmdManager.mOTAManager cmdOTACancelResult:^(JL_CMDStatus status, uint8_t sn, NSData * _Nullable data) {
-                if (block) block(status);
-            }];
-        } else {
-            if (block) block(JL_CMDStatusFail);
-        }
+        [self cancelOtaUpdateWithSDK:block];
     } else {
-        JLBleEntity *entity = self.userManager.currentEntity;
-        if (entity) {
-            [self.userManager otaFuncCancel:^(uint8_t status) {
-                if (block) block(status);
-            }];
-        } else {
-            if (block) block(JL_CMDStatusFail);
-        }
+        [self cancelOtaUpdateWithCustomManager:block];
     }
 }
 
-#pragma mark - JL_RunSDKOtaDelegate
+- (void)cancelOtaUpdateWithSDK:(void(^)(JL_CMDStatus status))block {
+    JL_EntityM *entity = [[JL_RunSDK sharedInstance] mBleEntityM];
+    
+    if (entity) {
+        [entity.mCmdManager.mOTAManager cmdOTACancelResult:^(JL_CMDStatus status, uint8_t sn, NSData * _Nullable data) {
+            block(status);
+        }];
+    } else {
+        block(JL_CMDStatusFail);
+    }
+}
+
+- (void)cancelOtaUpdateWithCustomManager:(void(^)(JL_CMDStatus status))block {
+    JLBleEntity *entity = [[JLBleManager sharedInstance] currentEntity];
+    
+    if (entity) {
+        [[JLBleManager sharedInstance] otaFuncCancel:^(uint8_t status) {
+            block(status);
+        }];
+    } else {
+        block(JL_CMDStatusFail);
+    }
+}
+
++ (NSString *)deviceType {
+    JL_DeviceType type = [self getCurrentDeviceType];
+    return [self stringFromDeviceType:type];
+}
+
++ (JL_DeviceType)getCurrentDeviceType {
+    if ([ToolsHelper isConnectBySDK]) {
+        return [[JL_RunSDK sharedInstance] mBleEntityM].mType;
+    } else {
+        return [[JLBleManager sharedInstance] currentEntity].mType;
+    }
+}
+
++ (NSString *)stringFromDeviceType:(JL_DeviceType)type {
+    switch (type) {
+        case JL_DeviceTypeSoundBox:
+            return kDeviceTypeSoundBox;
+        case JL_DeviceTypeChargingBin:
+            return kDeviceTypeChargingBin;
+        case JL_DeviceTypeTWS:
+            return kDeviceTypeTWS;
+        case JL_DeviceTypeHeadset:
+            return kDeviceTypeHeadset;
+        case JL_DeviceTypeSoundCard:
+            return kDeviceTypeSoundCard;
+        case JL_DeviceTypeWatch:
+            return kDeviceTypeWatch;
+        case JL_DeviceTypeTradition:
+            return kDeviceTypeTradition;
+        default:
+            return kDeviceTypeUnknown;
+    }
+}
+
 - (void)otaProgressWithOtaResult:(JL_OTAResult)result withProgress:(float)progress {
     if ([self.delegate respondsToSelector:@selector(otaProgressOtaResult:withProgress:)]) {
         [self.delegate otaProgressOtaResult:result withProgress:progress];

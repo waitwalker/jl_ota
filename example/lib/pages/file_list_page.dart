@@ -4,11 +4,14 @@ import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:jl_ota/ble_event_stream.dart';
 import 'package:jl_ota/ble_method.dart';
+import 'package:jl_ota/constant/constants.dart';
 import 'package:jl_ota_example/pages/file_detail_page.dart';
 
 import 'package:jl_ota/constant/ble_event_constants.dart';
+import 'package:provider/provider.dart';
 import '../dialog/delete_all_log_dialog.dart';
 import '../l10n/app_localizations.dart';
+import '../utils/connection_state_manager.dart';
 
 /// Log file list page
 class FileListPage extends StatefulWidget {
@@ -21,6 +24,7 @@ class FileListPage extends StatefulWidget {
 class _FileListPageState extends State<FileListPage> {
   List<Map<String, String>> _logFileList = [];
   StreamSubscription? _logFileListSubscription;
+  int _connectState = AppConstants.connectionFailed;
 
   @override
   void initState() {
@@ -92,6 +96,15 @@ class _FileListPageState extends State<FileListPage> {
 
   @override
   Widget build(BuildContext context) {
+    _connectState = context.watch<ConnectionStateManager>().connectState;
+
+    // Check connection status and navigate back if disconnected
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_connectState == AppConstants.connectionDisconnect && mounted) {
+        Navigator.of(context).pop();
+      }
+    });
+
     return Scaffold(appBar: _buildAppBar(), body: _buildBody());
   }
 
@@ -110,22 +123,19 @@ class _FileListPageState extends State<FileListPage> {
 
   Widget _buildBody() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          if (_logFileList.isNotEmpty)
-            Expanded(
-              child: ListView.builder(
-                itemCount: _logFileList.length,
-                itemBuilder: (context, index) {
-                  final logFile = _logFileList[index];
-                  return _buildLogFileItem(logFile, index);
-                },
-              ),
-            ),
-        ],
-      ),
+      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [if (_logFileList.isNotEmpty) _buildLogFileList()]),
     );
+  }
+
+  Widget _buildLogFileList() {
+    return Expanded(
+      child: ListView.builder(itemCount: _logFileList.length, itemBuilder: _buildLogFileItemWrapper),
+    );
+  }
+
+  Widget _buildLogFileItemWrapper(BuildContext context, int index) {
+    final logFile = _logFileList[index];
+    return _buildLogFileItem(logFile, index);
   }
 
   Widget _buildLogFileItem(Map<String, String> logFile, int index) {

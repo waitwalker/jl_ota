@@ -3,6 +3,7 @@ package com.jieli.otasdk.tool.bluetooth
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothProfile
+import com.jieli.jl_bt_ota.constant.BluetoothConstant
 import com.jieli.jl_bt_ota.util.BluetoothUtil
 import com.jieli.jl_bt_ota.util.CHexConver
 import com.jieli.jl_bt_ota.util.JL_Log
@@ -14,6 +15,7 @@ import com.jieli.otasdk.tool.ota.spp.SppManager
 import com.jieli.otasdk.tool.ota.spp.interfaces.SppEventCallback
 import com.jieli.otasdk.util.AppUtil
 import com.jieli.otasdk.data.constant.OtaConstant
+import com.jieli.otasdk.tool.ota.ble.model.BleConnectParam
 import java.util.*
 
 /**
@@ -112,11 +114,8 @@ class BluetoothHelper {
     }
 
     init {
-//        if (configHelper.isBleWay()) {
         bleManager.registerBleEventCallback(bleEventCallback)
-//        } else {
         sppManager.registerSppEventCallback(sppEventCallback)
-//        }
     }
 
     fun destroy() {
@@ -150,41 +149,42 @@ class BluetoothHelper {
         sppManager.isScanning
     }
 
-    fun isConnecting(): Boolean = if (configHelper.isBleWay()) {
-        bleManager.isBleScanning
-    } else {
+    fun isConnecting(): Boolean = if (configHelper.isSppWay()) {
         sppManager.isSppConnecting
+    } else {
+        bleManager.isBleScanning
     }
 
     fun getConnectedDevice(): BluetoothDevice? {
-        return if (configHelper.isBleWay()) {
-            bleManager.connectedBtDevice
-        } else {
+        return if (configHelper.isSppWay()) {
             sppManager.connectedSppDevice
+        } else {
+            bleManager.connectedBtDevice
+
         }
     }
 
     fun getConnectingDevice(): BluetoothDevice? {
-        return if (configHelper.isBleWay()) {
-            bleManager.connectingDevice
-        } else {
+        return if (configHelper.isSppWay()) {
             sppManager.connectingSppDevice
+        } else {
+            bleManager.connectingDevice
         }
     }
 
-    fun getConnectedGatt(): BluetoothGatt? {
-        return if (configHelper.isBleWay()) {
-            bleManager.getConnectedBtGatt(getConnectedDevice())
-        } else {
+    fun getConnectedGatt(device: BluetoothDevice? = getConnectedDevice()): BluetoothGatt? {
+        return if (configHelper.isSppWay()) {
             null
+        } else {
+            bleManager.getConnectedBtGatt(device)
         }
     }
 
-    fun getBleMtu(): Int {
-        return if (configHelper.isBleWay()) {
-            return bleManager.getBleMtu(getConnectedDevice())
+    fun getBleMtu(device: BluetoothDevice? = getConnectedDevice()): Int {
+        return if (configHelper.isSppWay()) {
+            BluetoothConstant.BLE_MTU_MAX
         } else {
-            20
+            bleManager.getBleMtu(device)
         }
     }
 
@@ -204,18 +204,34 @@ class BluetoothHelper {
         }
     }
 
-    fun connectDevice(device: BluetoothDevice?): Boolean =
-        if (configHelper.isBleWay()) {
-            bleManager.connectBleDevice(device)
-        } else {
-            sppManager.connectSpp(device)
+    fun connectDevice(device: BluetoothDevice?): Boolean {
+        if (device == null) return false
+
+        val connectWay = configHelper.getConnectWay()
+
+        when (connectWay) {
+            BluetoothConstant.PROTOCOL_TYPE_SPP -> {
+                return sppManager.connectSpp(device)
+            }
+            BluetoothConstant.PROTOCOL_TYPE_GATT_OVER_BR_EDR -> {
+                return bleManager.connectBleDevice(
+                    device,
+                    BleConnectParam()
+                        .setRequestMtu(BluetoothConstant.BLE_MTU_MAX)
+                        .setTransport(BleConnectParam.TRANSPORT_BREDR)
+                )
+            }
+            else -> {
+                return bleManager.connectBleDevice(device)
+            }
         }
+    }
 
     fun disconnectDevice(device: BluetoothDevice?) {
-        if (configHelper.isBleWay()) {
-            bleManager.disconnectBleDevice(device)
-        } else {
+        if (configHelper.isSppWay()) {
             sppManager.disconnectSpp(device, null)
+        } else {
+            bleManager.disconnectBleDevice(device)
         }
     }
 
@@ -223,16 +239,16 @@ class BluetoothHelper {
         bleManager.connectBleDevice(device)
 
     fun reconnectDevice(address: String?, isUseNewAdv: Boolean) {
-        if (configHelper.isBleWay()) {
-            bleManager.reconnectDevice(address, isUseNewAdv)
-        } else {
+        if (configHelper.isSppWay()) {
             //TODO:需要增加SPP自定义回连方式
+        } else {
+            bleManager.reconnectDevice(address, isUseNewAdv)
         }
     }
 
     fun writeDataToDevice(bluetoothDevice: BluetoothDevice?, byteArray: ByteArray?): Boolean {
         if (null == bluetoothDevice || null == byteArray || byteArray.isEmpty()) return false
-        if (bleManager.connectedBtDevice != null) {//目前连接的设备是ble
+        if (bleManager.isConnectedDevice(bluetoothDevice)) {//目前连接的设备是ble
             bleManager.writeDataByBleAsync(
                 bluetoothDevice,
                 BleManager.BLE_UUID_SERVICE,
@@ -245,7 +261,9 @@ class BluetoothHelper {
                             "data : [${CHexConver.byte2HexStr(data)}]"
                 )
             }
-        } else if (sppManager.connectedSppDevice != null) {//目前连接的设备是Spp
+            return true
+        }
+        if (sppManager.isSppConnected(bluetoothDevice)) {//目前连接的设备是Spp
             sppManager.writeDataToSppAsync(
                 bluetoothDevice,
                 SppManager.UUID_SPP,
@@ -258,8 +276,9 @@ class BluetoothHelper {
                             "\ndata : ${CHexConver.byte2HexStr(data)}"
                 )
             }
+            return true
         }
-        return true
+        return false
     }
 
     private fun printDeviceInfo(device: BluetoothDevice?): String? {

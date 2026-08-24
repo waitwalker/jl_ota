@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModel
 import com.jieli.otasdk.MyApplication
 import com.jieli.otasdk.util.DownloadFileUtil
 import java.io.File
-import java.util.Calendar
 
 /**
  * @ClassName: DownloadFileViewModel
@@ -39,22 +38,33 @@ class DownloadFileViewModel : ViewModel() {
 
     fun downloadFile(httpUrl: String) {
         this.httpUrl = httpUrl
-        val parentFilePath = MyApplication.getInstance().otaFileDir
-        var fileName = DEFAULT_FILE_NAME
-        val resultFile = File(parentFilePath, fileName)
 
-        // 如果文件已存在，添加时间戳重命名
-        if (resultFile.exists()) {
-            val fileTypeIndex = fileName.lastIndexOf(".")
-            val fileType = fileName.substring(fileTypeIndex)
-            val realName = fileName.substring(0, fileTypeIndex)
-            val calendar = Calendar.getInstance()
-            fileName = "${realName}_${calendar.timeInMillis}$fileType"
-        }
+        val parentFile = MyApplication.getInstance().otaFileDir
+        val originalFileName = DEFAULT_FILE_NAME
+        val targetFileName = generateUniqueFileName(parentFile, originalFileName)
+        val targetPath = File(parentFile, targetFileName).absolutePath
 
-        val resultPath = File(parentFilePath, fileName).absolutePath
-        DownloadFileUtil.downloadFile(httpUrl, resultPath) { event ->
+        DownloadFileUtil.downloadFile(httpUrl, targetPath) { event ->
             downloadStatusMLD.postValue(event)
+        }
+    }
+
+    private fun generateUniqueFileName(parentDir: String, originalName: String): String {
+        val file = File(parentDir, originalName)
+        if (!file.exists()) return originalName
+
+        val (baseName, extension) = splitFileName(originalName)
+        val timestamp = System.currentTimeMillis()
+
+        return "${baseName}_${timestamp}${extension}"
+    }
+
+    private fun splitFileName(fileName: String): Pair<String, String> {
+        val lastDotIndex = fileName.lastIndexOf(".")
+        return if (lastDotIndex == -1) {
+            Pair(fileName, "")
+        } else {
+            Pair(fileName.substring(0, lastDotIndex), fileName.substring(lastDotIndex))
         }
     }
 }

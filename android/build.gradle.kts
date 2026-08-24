@@ -110,8 +110,8 @@ dependencies {
     add("testImplementation", "org.mockito:mockito-core:5.0.0")
 
     add("implementation", "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion")
-    add("implementation", mapOf("name" to "jl-component-lib_V1.2.2-release", "ext" to "aar"))
-    add("implementation", mapOf("name" to "jl_bt_ota_V1.10.0_10931-release", "ext" to "aar"))
+    add("implementation", mapOf("name" to "jl-component-lib_V1.4.0_10400-release", "ext" to "aar"))
+    add("implementation", mapOf("name" to "jl_bt_ota_V1.11.0_11015-release", "ext" to "aar"))
     add("implementation", mapOf("name" to "jl_file_transfer_V1.0.0-release", "ext" to "aar"))
 
     add("implementation", "com.github.permissions-dispatcher:permissionsdispatcher:4.9.2")

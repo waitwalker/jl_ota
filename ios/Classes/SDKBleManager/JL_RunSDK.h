@@ -16,6 +16,8 @@
 
 #define OTA_UPGRADE @"upgrade"
 
+#define kJL_TXT(key)    [DFUITools languageText:@(key) Table:@"Localizable"]
+
 NS_ASSUME_NONNULL_BEGIN
 
 @protocol JL_RunSDKOtaDelegate <NSObject>
@@ -33,6 +35,8 @@ NS_ASSUME_NONNULL_BEGIN
 @property (strong, nonatomic) JL_BLEMultiple *mBleMultiple;
 @property (weak, nonatomic) JL_EntityM *__nullable mBleEntityM;
 @property (weak, nonatomic) id<JL_RunSDKOtaDelegate> otaDelegate;
+@property (strong, nonatomic) NSString *lastUUID;
+
 
 /**
  * 单例

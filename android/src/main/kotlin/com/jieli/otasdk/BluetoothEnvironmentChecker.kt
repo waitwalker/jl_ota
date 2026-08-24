@@ -20,9 +20,9 @@ object BluetoothEnvironmentChecker {
     /**
      * 检查蓝牙环境：
      * 1. 蓝牙权限
-     * 2. 定位权限（本插件未声明 neverForLocation，Android 12+ 同样需要）
+     * 2. 定位权限
      * 3. 蓝牙是否启用
-     * 4. 定位服务是否启用（未声明 neverForLocation 时，系统仍依赖定位服务产出扫描结果）
+     * 4. 定位服务是否启用
      *
      * @param context 上下文
      * @param callback 回调接口

@@ -45,10 +45,9 @@ class SettingManager {
   }
 
   // 加载通信方式（仅Android）
-  static Future<String> loadCommunicationMethod() async {
+  static Future<int> loadCommunicationMethod() async {
     try {
-      final isBle = await BleMethod.isBleWay();
-      return isBle ? AppConstants.communicationWayBle : AppConstants.communicationWaySpp;
+      return await BleMethod.getConnectWay();
     } catch (e) {
       log("Failed to load communication method: $e");
       return AppConstants.communicationWayBle;
@@ -71,6 +70,16 @@ class SettingManager {
       return await BleMethod.isUseSdkBluetooth();
     } catch (e) {
       log("Failed to load SDK bluetooth: $e");
+      return false;
+    }
+  }
+
+  // 读取GattOverEdr的状态（仅iOS）
+  static Future<bool> isUseGattOverEdr() async {
+    try {
+      return await BleMethod.isUseGattOverEdr();
+    } catch (e) {
+      log("Failed to use gatt over edr: $e");
       return false;
     }
   }
@@ -103,9 +112,11 @@ class SettingManager {
     required bool deviceAuth,
     required bool hidDevice,
     required bool customReconnect,
-    required String communicationMethod,
+    required int communicationMethod,
     required int mtu,
     required bool useSdkBluetooth,
+    required bool gattOverEdr,
+    required List<String> gattServiceUuids,
   }) async {
     try {
       // 通用设置：设备认证
@@ -115,12 +126,14 @@ class SettingManager {
         // Android特有设置
         await BleMethod.setHidDevice(hidDevice);
         await BleMethod.setUseCustomReConnectWay(customReconnect);
-        await BleMethod.setBleWay(communicationMethod == AppConstants.communicationWayBle);
+        await BleMethod.setConnectWay(communicationMethod);
         await BleMethod.setBleRequestMtu(mtu);
         await BleMethod.popAllActivity(); // 重启应用
       } else {
         // iOS特有设置
         await BleMethod.setConnectUsingSdkBluetooth(useSdkBluetooth);
+        await BleMethod.setGattOverEdrState(gattOverEdr);
+        await BleMethod.setGattServiceUuids(gattServiceUuids);
       }
     } catch (e) {
       log("Failed to save settings: $e");

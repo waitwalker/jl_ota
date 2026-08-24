@@ -8,6 +8,44 @@
 import Foundation
 import Flutter
 
+// MARK: - LogManager Constants
+struct LogManagerConstants {
+    static let logFileExtension = ".txt"
+    static let documentsDirectory = FileManager.SearchPathDirectory.documentDirectory
+    static let domainMask = FileManager.SearchPathDomainMask.userDomainMask
+    
+    static let errorCodeLogDirectoryNotFound = "LOG_DIRECTORY_NOT_FOUND"
+    static let errorCodeLogDirectoryReadError = "LOG_DIRECTORY_READ_ERROR"
+    static let errorCodeAlreadyReading = "ALREADY_READING"
+    static let errorCodeInvalidIndex = "INVALID_INDEX"
+    static let errorCodeFileReadError = "FILE_READ_ERROR"
+    
+    static let errorMessageLogDirectoryNotFound = "Not find document directory"
+    static let errorMessageAlreadyReading = "Already reading a file, please wait"
+    static let errorMessageInvalidIndex = "Invalid file index: %d"
+    static let errorMessageFileReadError = "Error reading log file: %@"
+    static let errorMessageFileShareError = "Error reading log file for sharing: %@"
+    static let errorMessageDirectoryReadError = "Read log directory error: %@"
+    static let errorMessageDeleteFilesError = "Error deleting files: %@"
+    static let errorMessageShareActivityFailed = "Share activity failed: %@"
+    static let errorMessageFileEncodingError = "Failed to decode file content as UTF-8"
+    
+    static let logAlreadyReading = "Already reading a file, please wait"
+    static let logFileReadError = "Error reading log file: %@"
+    static let logFileShareError = "Error reading log file for sharing: %@"
+    static let logDeleteFilesError = "Error deleting files: %@"
+    static let logShareActivityFailed = "Share activity failed: %@"
+    static let logFileEncodingError = "Failed to decode file content as UTF-8"
+    
+    static let encodingErrorDomain = "EncodingError"
+    static let encodingErrorCode = -1
+    static let fileEncoding = String.Encoding.utf8
+    
+    static let distantPast = Date.distantPast
+    
+    static let backgroundQoS = DispatchQoS.background
+}
+
 /// A singleton manager class for handling log file operations.
 class LogManager {
     static let shared = LogManager()
@@ -16,21 +54,17 @@ class LogManager {
     private var eventSink: FlutterEventSink?
     private var isReading = false
     
-    /// 设置事件通道的 sink
     func setEventSink(sink: FlutterEventSink?) {
         eventSink = sink
     }
     
-    /// 加载日志文件列表
     func loadLogFiles() {
-        // 清空现有数组
         itemArray.removeAllObjects()
         
-        // 获取 Documents 目录路径
         guard let documentsPath = getDocumentsDirectoryPath() else {
             sendErrorToFlutter(
-                errorCode: "LOG_DIRECTORY_NOT_FOUND",
-                errorMessage: "Not find document directory",
+                errorCode: LogManagerConstants.errorCodeLogDirectoryNotFound,
+                errorMessage: LogManagerConstants.errorMessageLogDirectoryNotFound,
                 errorDetails: nil
             )
             return
@@ -39,32 +73,27 @@ class LogManager {
         let fileManager = FileManager.default
         
         do {
-            // 获取目录中的所有文件
             let files = try fileManager.contentsOfDirectory(atPath: documentsPath)
             
-            // 过滤出.txt文件并添加到数组
             for file in files {
-                if file.hasSuffix(".txt") {
+                if file.hasSuffix(LogManagerConstants.logFileExtension) {
                     let fullPath = "\(documentsPath)/\(file)"
                     itemArray.add(fullPath)
                 }
             }
             
-            // 按修改时间排序（最新的在前）
             sortFilesByModificationDate()
             
-            // 发送文件列表到 Flutter
             sendFilesToFlutter()
         } catch {
             sendErrorToFlutter(
-                errorCode: "LOG_DIRECTORY_READ_ERROR",
-                errorMessage: "Read log directory error: \(error.localizedDescription)",
+                errorCode: LogManagerConstants.errorCodeLogDirectoryReadError,
+                errorMessage: String(format: LogManagerConstants.errorMessageDirectoryReadError, error.localizedDescription),
                 errorDetails: nil
             )
         }
     }
     
-    ///  删除所有日志文件
     func deleteAllLogs() {
         guard let documentsPath = getDocumentsDirectoryPath() else {
             return
@@ -74,13 +103,13 @@ class LogManager {
         do {
             let files = try fileManager.contentsOfDirectory(atPath: documentsPath)
             for path in files {
-                if path.hasSuffix(".txt") {
+                if path.hasSuffix(LogManagerConstants.logFileExtension) {
                     let newPath = "\(documentsPath)/\(path)"
                     try fileManager.removeItem(atPath: newPath)
                 }
             }
         } catch {
-            JLLogManager.logLevel(.DEBUG, content: "Error deleting files: \(error.localizedDescription)")
+            JLLogManager.logLevel(.DEBUG, content: String(format: LogManagerConstants.logDeleteFilesError, error.localizedDescription))
         }
     }
     
@@ -89,10 +118,10 @@ class LogManager {
     func handleLogFileIndex(_ index: Int) {
         // Check if already reading a file
         if isReading {
-            JLLogManager.logLevel(.DEBUG, content: "Already reading a file, please wait")
+            JLLogManager.logLevel(.DEBUG, content: LogManagerConstants.logAlreadyReading)
             sendErrorToFlutter(
-                errorCode: "ALREADY_READING",
-                errorMessage: "Already reading a file, please wait",
+                errorCode: LogManagerConstants.errorCodeAlreadyReading,
+                errorMessage: LogManagerConstants.errorMessageAlreadyReading,
                 errorDetails: nil
             )
             return
@@ -101,8 +130,8 @@ class LogManager {
         // Validate index
         guard let filePath = getFilePath(at: index) else {
             sendErrorToFlutter(
-                errorCode: "INVALID_INDEX",
-                errorMessage: "Invalid file index: \(index)",
+                errorCode: LogManagerConstants.errorCodeInvalidIndex,
+                errorMessage: String(format: LogManagerConstants.errorMessageInvalidIndex, index),
                 errorDetails: nil
             )
             return
@@ -110,7 +139,7 @@ class LogManager {
         
         isReading = true
         
-        DispatchQueue.global(qos: .background).async {
+        DispatchQueue.global(qos: LogManagerConstants.backgroundQoS.qosClass).async {
             do {
                 // Read file content
                 let content = try self.readFileContent(at: filePath)
@@ -118,10 +147,10 @@ class LogManager {
                 // Send content to Flutter
                 self.sendContentToFlutter(content)
             } catch {
-                JLLogManager.logLevel(.DEBUG, content: "Error reading log file: \(error.localizedDescription)")
+                JLLogManager.logLevel(.DEBUG, content: String(format: LogManagerConstants.logFileReadError, error.localizedDescription))
                 self.sendErrorToFlutter(
-                    errorCode: "FILE_READ_ERROR",
-                    errorMessage: "Error reading log file: \(error.localizedDescription)",
+                    errorCode: LogManagerConstants.errorCodeFileReadError,
+                    errorMessage: String(format: LogManagerConstants.errorMessageFileReadError, error.localizedDescription),
                     errorDetails: nil
                 )
             }
@@ -138,8 +167,8 @@ class LogManager {
         // Validate index
         guard let filePath = getFilePath(at: index) else {
             sendErrorToFlutter(
-                errorCode: "INVALID_INDEX",
-                errorMessage: "Invalid file index: \(index)",
+                errorCode: LogManagerConstants.errorCodeInvalidIndex,
+                errorMessage: String(format: LogManagerConstants.errorMessageInvalidIndex, index),
                 errorDetails: nil
             )
             return
@@ -162,27 +191,27 @@ class LogManager {
             activityViewController.completionWithItemsHandler = { activityType, completed, returnedItems, error in
                 // Handle completion if needed
                 if let error = error {
-                    JLLogManager.logLevel(.DEBUG, content: "Share activity failed: \(error.localizedDescription)")
+                    JLLogManager.logLevel(.DEBUG, content: String(format: LogManagerConstants.logShareActivityFailed, error.localizedDescription))
                 }
             }
         } catch {
-            JLLogManager.logLevel(.DEBUG, content: "Error reading log file for sharing: \(error.localizedDescription)")
+            JLLogManager.logLevel(.DEBUG, content: String(format: LogManagerConstants.logFileShareError, error.localizedDescription))
             sendErrorToFlutter(
-                errorCode: "FILE_READ_ERROR",
-                errorMessage: "Error reading log file for sharing: \(error.localizedDescription)",
+                errorCode: LogManagerConstants.errorCodeFileReadError,
+                errorMessage: String(format: LogManagerConstants.errorMessageFileShareError, error.localizedDescription),
                 errorDetails: nil
             )
         }
     }
-    
-    // MARK: - Helper Methods
-    
-    /// 获取Documents目录路径
+        
     private func getDocumentsDirectoryPath() -> String? {
-        return NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true).last
+        return NSSearchPathForDirectoriesInDomains(
+            LogManagerConstants.documentsDirectory,
+            LogManagerConstants.domainMask,
+            true
+        ).last
     }
     
-    /// 按修改时间排序文件（最新的在前）
     private func sortFilesByModificationDate() {
         let fileManager = FileManager.default
         
@@ -195,8 +224,8 @@ class LogManager {
                 let attr1 = try fileManager.attributesOfItem(atPath: path1)
                 let attr2 = try fileManager.attributesOfItem(atPath: path2)
                 
-                let date1 = attr1[.modificationDate] as? Date ?? Date.distantPast
-                let date2 = attr2[.modificationDate] as? Date ?? Date.distantPast
+                let date1 = attr1[.modificationDate] as? Date ?? LogManagerConstants.distantPast
+                let date2 = attr2[.modificationDate] as? Date ?? LogManagerConstants.distantPast
                 
                 return date2.compare(date1) // 最新的在前
             } catch {
@@ -205,7 +234,6 @@ class LogManager {
         }
     }
     
-    /// 获取指定索引的文件路径
     private func getFilePath(at index: Int) -> String? {
         guard index >= 0, index < itemArray.count, let filePath = itemArray[index] as? String else {
             return nil
@@ -213,11 +241,14 @@ class LogManager {
         return filePath
     }
     
-    /// 读取文件内容
     private func readFileContent(at path: String) throws -> String {
         let data = try Data(contentsOf: URL(fileURLWithPath: path))
-        guard let content = String(data: data, encoding: .utf8) else {
-            throw NSError(domain: "EncodingError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to decode file content as UTF-8"])
+        guard let content = String(data: data, encoding: LogManagerConstants.fileEncoding) else {
+            throw NSError(
+                domain: LogManagerConstants.encodingErrorDomain,
+                code: LogManagerConstants.encodingErrorCode,
+                userInfo: [NSLocalizedDescriptionKey: LogManagerConstants.errorMessageFileEncodingError]
+            )
         }
         return content
     }
@@ -233,7 +264,6 @@ class LogManager {
         }
     }
     
-    /// 发送文件列表到 Flutter
     private func sendFilesToFlutter() {
         var fileList: [[String: Any]] = []
         
@@ -248,12 +278,22 @@ class LogManager {
         ])
     }
     
-    /// 发送错误到 Flutter
     private func sendErrorToFlutter(errorCode: String, errorMessage: String, errorDetails: Any?) {
         eventSink?(FlutterError(
             code: errorCode,
             message: errorMessage,
             details: errorDetails
         ))
+    }
+    
+    func cleanUp() {
+        // Clear event sink to prevent further callbacks
+        eventSink = nil
+        
+        // Clear the file array
+        itemArray.removeAllObjects()
+        
+        // Reset reading flag
+        isReading = false
     }
 }

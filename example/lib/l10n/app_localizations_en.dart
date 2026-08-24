@@ -106,6 +106,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get communicationWaySpp => 'SPP';
 
   @override
+  String get communicationWayGatt => 'GATT Over BR/EDR';
+
+  @override
   String get adjustMtu => 'Adjust MTU';
 
   @override
@@ -293,4 +296,34 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get deviceMustMandatoryUpgrade => 'Device must be forced to upgrade';
+
+  @override
+  String get bluetoothDisconnected => 'Bluetooth disconnected';
+
+  @override
+  String get gattUuidPlaceholder => 'Please enter one or more UUIDs, separated by commas or newlines';
+
+  @override
+  String get gattServiceUuid => 'GATT Service UUID';
+
+  @override
+  String get gattUuidTips => 'Example: 180A, 0000180D-0000-1000-8000-00805F9B34FB';
+
+  @override
+  String get gattUuidErrorEmpty => 'Please enter at least one UUID';
+
+  @override
+  String get gattUuidErrorInvalidFmt => 'Invalid UUID format:\n%s';
+
+  @override
+  String get customCommand => 'Custom command';
+
+  @override
+  String get sendCustomCmd => 'Send custom command';
+
+  @override
+  String get receivedData => 'Received data';
+
+  @override
+  String get inputData => 'Input data';
 }

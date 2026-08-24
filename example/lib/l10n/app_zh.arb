@@ -129,6 +129,10 @@
   "@communicationWaySpp": {
     "description": "Communication way is spp option"
   },
+  "communicationWayGatt": "GATT Over BR/EDR",
+  "@communicationWayGatt": {
+    "description": "Communication way is gatt option"
+  },
   "adjustMtu": "调整MTU",
   "@adjustMtu": {
     "description": "Adjust the MTU size"
@@ -380,5 +384,45 @@
   "deviceMustMandatoryUpgrade": "设备需要强制升级",
   "@deviceMustMandatoryUpgrade": {
     "description": "Label for device must be forced to upgrade"
+  },
+  "bluetoothDisconnected": "蓝牙已断开",
+  "@bluetoothDisconnected": {
+    "description": "Label for bluetooth disconnected"
+  },
+  "gattUuidPlaceholder": "请输入一个或多个 UUID，使用逗号或换行分隔",
+  "@gattUuidPlaceholder": {
+    "description": "Label for gatt uuid placeholder"
+  },
+  "gattServiceUuid": "GATT Service UUID",
+  "@gattServiceUuid": {
+    "description": "Label for gatt service uuid"
+  },
+  "gattUuidTips": "示例: 180A, 0000180D-0000-1000-8000-00805F9B34FB",
+  "@gattUuidTips": {
+    "description": "Label for gatt uuid tips"
+  },
+  "gattUuidErrorEmpty": "请输入至少一个 UUID",
+  "@gattUuidErrorEmpty": {
+    "description": "Label for gatt uuid error empty"
+  },
+  "gattUuidErrorInvalidFmt": "以下 UUID 格式无效:\n%s",
+  "@gattUuidErrorInvalidFmt": {
+    "description": "Label for gatt uuid error empty"
+  },
+  "customCommand": "自定义命令",
+  "@customCommand": {
+    "description": "Label for custom command"
+  },
+  "sendCustomCmd": "发送自定义命令",
+  "@sendCustomCmd": {
+    "description": "Label for send custom command"
+  },
+  "receivedData": "接收的数据",
+  "@receivedData": {
+    "description": "Label for received data"
+  },
+  "inputData": "输入的数据",
+  "@inputData": {
+    "description": "Label for input data"
   }
 }

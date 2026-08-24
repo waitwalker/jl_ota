@@ -8,12 +8,16 @@
 
 #import "SingleDataSender.h"
 
+// MARK: - Constants
+static NSString * const kLogTagSingleWait = @"single wait:%d";
+static NSString * const kLogTagSingleSend = @"single send";
+
 @interface SingleDataSender()
 {
-    dispatch_semaphore_t semaphore;      ///< 信号量，用于控制发送队列
-    dispatch_queue_t sendQueue;          ///< 发送队列
-    NSMutableArray *sendDataArray;       ///< 待发送数据数组
-    NSLock *lock;                        ///< 锁，用于线程安全
+    dispatch_semaphore_t semaphore;      ///< Semaphore for controlling send queue
+    dispatch_queue_t sendQueue;          ///< Serial queue for sending data
+    NSMutableArray *sendDataArray;       ///< Queue of data to send
+    NSLock *lock;                        ///< Lock for thread-safe array access
 }
 
 @end
@@ -44,37 +48,47 @@
 }
 
 - (void)appendSend:(NSData *)data {
-    NSData *dt = [data mutableCopy];
+    if (!data) return;
+    
+    NSData *dt = [data copy];
     [lock lock];
     [sendDataArray addObject:dt];
+    NSUInteger count = sendDataArray.count;
     [lock unlock];
-    if (sendDataArray.count == 1) {
+    
+    if (count == 1) {
         [self sendSingle];
     }
 }
 
 - (void)sendQueueAction {
     while (1) {
-        if (sendDataArray.count >= 1) {
-            [lock lock];
-            NSData *data = sendDataArray[0];
-            dispatch_async(dispatch_get_main_queue(), ^{
-                for (id<SingleSendDelegate>objc in self.delegates) {
-                    [objc singleDidSendData:data];
+        @autoreleasepool {
+            if (sendDataArray.count >= 1) {
+                [lock lock];
+                NSData *data = sendDataArray.firstObject;
+                if (data) {
+                    dispatch_async(dispatch_get_main_queue(), ^{
+                        for (id<SingleSendDelegate> objc in self.delegates) {
+                            if ([objc respondsToSelector:@selector(singleDidSendData:)]) {
+                                [objc singleDidSendData:data];
+                            }
+                        }
+                    });
                 }
-            });
-            [sendDataArray removeObjectAtIndex:0];
-            [lock unlock];
-        } else {
-            kJLLog(JLLOG_DEBUG, @"single wait:%d", (int)sendDataArray.count);
-            dispatch_semaphore_wait(semaphore, DISPATCH_TIME_FOREVER);
+                [sendDataArray removeObjectAtIndex:0];
+                [lock unlock];
+            } else {
+                kJLLog(JLLOG_DEBUG, kLogTagSingleWait, (int)sendDataArray.count);
+                dispatch_semaphore_wait(semaphore, DISPATCH_TIME_FOREVER);
+            }
         }
     }
 }
 
 - (void)sendSingle {
     dispatch_semaphore_signal(semaphore);
-    kJLLog(JLLOG_DEBUG, @"single send");
+    kJLLog(JLLOG_DEBUG, kLogTagSingleSend);
 }
 
 @end

@@ -129,6 +129,10 @@
   "@communicationWaySpp": {
     "description": "Communication way is spp option"
   },
+  "communicationWayGatt": "GATT Over BR/EDR",
+  "@communicationWayGatt": {
+    "description": "Communication way is gatt option"
+  },
   "adjustMtu": "Adjust MTU",
   "@adjustMtu": {
     "description": "Adjust the MTU size"
@@ -380,5 +384,45 @@
   "deviceMustMandatoryUpgrade": "Device must be forced to upgrade",
   "@deviceMustMandatoryUpgrade": {
     "description": "Label for device must be forced to upgrade"
+  },
+  "bluetoothDisconnected": "Bluetooth disconnected",
+  "@bluetoothDisconnected": {
+    "description": "Label for bluetooth disconnected"
+  },
+  "gattUuidPlaceholder": "Please enter one or more UUIDs, separated by commas or newlines",
+  "@gattUuidPlaceholder": {
+    "description": "Label for gatt uuid placeholder"
+  },
+  "gattServiceUuid": "GATT Service UUID",
+  "@gattServiceUuid": {
+    "description": "Label for gatt service uuid"
+  },
+  "gattUuidTips": "Example: 180A, 0000180D-0000-1000-8000-00805F9B34FB",
+  "@gattUuidTips": {
+    "description": "Label for gatt uuid tips"
+  },
+  "gattUuidErrorEmpty": "Please enter at least one UUID",
+  "@gattUuidErrorEmpty": {
+    "description": "Label for gatt uuid error empty"
+  },
+  "gattUuidErrorInvalidFmt": "Invalid UUID format:\n%s",
+  "@gattUuidErrorInvalidFmt": {
+    "description": "Label for gatt uuid error empty"
+  },
+  "customCommand": "Custom command",
+  "@customCommand": {
+    "description": "Label for custom command"
+  },
+  "sendCustomCmd": "Send custom command",
+  "@sendCustomCmd": {
+    "description": "Label for send custom command"
+  },
+  "receivedData": "Received data",
+  "@receivedData": {
+    "description": "Label for received data"
+  },
+  "inputData": "Input data",
+  "@inputData": {
+    "description": "Label for input data"
   }
 }

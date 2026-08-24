@@ -6,8 +6,8 @@ import com.jieli.jl_bt_ota.util.JL_Log;
 import com.jieli.otasdk.tool.ota.ble.interfaces.IBleOp;
 import com.jieli.otasdk.tool.ota.ble.interfaces.OnThreadStateListener;
 import com.jieli.otasdk.tool.ota.ble.interfaces.OnWriteDataCallback;
+import com.jieli.otasdk.tool.ota.ble.model.BleSendTask;
 
-import java.util.Arrays;
 import java.util.UUID;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -83,22 +83,28 @@ public class SendBleDataThread extends Thread {
     }
 
     private boolean addSendData(BluetoothGatt gatt, UUID serviceUUID, UUID characteristicUUID, byte[] data, OnWriteDataCallback callback) {
+        if (!isDataSend) {
+            return false;
+        }
+
+        BleSendTask sendTask = new BleSendTask(gatt, serviceUUID, characteristicUUID, data, callback);
+
         boolean ret = false;
-        if (isDataSend) {
-            BleSendTask sendTask = new BleSendTask(gatt, serviceUUID, characteristicUUID, data, callback);
-            try {
-                mQueue.put(sendTask);
-                ret = true;
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-            if (ret && isThreadWaiting && !isWaitingForCallback) {
-                isThreadWaiting = false;
-                synchronized (mQueue) {
-                    mQueue.notify();
-                }
+        try {
+            mQueue.put(sendTask);
+            ret = true;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            e.printStackTrace();
+        }
+
+        if (ret && isThreadWaiting && !isWaitingForCallback) {
+            isThreadWaiting = false;
+            synchronized (mQueue) {
+                mQueue.notify();
             }
         }
+
         return ret;
     }
 
@@ -146,7 +152,7 @@ public class SendBleDataThread extends Thread {
                     } else {
                         mCurrentTask = mQueue.peek();
                         if (mCurrentTask != null) {
-                            isWaitingForCallback = mBleManager.writeDataByBle(mCurrentTask.mGatt, mCurrentTask.getServiceUUID(),
+                            isWaitingForCallback = mBleManager.writeDataByBle(mCurrentTask.getBleGatt(), mCurrentTask.getServiceUUID(),
                                     mCurrentTask.getCharacteristicUUID(), mCurrentTask.getData());
                             if (isWaitingForCallback) {
                                 try {
@@ -191,104 +197,6 @@ public class SendBleDataThread extends Thread {
                 mListener.onEnd(getId(), getName());
             }
             JL_Log.d(TAG, "send ble data thread exit.");
-        }
-    }
-
-
-    public static class BleSendTask {
-        private BluetoothGatt mGatt;
-        private UUID serviceUUID;
-        private UUID characteristicUUID;
-        private byte[] data;
-        private int status = -1;
-        private OnWriteDataCallback mCallback;
-
-        public BleSendTask(BluetoothGatt gatt, UUID serviceUUID, UUID characteristicUUID, byte[] data, OnWriteDataCallback callback) {
-            this.mGatt = gatt;
-            this.serviceUUID = serviceUUID;
-            this.characteristicUUID = characteristicUUID;
-            this.data = data;
-            this.mCallback = callback;
-        }
-
-        public BluetoothGatt getBleGatt() {
-            return mGatt;
-        }
-
-        public void setDevice(BluetoothGatt gatt) {
-            mGatt = gatt;
-        }
-
-        public UUID getServiceUUID() {
-            return serviceUUID;
-        }
-
-        public void setServiceUUID(UUID serviceUUID) {
-            this.serviceUUID = serviceUUID;
-        }
-
-        public UUID getCharacteristicUUID() {
-            return characteristicUUID;
-        }
-
-        public void setCharacteristicUUID(UUID characteristicUUID) {
-            this.characteristicUUID = characteristicUUID;
-        }
-
-        public byte[] getData() {
-            return data;
-        }
-
-        public void setData(byte[] data) {
-            this.data = data;
-        }
-
-        public OnWriteDataCallback getCallback() {
-            return mCallback;
-        }
-
-        public void setCallback(OnWriteDataCallback callback) {
-            mCallback = callback;
-        }
-
-        public int getStatus() {
-            return status;
-        }
-
-        public void setStatus(int status) {
-            this.status = status;
-        }
-
-        @Override
-        public String toString() {
-            return "BleSendTask{" +
-                    "mGatt=" + mGatt +
-                    ", serviceUUID=" + serviceUUID +
-                    ", characteristicUUID=" + characteristicUUID +
-                    ", data=" + Arrays.toString(data) +
-                    ", status=" + status +
-                    ", mCallback=" + mCallback +
-                    '}';
-        }
-
-        @Override
-        public int hashCode() {
-            if (mGatt != null && serviceUUID != null && characteristicUUID != null) {
-                return mGatt.hashCode() + serviceUUID.hashCode() + characteristicUUID.hashCode();
-            }
-            return super.hashCode();
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            if (obj instanceof BleSendTask) {
-                BleSendTask other = (BleSendTask) obj;
-                if (mGatt != null && serviceUUID != null && characteristicUUID != null) {
-                    return mGatt.equals(other.getBleGatt()) && serviceUUID.equals(other.getServiceUUID())
-                            && characteristicUUID.equals(other.getCharacteristicUUID());
-                }
-            }
-            return false;
         }
     }
 }

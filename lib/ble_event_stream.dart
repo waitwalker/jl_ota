@@ -147,6 +147,43 @@ class BleEventStream {
     });
   }
 
+  // 自定义命令数据流
+  static Stream<Uint8List> get customCommandData {
+    return baseStream.where((event) => event is Map && event[BleEventConstants.KEY_TYPE] == BleEventConstants.TYPE_CUSTOM_COMMAND_DATA).map((event) {
+      try {
+        final data = event[BleEventConstants.KEY_VALUE] as Map?;
+        if (data == null) return Uint8List(0);
+
+        final customData = data[BleEventConstants.KEY_CUSTOM_DATA];
+
+        if (customData == null) {
+          return Uint8List(0);
+        }
+
+        if (customData is List) {
+          if (customData is List<int>) {
+            return Uint8List.fromList(customData);
+          }
+
+          final List<int> result = [];
+          for (var element in customData) {
+            if (element is int) {
+              result.add(element);
+            } else if (element is num) {
+              result.add(element.toInt());
+            } else {
+              return Uint8List(0);
+            }
+          }
+          return Uint8List.fromList(result);
+        }
+        return Uint8List(0);
+      } catch (e) {
+        return Uint8List(0);
+      }
+    });
+  }
+
   // 错误流
   static Stream<Map<String, String>> get errorStream {
     return baseStream.where((event) => event is PlatformException).map((event) {

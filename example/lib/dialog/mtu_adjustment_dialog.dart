@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:jl_ota/constant/constants.dart';
+import 'package:provider/provider.dart';
 import '../extensions/hex_color.dart';
 import '../l10n/app_localizations.dart';
+import '../utils/connection_state_manager.dart';
 import '../widgets/indicator_seek_bar.dart';
 
 /// Constants for styling and layout
@@ -46,6 +48,7 @@ class MtuAdjustmentDialog extends StatefulWidget {
 
 class _MtuAdjustmentDialogState extends State<MtuAdjustmentDialog> {
   late double _value;
+  int _connectState = AppConstants.connectionFailed;
 
   @override
   void initState() {
@@ -55,6 +58,15 @@ class _MtuAdjustmentDialogState extends State<MtuAdjustmentDialog> {
 
   @override
   Widget build(BuildContext context) {
+    _connectState = context.watch<ConnectionStateManager>().connectState;
+
+    // Check connection status and navigate back if disconnected
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_connectState == AppConstants.connectionDisconnect && mounted) {
+        Navigator.pop(context);
+      }
+    });
+
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(MtuDialogConstants.borderRadius)),
       child: Material(

@@ -14,6 +14,7 @@ import java.io.BufferedReader
 import java.io.File
 import java.io.FileReader
 import java.io.IOException
+import java.lang.ref.WeakReference
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -35,6 +36,15 @@ class LogHelper private constructor() {
                 instance ?: LogHelper().also { instance = it }
             }
         }
+
+        /**
+         * Destroy the instance
+         */
+        @Synchronized
+        fun destroyInstance() {
+            instance?.cleanUp()
+            instance = null
+        }
     }
 
     private var logFiles: List<File>? = null
@@ -42,18 +52,29 @@ class LogHelper private constructor() {
     private var eventSink: EventChannel.EventSink? = null
     private val isReading = AtomicBoolean(false)
 
+    // Reference to the currently running thread to allow interruption
+    private var currentReadThread: Thread? = null
+
+    // Cleanup flag
+    @Volatile
+    private var isCleaned = false
+
     /**
-     * 加载日志文件列表
+     * Load the list of log files
      */
     fun loadLogFiles() {
+        if (isCleaned) return
+
         val dir = File(MyApplication.getInstance().logFileDir)
         if (!dir.exists() || !dir.isDirectory) {
             handler.post {
-                eventSink?.error(
-                    LogHelperConstants.ERROR_CODE_LOG_HELPER_ERROR,
-                    LogHelperConstants.ERROR_MESSAGE_LOG_DIRECTORY_NOT_FOUND,
-                    null
-                )
+                if (!isCleaned) {
+                    eventSink?.error(
+                        LogHelperConstants.ERROR_CODE_LOG_HELPER_ERROR,
+                        LogHelperConstants.ERROR_MESSAGE_LOG_DIRECTORY_NOT_FOUND,
+                        null
+                    )
+                }
             }
             return
         }
@@ -68,20 +89,24 @@ class LogHelper private constructor() {
             sendFilesToFlutter(fileList)
         } ?: run {
             handler.post {
-                eventSink?.error(
-                    LogHelperConstants.ERROR_CODE_LOG_HELPER_ERROR,
-                    LogHelperConstants.ERROR_MESSAGE_NO_LOG_FILES_FOUND,
-                    null
-                )
+                if (!isCleaned) {
+                    eventSink?.error(
+                        LogHelperConstants.ERROR_CODE_LOG_HELPER_ERROR,
+                        LogHelperConstants.ERROR_MESSAGE_NO_LOG_FILES_FOUND,
+                        null
+                    )
+                }
             }
         }
     }
 
     /**
-     * 处理日志文件索引，读取文件内容
-     * @param index 文件索引
+     * Handle log file index and read file content
+     * @param index File index
      */
     fun handleLogFileIndex(index: Int) {
+        if (isCleaned) return
+
         if (isReading.getAndSet(true)) {
             JL_Log.w(LogHelperConstants.TAG, "Already reading a file, please wait")
             return
@@ -93,23 +118,28 @@ class LogHelper private constructor() {
                 String.format(Locale.getDefault(), LogHelperConstants.ERROR_FILE_PATH_NULL, index)
             )
             handler.post {
-                eventSink?.error(
-                    LogHelperConstants.ERROR_CODE_LOG_HELPER_ERROR,
-                    String.format(Locale.getDefault(), LogHelperConstants.ERROR_MESSAGE_FILE_PATH_NULL, index),
-                    null
-                )
+                if (!isCleaned) {
+                    eventSink?.error(
+                        LogHelperConstants.ERROR_CODE_LOG_HELPER_ERROR,
+                        String.format(Locale.getDefault(), LogHelperConstants.ERROR_MESSAGE_FILE_PATH_NULL, index),
+                        null
+                    )
+                }
             }
             isReading.set(false)
             return
         }
 
-        Thread {
+        // Interrupt the previous thread
+        currentReadThread?.interrupt()
+
+        currentReadThread = Thread {
             try {
                 BufferedReader(FileReader(file)).use { reader ->
                     val content = StringBuilder()
                     var line: String?
 
-                    while (!Thread.currentThread().isInterrupted) {
+                    while (!Thread.currentThread().isInterrupted && !isCleaned) {
                         line = reader.readLine() ?: break
 
                         content.append(line).append("\n")
@@ -120,25 +150,33 @@ class LogHelper private constructor() {
                         }
                     }
 
-                    if (content.isNotEmpty()) {
+                    if (content.isNotEmpty() && !Thread.currentThread().isInterrupted && !isCleaned) {
                         sendContentToFlutter(content.toString())
                     }
                 }
             } catch (e: IOException) {
-                JL_Log.e(LogHelperConstants.TAG, "Error reading log file: ${e.message}")
-                handler.post {
-                    eventSink?.error(
-                        LogHelperConstants.ERROR_CODE_LOG_HELPER_ERROR,
-                        LogHelperConstants.ERROR_MESSAGE_ERROR_READING_LOG_FILE,
-                        null
-                    )
+                if (!isCleaned) {
+                    JL_Log.e(LogHelperConstants.TAG, "Error reading log file: ${e.message}")
+                    handler.post {
+                        if (!isCleaned) {
+                            eventSink?.error(
+                                LogHelperConstants.ERROR_CODE_LOG_HELPER_ERROR,
+                                LogHelperConstants.ERROR_MESSAGE_ERROR_READING_LOG_FILE,
+                                null
+                            )
+                        }
+                    }
                 }
-            } catch (_: InterruptedException) {
+            } catch (e: InterruptedException) {
                 JL_Log.w(LogHelperConstants.TAG, "Log reading interrupted")
+                Thread.currentThread().interrupt() // Restore interrupted status
             } finally {
                 isReading.set(false)
+                if (currentReadThread == Thread.currentThread()) {
+                    currentReadThread = null
+                }
             }
-        }.start()
+        }.apply { start() }
     }
 
     /**
@@ -147,6 +185,8 @@ class LogHelper private constructor() {
      * @param logFileIndex file index
      */
     fun shareLogFile(context: Context, logFileIndex: Int) {
+        if (isCleaned) return
+
         logFiles?.getOrNull(logFileIndex)?.let { file ->
             shareLogFile(context, file)
         } ?: run {
@@ -155,37 +195,56 @@ class LogHelper private constructor() {
                 String.format(Locale.getDefault(), LogHelperConstants.ERROR_MESSAGE_INVALID_LOG_FILE_INDEX, logFileIndex)
             )
             handler.post {
-                eventSink?.error(
-                    LogHelperConstants.ERROR_CODE_LOG_HELPER_ERROR,
-                    String.format(Locale.getDefault(), LogHelperConstants.ERROR_MESSAGE_INVALID_LOG_FILE_INDEX, logFileIndex),
-                    null
-                )
+                if (!isCleaned) {
+                    eventSink?.error(
+                        LogHelperConstants.ERROR_CODE_LOG_HELPER_ERROR,
+                        String.format(Locale.getDefault(), LogHelperConstants.ERROR_MESSAGE_INVALID_LOG_FILE_INDEX, logFileIndex),
+                        null
+                    )
+                }
             }
         }
     }
 
     /**
-     * 设置事件通道的sink
-     * @param sink 事件sink
+     * Set the event sink for the event channel
+     * @param sink Event sink
      */
     fun setEventSink(sink: EventChannel.EventSink?) {
         eventSink = sink
     }
 
     /**
-     * 清理资源
+     * Clean up resources
      */
-    fun cleanup() {
+    fun cleanUp() {
+        isCleaned = true
+
+        // Interrupt the currently reading thread
+        currentReadThread?.interrupt()
+        currentReadThread = null
+
+        // Remove callbacks and messages from Handler
+        handler.removeCallbacksAndMessages(null)
+
+        // Clear eventSink
         eventSink = null
+
+        // Reset flags
         isReading.set(false)
+
+        // Clear file list
+        logFiles = null
     }
 
     /**
-     * 分享日志文件
-     * @param context 上下文
-     * @param file 要分享的文件
+     * Share log file
+     * @param context Context
+     * @param file File to share
      */
     private fun shareLogFile(context: Context, file: File) {
+        if (isCleaned) return
+
         try {
             val uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                 FileProvider.getUriForFile(
@@ -206,44 +265,56 @@ class LogHelper private constructor() {
                 context.startActivity(Intent.createChooser(intent, LogHelperConstants.SHARE_CHOOSER_TITLE))
             }
         } catch (e: Exception) {
-            JL_Log.e(LogHelperConstants.TAG, "Error sharing log file: ${e.message}")
-            handler.post {
-                eventSink?.error(
-                    LogHelperConstants.ERROR_CODE_LOG_HELPER_ERROR,
-                    LogHelperConstants.ERROR_MESSAGE_ERROR_SHARING_LOG_FILE,
-                    null
+            if (!isCleaned) {
+                JL_Log.e(LogHelperConstants.TAG, "Error sharing log file: ${e.message}")
+                handler.post {
+                    if (!isCleaned) {
+                        eventSink?.error(
+                            LogHelperConstants.ERROR_CODE_LOG_HELPER_ERROR,
+                            LogHelperConstants.ERROR_MESSAGE_ERROR_SHARING_LOG_FILE,
+                            null
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Send file list to Flutter
+     * @param files File list
+     */
+    private fun sendFilesToFlutter(files: List<Map<String, String>>) {
+        if (isCleaned) return
+
+        handler.post {
+            if (!isCleaned) {
+                eventSink?.success(
+                    mapOf(
+                        LogHelperConstants.KEY_TYPE to LogHelperConstants.TYPE_LOG_FILES,
+                        LogHelperConstants.KEY_FILES to files
+                    )
                 )
             }
         }
     }
 
     /**
-     * 发送文件列表到Flutter
-     * @param files 文件列表
-     */
-    private fun sendFilesToFlutter(files: List<Map<String, String>>) {
-        handler.post {
-            eventSink?.success(
-                mapOf(
-                    LogHelperConstants.KEY_TYPE to LogHelperConstants.TYPE_LOG_FILES,
-                    LogHelperConstants.KEY_FILES to files
-                )
-            )
-        }
-    }
-
-    /**
-     * 发送文件内容到Flutter
-     * @param content 文件内容
+     * Send file content to Flutter
+     * @param content File content
      */
     private fun sendContentToFlutter(content: String) {
+        if (isCleaned) return
+
         handler.post {
-            eventSink?.success(
-                mapOf(
-                    LogHelperConstants.KEY_TYPE to LogHelperConstants.TYPE_LOG_DETAIL_FILES,
-                    LogHelperConstants.KEY_FILES to listOf(content)
+            if (!isCleaned) {
+                eventSink?.success(
+                    mapOf(
+                        LogHelperConstants.KEY_TYPE to LogHelperConstants.TYPE_LOG_DETAIL_FILES,
+                        LogHelperConstants.KEY_FILES to listOf(content)
+                    )
                 )
-            )
+            }
         }
     }
 }

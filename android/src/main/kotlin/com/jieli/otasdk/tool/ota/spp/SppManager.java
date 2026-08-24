@@ -16,12 +16,12 @@ import android.os.ParcelUuid;
 import android.os.Parcelable;
 import android.os.SystemClock;
 
-import com.jieli.jl_bt_ota.impl.RcspAuth;
 import com.jieli.jl_bt_ota.util.BluetoothUtil;
 import com.jieli.jl_bt_ota.util.CHexConver;
 import com.jieli.jl_bt_ota.util.CommonUtil;
 import com.jieli.jl_bt_ota.util.JL_Log;
 import com.jieli.jl_bt_ota.util.PreferencesHelper;
+import com.jieli.jl_bt_ota.util.UuidUtil;
 import com.jieli.otasdk.MyApplication;
 import com.jieli.otasdk.tool.config.ConfigHelper;
 import com.jieli.otasdk.tool.ota.spp.interfaces.OnWriteSppDataCallback;
@@ -32,7 +32,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -48,17 +47,12 @@ public class SppManager implements SendSppDataThread.ISppOp {
     @SuppressLint("StaticFieldLeak")
     private static volatile SppManager instance;
     private final Context mContext;
-    private final boolean isNeedAuth;
     private final BluetoothAdapter mBtAdapter;
     private final SppEventCallbackManager mSppEventCallbackManager;
     //已发现经典蓝牙设备列表
     private final List<BluetoothDevice> mDiscoveredEdrDevices = new ArrayList<>();
     //已连接SPP通道集合
     private final Map<String, ReceiveSppDataThread> mConnectedSppMap = new HashMap<>();
-    //设备认证流程封装类
-    private final RcspAuth mRcspAuth;
-    //设备是否已经认证成功
-    private volatile boolean isDeviceAuth;
 
     //已连接SPP设备
     private volatile BluetoothDevice mConnectedSppDevice;
@@ -142,24 +136,13 @@ public class SppManager implements SendSppDataThread.ISppOp {
     });
 
     private SppManager(Context context) {
-        this(context, false);
-    }
-
-    private SppManager(Context context, boolean isNeedAuth) {
         mContext = context;
         if (CommonUtil.getMainContext() == null) {
             CommonUtil.setMainContext(mContext);
         }
         customSppUUID = UUID.fromString(PreferencesHelper.getSharedPreferences(mContext).getString(KEY_SPP_UUID, UUID_DEFAULT_CUSTOM.toString()));
-        this.isNeedAuth = isNeedAuth;
-        isDeviceAuth = !isNeedAuth;
         mBtAdapter = BluetoothAdapter.getDefaultAdapter();
         mSppEventCallbackManager = new SppEventCallbackManager();
-        mRcspAuth = new RcspAuth(mContext, (bluetoothDevice, bytes) -> {
-            writeDataToSppAsync(bluetoothDevice, UUID_SPP, bytes, (device, sppUUID1, result, data) ->
-                    JL_Log.i(TAG, "-sendAuthDataToDevice- device = " + printDeviceInfo(device) + ", result = " + result));
-            return true;
-        }, mOnRcspAuthListener);
 
         registerBluetoothReceiver();
     }
@@ -207,8 +190,6 @@ public class SppManager implements SendSppDataThread.ISppOp {
         clearConnectedSppMap();
         mHandler.removeCallbacksAndMessages(null);
         mSppEventCallbackManager.release();
-        mRcspAuth.removeListener(mOnRcspAuthListener);
-        mRcspAuth.destroy();
 
         instance = null;
     }
@@ -233,46 +214,26 @@ public class SppManager implements SendSppDataThread.ISppOp {
     @SuppressLint("MissingPermission")
     public boolean startDeviceScan(long timeout) {
         if (mBtAdapter == null || !AppUtil.checkHasScanPermission(mContext)) {
-            JL_Log.e(TAG, "this device is not supported bluetooth.");
+            JL_Log.e(TAG, "startDeviceScan", "this device is not supported bluetooth.");
             return false;
         }
         if (!BluetoothUtil.isBluetoothEnable()) {
-            JL_Log.e(TAG, "Bluetooth is not enable.");
+            JL_Log.e(TAG, "startDeviceScan", "Bluetooth is not enable.");
             return false;
         }
         if (isScanning()) {
-            boolean ret = mBtAdapter.cancelDiscovery();
-            if (ret) {
-                unregisterDiscoveryReceiver();
-                int count = 0;
-                while (mBtAdapter.isDiscovering()) {
-                    SystemClock.sleep(100);
-                    count += 100;
-                    if (count > 2000) {
-                        break;
-                    }
-                }
-                mDiscoveredEdrDevices.clear();
-            } else {
-                return false;
-            }
+            JL_Log.i(TAG, "startDeviceScan", "It is scanning. timeout : " + timeout);
+            startScanTimeoutTask(timeout);
+//            notifyDiscoveryStatus(true, timeout);
+            return true;
         }
         boolean ret = mBtAdapter.startDiscovery();
-        JL_Log.i(TAG, "-startDiscovery- >>>>>> ret : " + ret);
-        if (!ret) {
-            return false;
+        JL_Log.i(TAG, "startDeviceScan", "startDiscovery : " + ret + ", timeout : " + timeout);
+        if (ret) {
+            mDiscoveredEdrDevices.clear();
         }
-        if (timeout < 3000) {
-            mScanTimeout = 3000;
-        } else {
-            mScanTimeout = timeout;
-        }
-        registerDiscoverReceiver();
-        mDiscoveredEdrDevices.clear();
-        startScanTimeoutTask();
-        mSppEventCallbackManager.onDiscoveryDeviceChange(true);
-        syncSystemConnectedDevice();
-        return true;
+        notifyDiscoveryStatus(ret, timeout);
+        return ret;
     }
 
     /**
@@ -351,6 +312,16 @@ public class SppManager implements SendSppDataThread.ISppOp {
     }
 
     /**
+     * SPP是否已连接
+     *
+     * @param device 蓝牙设备
+     * @return 结果
+     */
+    public boolean isSppConnected(BluetoothDevice device) {
+        return BluetoothUtil.deviceEquals(mConnectedSppDevice, device);
+    }
+
+    /**
      * 连接SPP通道
      *
      * @param address 设备地址
@@ -380,31 +351,28 @@ public class SppManager implements SendSppDataThread.ISppOp {
     @SuppressLint("MissingPermission")
     public boolean connectSpp(BluetoothDevice device, UUID sppUUID) {
         if (!AppUtil.checkHasConnectPermission(mContext)) {
-            JL_Log.w(TAG, "-connectSpp- miss bluetooth permission.");
+            JL_Log.w(TAG, "connectSpp", "miss bluetooth permission.");
             return false;
         }
         if (device == null || device.getType() == BluetoothDevice.DEVICE_TYPE_LE) {
-            JL_Log.w(TAG, "-connectSpp-  device is bad object. ");
+            JL_Log.w(TAG, "connectSpp", "device is bad object. ");
             return false;
         }
-        JL_Log.i(TAG, "-connectSpp- >> device : " + printDeviceInfo(device) + ", sppUUID = " + sppUUID);
-        if (mConnectingSppDevice != null) {
-            JL_Log.i(TAG, "-connectSpp- >>  device is connecting. device :" + printDeviceInfo(mConnectedSppDevice));
+        JL_Log.i(TAG, "connectSpp", "device : " + printDeviceInfo(device) + ", sppUUID = " + sppUUID);
+        final BluetoothDevice connectingSpp = getConnectingSppDevice();
+        if (connectingSpp != null) {
+            JL_Log.i(TAG, "connectSpp", "device is connecting. device :" + printDeviceInfo(connectingSpp));
             return false;
         }
-        if (mConnectedSppDevice != null) {
-            if (BluetoothUtil.deviceEquals(mConnectedSppDevice, device)) {
+        final BluetoothDevice connectedSpp = getConnectedSppDevice();
+        if (connectedSpp != null) {
+            if (BluetoothUtil.deviceEquals(connectedSpp, device)) {
                 if (isSppSocketConnected(device, sppUUID)) { //已连接
-                    if (!isNeedAuth || isDevAuth(sppUUID)) {
-                        handleSppConnection(device, sppUUID, BluetoothProfile.STATE_CONNECTED);
-                        return true;
-                    } else {
-                        JL_Log.i(TAG, "-connectSpp- >>  device in process of certification. device :" + printDeviceInfo(device));
-                        return false;
-                    }
+                    handleSppConnection(device, sppUUID, BluetoothProfile.STATE_CONNECTED);
+                    return true;
                 }
             } else {
-                if (disconnectSpp(mConnectedSppDevice, null)) {
+                if (disconnectSpp(connectedSpp, null)) {
                     SystemClock.sleep(500);
                 }
             }
@@ -413,10 +381,10 @@ public class SppManager implements SendSppDataThread.ISppOp {
         setConnectingSppDevice(device);
         setSppUUID(sppUUID);
         boolean isPaired = isPaired(device);
-        JL_Log.i(TAG, "-connectSpp- >> isPaired = " + isPaired);
+        JL_Log.i(TAG, "connectSpp", "isPaired = " + isPaired);
         if (!isPaired) {//设备未配对
             ret = BluetoothUtil.createBond(device);
-            JL_Log.i(TAG, "-connectSpp- >> createBond = " + ret);
+            JL_Log.i(TAG, "connectSpp", "createBond = " + ret);
             if (!ret) {
                 handleSppConnection(device, sppUUID, BluetoothProfile.STATE_DISCONNECTED);
                 return false;
@@ -426,7 +394,7 @@ public class SppManager implements SendSppDataThread.ISppOp {
         } else {//设备已配对
             if (device.getUuids() == null || !BluetoothUtil.deviceHasProfile(device, sppUUID)) {
                 ret = device.fetchUuidsWithSdp(); //更新UUID
-                JL_Log.i(TAG, "-connectSpp- >> fetchUuidsWithSdp = " + ret);
+                JL_Log.i(TAG, "connectSpp", "fetchUuidsWithSdp = " + ret);
                 if (!ret) {
                     handleSppConnection(device, sppUUID, BluetoothProfile.STATE_DISCONNECTED);
                     return false;
@@ -452,15 +420,15 @@ public class SppManager implements SendSppDataThread.ISppOp {
     @SuppressLint("MissingPermission")
     public boolean disconnectSpp(BluetoothDevice device, UUID sppUUID) {
         if (!AppUtil.checkHasConnectPermission(mContext)) {
-            JL_Log.w(TAG, "-disconnectSpp- miss bluetooth permission.");
+            JL_Log.w(TAG, "disconnectSpp", "miss bluetooth permission.");
             return false;
         }
         if (!BluetoothUtil.deviceEquals(device, mConnectedSppDevice)) {
-            JL_Log.e(TAG, "-disconnectSpp- >> device is not connected. device = " + printDeviceInfo(device)
+            JL_Log.e(TAG, "disconnectSpp", "device is not connected. device = " + printDeviceInfo(device)
                     + ",\n ConnectedSppDevice = " + printDeviceInfo(mConnectedSppDevice));
             return false;
         }
-        JL_Log.i(TAG, "-disconnectSpp- device = " + printDeviceInfo(device) + ", sppUUID = " + sppUUID);
+        JL_Log.i(TAG, "disconnectSpp", "device = " + printDeviceInfo(device) + ", sppUUID = " + sppUUID);
         if (sppUUID == null) {
             if (!isConnectedSocketMapEmpty(device)) {
                 Set<String> ketSet = mConnectedSppMap.keySet();
@@ -506,29 +474,25 @@ public class SppManager implements SendSppDataThread.ISppOp {
     @Override
     public synchronized boolean writeDataToSppDevice(BluetoothDevice device, UUID sppUUID, byte[] data) throws IOException {
         if (!AppUtil.checkHasConnectPermission(mContext)) {
-            JL_Log.w(TAG, "-writeDataToSppDevice- miss bluetooth permission.");
+            JL_Log.w(TAG, "writeDataToSppDevice", "miss bluetooth permission.");
             return false;
         }
         if (null == device || null == data) {
-            JL_Log.e(TAG, "-writeDataToSppDevice- param is error.");
-            return false;
-        }
-        if (!BluetoothUtil.deviceEquals(device, mConnectedSppDevice)) {
-            JL_Log.e(TAG, "-writeDataToSppDevice- device is error. device = " + printDeviceInfo(device));
+            JL_Log.e(TAG, "writeDataToSppDevice", "param is error.");
             return false;
         }
         ReceiveSppDataThread receiveSppDataThread = getRecvSppDataThread(device, sppUUID);
         if (receiveSppDataThread == null) {
-            JL_Log.e(TAG, "-writeDataToSppDevice- receiveSppDataThread is null. device = " + printDeviceInfo(device) + ", sppUUID = " + sppUUID);
+            JL_Log.e(TAG, "writeDataToSppDevice", "receiveSppDataThread is null. device = " + device + ", sppUUID = " + sppUUID);
             return false;
         }
         BluetoothSocket socket = receiveSppDataThread.getBluetoothSocket();
         if (null == socket || !socket.isConnected() || socket.getOutputStream() == null) {
-            JL_Log.e(TAG, "-writeDataToSppDevice- spp socket is close.");
+            JL_Log.e(TAG, "writeDataToSppDevice", "spp socket is close.");
             return false;
         }
         socket.getOutputStream().write(data);
-        JL_Log.d(TAG, "-writeDataToSppDevice- device = " + printDeviceInfo(device) + ", sppUUID = " + sppUUID
+        JL_Log.d(TAG, "writeDataToSppDevice", "device = " + device + ", sppUUID = " + sppUUID
                 + "\n send ret = true, raw data = " + CHexConver.byte2HexStr(data));
         return true;
     }
@@ -545,17 +509,6 @@ public class SppManager implements SendSppDataThread.ISppOp {
     }
 
     /**
-     * 检查设备是否通过设备认证
-     *
-     * @param device  蓝牙设备
-     * @param sppUUID SPP通道
-     * @return 结果
-     */
-    public boolean checkDeviceIsAuth(BluetoothDevice device, UUID sppUUID) {
-        return BluetoothUtil.deviceEquals(device, mConnectedSppDevice) && (!isNeedAuth || isDevAuth(sppUUID));
-    }
-
-    /**
      * SPP通道是否已连接
      *
      * @param device  蓝牙设备
@@ -565,7 +518,7 @@ public class SppManager implements SendSppDataThread.ISppOp {
     @SuppressLint("MissingPermission")
     public boolean isSppSocketConnected(BluetoothDevice device, UUID sppUUID) {
         if (!AppUtil.checkHasConnectPermission(mContext)) {
-            JL_Log.w(TAG, "-isSppSocketConnected- miss bluetooth permission.");
+            JL_Log.w(TAG, "isSppSocketConnected", "miss bluetooth permission.");
             return false;
         }
         ReceiveSppDataThread thread = getRecvSppDataThread(device, sppUUID);
@@ -582,18 +535,11 @@ public class SppManager implements SendSppDataThread.ISppOp {
         this.mConnectedSppDevice = mConnectedSppDevice;
         if (mConnectedSppDevice != null) {
             setConnectingSppDevice(null);
-        } else {
-            isDeviceAuth = false;
         }
     }
 
     private void setSppUUID(UUID mSppUUID) {
         this.mSppUUID = mSppUUID;
-    }
-
-    private boolean isDevAuth(UUID sppUUID) {
-        if (!UUID_SPP.equals(sppUUID)) return true;
-        return isDeviceAuth;
     }
 
     private String getSocketUUID(BluetoothDevice device, UUID sppUUID) {
@@ -657,20 +603,17 @@ public class SppManager implements SendSppDataThread.ISppOp {
         }
     }
 
-    private void startScanTimeoutTask() {
-        if (mScanTimeout == 0) return;
-        JL_Log.d(TAG, "-startScanTimeoutTask- mScanTimeout = " + mScanTimeout);
+    private void startScanTimeoutTask(long timeout) {
         mHandler.removeMessages(MSG_DISCOVERY_EDR_TIMEOUT);
-        mHandler.sendEmptyMessageDelayed(MSG_DISCOVERY_EDR_TIMEOUT, mScanTimeout);
+        mHandler.sendEmptyMessageDelayed(MSG_DISCOVERY_EDR_TIMEOUT, timeout);
     }
 
     private void stopScanTimeoutTask() {
-        JL_Log.d(TAG, "-stopScanTimeoutTask-");
         mHandler.removeMessages(MSG_DISCOVERY_EDR_TIMEOUT);
     }
 
     private void startPairTimeoutTask(BluetoothDevice device, UUID sppUUID) {
-        JL_Log.d(TAG, "-startPairTimeoutTask- device = " + printDeviceInfo(device) + ", sppUUID = " + sppUUID);
+        JL_Log.d(TAG, "startPairTimeoutTask", "device = " + printDeviceInfo(device) + ", sppUUID = " + sppUUID);
         mHandler.removeMessages(MSG_CREATE_BOND_TIMEOUT);
         mBondingDevice = device;
         Bundle bundle = new Bundle();
@@ -743,7 +686,7 @@ public class SppManager implements SendSppDataThread.ISppOp {
     }
 
     private void startConnectSppThread(BluetoothDevice device, UUID sppUUID) {
-        JL_Log.d(TAG, "-startConnectSppThread- device = " + printDeviceInfo(device) + ", sppUUID = " + sppUUID);
+        JL_Log.d(TAG, "startConnectSppThread", "device = " + printDeviceInfo(device) + ", sppUUID = " + sppUUID);
         if (mConnectSppThread == null) {
             mConnectSppThread = new ConnectionSppThread(mContext, device, sppUUID, new ConnectionSppThread.OnConnectSppListener() {
                 @Override
@@ -763,16 +706,7 @@ public class SppManager implements SendSppDataThread.ISppOp {
                         startReceiveSppDataThread(device, sppUUID, socket);
                         //开启发数据线程
                         startSendSppDataThread();
-                        if (isNeedAuth && !checkDeviceIsAuth(device, sppUUID)) { //需要设备认证
-                            mRcspAuth.stopAuth(device, false);
-                            if (!mRcspAuth.startAuth(device)) {//开启设备认证失败
-                                disconnectSpp(device, sppUUID);
-                            } else {
-                                setSppUUID(sppUUID);
-                            }
-                        } else { //不需要设备认证
-                            handleSppConnection(device, sppUUID, BluetoothProfile.STATE_CONNECTED);
-                        }
+                        handleSppConnection(device, sppUUID, BluetoothProfile.STATE_CONNECTED);
                     } else {
                         handleSppConnection(device, sppUUID, BluetoothProfile.STATE_DISCONNECTED);
                     }
@@ -803,12 +737,9 @@ public class SppManager implements SendSppDataThread.ISppOp {
 
                         @Override
                         public void onRecvSppData(long threadID, BluetoothDevice device, UUID sppUUID, byte[] data) {
-                            JL_Log.d(TAG, "-onRecvSppData- device = " + printDeviceInfo(device) + ", sppUUID = " + sppUUID
+                            JL_Log.d(TAG, "onRecvSppData", "device : " + device + ", sppUUID = " + sppUUID
                                     + ", \n raw data = " + CHexConver.byte2HexStr(data));
                             mSppEventCallbackManager.onReceiveSppData(device, sppUUID, data);
-                            if (!checkDeviceIsAuth(device, sppUUID)) {
-                                mRcspAuth.handleAuthData(device, data);
-                            }
                         }
 
                         @Override
@@ -869,7 +800,7 @@ public class SppManager implements SendSppDataThread.ISppOp {
 
     private void handleSppConnection(BluetoothDevice device, UUID sppUUID, int status) {
         boolean isValidDevice = isValidDevice(device);
-        JL_Log.i(TAG, "-handleSppConnection- device = " + printDeviceInfo(device) + ", isValidDevice = " + isValidDevice + ", sppUUID = " + sppUUID + ", status = " + status);
+        JL_Log.i(TAG, "handleSppConnection", "device : " + printDeviceInfo(device) + ", isValidDevice = " + isValidDevice + ", sppUUID = " + sppUUID + ", status = " + status);
         if (isValidDevice) {
             if (status == BluetoothProfile.STATE_DISCONNECTED || status == BluetoothProfile.STATE_CONNECTED) {
                 if (BluetoothUtil.deviceEquals(device, mConnectingSppDevice)) {
@@ -909,27 +840,19 @@ public class SppManager implements SendSppDataThread.ISppOp {
         return device != null && device.getType() != BluetoothDevice.DEVICE_TYPE_LE;
     }
 
-    private final RcspAuth.OnRcspAuthListener mOnRcspAuthListener = new RcspAuth.OnRcspAuthListener() {
-        @Override
-        public void onInitResult(boolean result) {
-            JL_Log.e(TAG, "-onInitResult- " + result);
+    private void notifyDiscoveryStatus(boolean isScanning, long timeout) {
+        if (isScanning) {
+            registerDiscoverReceiver();
+            startScanTimeoutTask(timeout);
+        } else {
+            stopScanTimeoutTask();
+            unregisterDiscoveryReceiver();
         }
-
-        @Override
-        public void onAuthSuccess(BluetoothDevice device) {
-            JL_Log.w(TAG, "-onAuthSuccess- >>> auth ok, handleSppConnection : " + printDeviceInfo(device));
-            isDeviceAuth = true;
-            handleSppConnection(device, mSppUUID, BluetoothProfile.STATE_CONNECTED);
+        mSppEventCallbackManager.onDiscoveryDeviceChange(isScanning);
+        if (isScanning) {
+            syncSystemConnectedDevice();
         }
-
-        @Override
-        public void onAuthFailed(BluetoothDevice device, int code, String message) {
-            JL_Log.w(TAG, String.format(Locale.getDefault(), "-onAuthFailed- device : %s, code : %d, message : %s",
-                    printDeviceInfo(device), code, message));
-            isDeviceAuth = false;
-            disconnectSpp(device, mSppUUID);
-        }
-    };
+    }
 
     private class DiscoveryReceiver extends BroadcastReceiver {
 
@@ -940,23 +863,19 @@ public class SppManager implements SendSppDataThread.ISppOp {
             if (action == null) return;
             switch (action) {
                 case BluetoothAdapter.ACTION_DISCOVERY_STARTED: {
-                    JL_Log.d(TAG, "recv action : ACTION_DISCOVERY_STARTED");
-//                    mDiscoveredEdrDevices.clear();
-//                    startScanTimeoutTask();
-//                    mSppEventCallbackManager.onDiscoveryDeviceChange(true);
+                    JL_Log.d(TAG, "ACTION_DISCOVERY_STARTED", "");
                     break;
                 }
                 case BluetoothAdapter.ACTION_DISCOVERY_FINISHED: {
-                    JL_Log.d(TAG, "recv action : ACTION_DISCOVERY_FINISHED");
-                    stopScanTimeoutTask();
-                    unregisterDiscoveryReceiver();
-                    mSppEventCallbackManager.onDiscoveryDeviceChange(false);
+                    JL_Log.d(TAG, "ACTION_DISCOVERY_FINISHED", "");
+                    notifyDiscoveryStatus(false, 0);
                     break;
                 }
                 case BluetoothDevice.ACTION_FOUND: {
                     BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                    if (null == device) return;
                     short rssi = intent.getShortExtra(BluetoothDevice.EXTRA_RSSI, (short) -1);
-//                    JL_Log.d(TAG, "recv action : ACTION_FOUND, device = " + printDeviceInfo(device) + ", rssi = " + rssi);
+//                    JL_Log.d(TAG, "ACTION_FOUND", "device = " + printDeviceInfo(device) + ", rssi = " + rssi);
                     if (isSppDevice(device) && BluetoothUtil.isBluetoothEnable()) {
                         if (!mDiscoveredEdrDevices.contains(device)) {
                             mDiscoveredEdrDevices.add(device);
@@ -984,7 +903,7 @@ public class SppManager implements SendSppDataThread.ISppOp {
                     }
                     if (state == BluetoothAdapter.STATE_OFF) { //蓝牙已关闭
                         mDiscoveredEdrDevices.clear();
-                        mSppEventCallbackManager.onDiscoveryDeviceChange(false);
+                        notifyDiscoveryStatus(false, 0);
                         disconnectSpp(getConnectedSppDevice(), null);
                         mSppEventCallbackManager.onAdapterChange(false);
                     } else if (state == BluetoothAdapter.STATE_ON) { //蓝牙已打开
@@ -997,7 +916,7 @@ public class SppManager implements SendSppDataThread.ISppOp {
                     if (device == null || !AppUtil.checkHasConnectPermission(context)) return;
                     int bond = device.getBondState();
                     boolean isValidDevice = isValidDevice(device);
-                    JL_Log.i(TAG, "recv action : ACTION_BOND_STATE_CHANGED >>> device = " + printDeviceInfo(device) + ", bond = " + bond + ", isValidDevice = " + isValidDevice);
+                    JL_Log.i(TAG, "ACTION_BOND_STATE_CHANGED", "device : " + printDeviceInfo(device) + ", bond = " + bond + ", isValidDevice = " + isValidDevice);
                     if (bond == BluetoothDevice.BOND_NONE || bond == BluetoothDevice.BOND_BONDED) {
                         if (isValidDevice) {
                             stopPairTimeoutTask(device);
@@ -1015,17 +934,17 @@ public class SppManager implements SendSppDataThread.ISppOp {
                     if (null == device) return;
                     Parcelable[] parcelUuids = intent.getParcelableArrayExtra(BluetoothDevice.EXTRA_UUID);
                     if (null == parcelUuids) {
-                        JL_Log.e(TAG, "recv action : ACTION_UUID >>> no uuids");
+                        JL_Log.e(TAG, "ACTION_UUID", "device : " + device + ", no uuids");
                     } else {
                         ParcelUuid[] uuids = new ParcelUuid[parcelUuids.length];
                         for (int i = 0; i < parcelUuids.length; i++) {
                             uuids[i] = ParcelUuid.fromString(parcelUuids[i].toString());
-                            JL_Log.i(TAG, "recv action : ACTION_UUID >>> index = " + i + " uuid = " + uuids[i]);
+                            JL_Log.d(TAG, "ACTION_UUID", "index = " + i + " uuid = " + UuidUtil.read16BitUUID(uuids[i].getUuid()));
                         }
                     }
-                    JL_Log.d(TAG, "recv action : ACTION_UUID >>> mConnectingSppDevice = " + printDeviceInfo(mConnectingSppDevice)
-                            + ", device = " + printDeviceInfo(device));
-                    if (BluetoothUtil.deviceEquals(mConnectingSppDevice, device)) {
+                    final BluetoothDevice connectingSpp = getConnectingSppDevice();
+                    JL_Log.d(TAG, "ACTION_UUID", "connectingSpp : " + printDeviceInfo(connectingSpp) + ", device = " + printDeviceInfo(device));
+                    if (BluetoothUtil.deviceEquals(connectingSpp, device)) {
                         startConnectSppThread(device, mSppUUID);
                     }
                     break;

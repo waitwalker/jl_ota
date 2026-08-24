@@ -10,6 +10,8 @@ import com.jieli.otasdk.data.constant.MethodChannelConstants
 import com.jieli.otasdk.home.MainViewModel
 import com.jieli.otasdk.util.StoragePermissionHelper
 import com.jieli.jlFileTransfer.FileUtils
+import com.jieli.otasdk.model.connect.ConnectViewModel
+import com.jieli.otasdk.tool.config.ConfigHelper
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -34,8 +36,17 @@ class MainActivity : FlutterActivity() {
         private const val INTENT_ACTION_GET_CONTENT = Intent.ACTION_GET_CONTENT
         private const val MIME_TYPE_OCTET_STREAM = "application/*"
 
-        var selectedUri: Uri? = null
-            private set // 限制外部修改
+        private var selectedUri: Uri? = null
+
+        fun getSelectedUri(): Uri? = selectedUri
+
+        private fun setSelectedUri(uri: Uri?) {
+            selectedUri = uri
+        }
+
+        fun clearSelectedUri() {
+            selectedUri = null
+        }
     }
 
     private var isSkipDestroyViewModel: Boolean = false
@@ -45,10 +56,10 @@ class MainActivity : FlutterActivity() {
     private var pendingPermissions: Array<String>? = null
 
     /**
-     * 请求缺失的权限
+     * Request missing permissions
      */
     fun requestMissingPermissions(permissions: Array<String>, callback: (Boolean) -> Unit) {
-        // 检查是否已经拥有所有权限
+        // Check if all permissions are already granted
         if (hasAllPermissions(permissions)) {
             callback(true)
             return
@@ -60,7 +71,7 @@ class MainActivity : FlutterActivity() {
     }
 
     /**
-     * 检查是否已经拥有所有请求的权限
+     * Check if all requested permissions are already granted
      */
     private fun hasAllPermissions(permissions: Array<String>): Boolean {
         return permissions.all { permission ->
@@ -84,7 +95,7 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    // 延迟初始化的MethodChannel
+    // Lazily initialized MethodChannel
     private val methodChannel: MethodChannel? by lazy {
         flutterEngine?.dartExecutor?.binaryMessenger?.let {
             MethodChannel(it, METHOD_CHANNEL)
@@ -117,13 +128,14 @@ class MainActivity : FlutterActivity() {
     override fun onDestroy() {
         super.onDestroy()
         cleanupViewModel()
+        clearSelectedUri()
     }
 
     // region Public Methods
     fun pickFile() {
         Intent(INTENT_ACTION_GET_CONTENT).apply {
             type = MIME_TYPE_OCTET_STREAM
-            addCategory(Intent.CATEGORY_OPENABLE) // 确保只返回可以打开的文件
+            addCategory(Intent.CATEGORY_OPENABLE) // Ensure only openable files are returned
         }.also { intent ->
             startActivityForResult(intent, PICK_FILE_REQUEST_CODE)
         }
@@ -140,6 +152,9 @@ class MainActivity : FlutterActivity() {
     private fun cleanupViewModel() {
         if (!isSkipDestroyViewModel) {
             MainViewModel.destroyInstance()
+            ConnectViewModel.destroyInstance()
+            ConfigHelper.destroyInstance()
+            LogHelper.destroyInstance()
         } else {
             isSkipDestroyViewModel = false
         }
@@ -149,7 +164,7 @@ class MainActivity : FlutterActivity() {
         if (resultCode != RESULT_OK || data?.data == null) return
 
         data.data?.let { uri ->
-            selectedUri = uri
+            setSelectedUri(uri)
             val fileName = FileUtils.getFileName(context, uri)
             notifyFilePicked(fileName)
         }

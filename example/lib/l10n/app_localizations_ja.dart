@@ -104,6 +104,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get communicationWaySpp => 'SPP';
 
   @override
+  String get communicationWayGatt => 'GATT Over BR/EDR';
+
+  @override
   String get adjustMtu => 'MTUを調整';
 
   @override
@@ -291,4 +294,34 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get deviceMustMandatoryUpgrade => 'デバイスは強制アップデートが必要です';
+
+  @override
+  String get bluetoothDisconnected => 'Bluetoothが切断されました';
+
+  @override
+  String get gattUuidPlaceholder => 'UUIDを1つ以上入力してください。コンマまたは改行で区切ってください';
+
+  @override
+  String get gattServiceUuid => 'GATTサービスUUID';
+
+  @override
+  String get gattUuidTips => '例：180A, 0000180D-0000-1000-8000-00805F9B34FB';
+
+  @override
+  String get gattUuidErrorEmpty => '少なくとも1つのUUIDを入力してください';
+
+  @override
+  String get gattUuidErrorInvalidFmt => '無効なUUID形式:\n%s';
+
+  @override
+  String get customCommand => 'カスタムコマンド';
+
+  @override
+  String get sendCustomCmd => 'カスタムコマンドを送信する';
+
+  @override
+  String get receivedData => '受信データ';
+
+  @override
+  String get inputData => '入力されたデータ';
 }

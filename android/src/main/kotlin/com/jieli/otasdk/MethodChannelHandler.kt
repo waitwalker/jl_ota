@@ -1,14 +1,15 @@
 package com.jieli.otasdk
 
 import android.Manifest
-import android.app.Activity
+import android.bluetooth.BluetoothDevice
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.Process
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
 import com.jieli.otasdk.data.constant.MethodChannelConstants
 import com.jieli.otasdk.data.constant.OtaConstant
-import com.jieli.otasdk.model.connect.ConnectViewModel
 import com.jieli.otasdk.model.ota.DownloadFileViewModel
 import com.jieli.otasdk.model.ota.OTAViewModel
 import com.jieli.otasdk.tool.config.ConfigHelper
@@ -19,13 +20,19 @@ import com.jieli.otasdk.util.ViewUtil
 import com.jieli.component.ActivityManager
 import com.jieli.jlFileTransfer.Constants
 import com.jieli.jl_bt_ota.constant.BluetoothConstant
+import com.jieli.jl_bt_ota.constant.Command
 import com.jieli.jl_bt_ota.constant.JL_Constant
 import com.jieli.jl_bt_ota.interfaces.IActionCallback
 import com.jieli.jl_bt_ota.model.base.BaseError
+import com.jieli.jl_bt_ota.model.base.CommandBase
+import com.jieli.jl_bt_ota.model.command.CustomCmd
 import com.jieli.jl_bt_ota.util.JL_Log
+import com.jieli.otasdk.model.connect.ConnectViewModel
+import com.jieli.otasdk.tool.bluetooth.BluetoothHelper
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
+import java.lang.ref.WeakReference
 import kotlin.system.exitProcess
 
 /**
@@ -37,30 +44,47 @@ import kotlin.system.exitProcess
  * Modified by:
  */
 class MethodChannelHandler(
-    private val activity: Activity,
-    private val plugin: JlOtaPlugin
-) : MethodChannel.MethodCallHandler {
+    activity: MainActivity,
+    private val lifecycleOwner: LifecycleOwner
+) : MethodChannel.MethodCallHandler, DefaultLifecycleObserver {
+
+    private val activityRef = WeakReference(activity)
+
     private val connectVM by lazy { ConnectViewModel.getInstance() }
     private val configHelper by lazy { ConfigHelper.getInstance() }
     private val logHelper by lazy { LogHelper.getInstance() }
-    private val downloadFileViewModel by lazy { DownloadFileViewModel.getInstance() }
-    private val otaViewModel by lazy { OTAViewModel.getInstance() }
-    private val storagePermissionHelper get() = plugin.storagePermissionHelper
-    private companion object {
-        const val CONNECT_WIFI_TIPS = "Please connect to an available WIFI"
+    private val bluetoothHelper: BluetoothHelper by lazy { BluetoothHelper.getInstance() }
+
+    private var downloadFileViewModel: DownloadFileViewModel? = null
+    private var otaViewModel: OTAViewModel? = null
+
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private var timeoutRunnable: Runnable? = null
+    private var permissionCallback: ((Boolean) -> Unit)? = null
+    private var filePickCallback: IActionCallback<Boolean>? = null
+    private var storageCallback: IActionCallback<Boolean>? = null
+
+    init {
+        lifecycleOwner.lifecycle.addObserver(this)
     }
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
+        val activity = activityRef.get()
+        if (activity == null) {
+            result.error("ACTIVITY_NULL", "Activity is destroyed", null)
+            return
+        }
+
         when (call.method) {
             MethodChannelConstants.METHOD_IS_SCANNING -> result.success(connectVM.isScanning())
-            MethodChannelConstants.METHOD_START_SCAN -> startScan(call, result)
+            MethodChannelConstants.METHOD_START_SCAN -> startScan(result)
             MethodChannelConstants.METHOD_STOP_SCAN -> stopScan(result)
             MethodChannelConstants.METHOD_GET_SCAN_FILTER -> result.success(connectVM.getScanFilter())
             MethodChannelConstants.METHOD_SET_SCAN_FILTER -> setScanFilter(call, result)
             MethodChannelConstants.METHOD_CONNECT_DEVICE -> connectDevice(call, result)
             MethodChannelConstants.METHOD_DISCONNECT_BT_DEVICE -> disconnectDevice(call, result)
-            MethodChannelConstants.METHOD_IS_BLE_WAY -> result.success(configHelper.isBleWay())
-            MethodChannelConstants.METHOD_SET_BLE_WAY -> setBleWay(call, result)
+            MethodChannelConstants.METHOD_GET_CONNECT_WAY -> result.success(configHelper.getConnectWay())
+            MethodChannelConstants.METHOD_SET_CONNECT_WAY -> setConnectWay(call, result)
             MethodChannelConstants.METHOD_IS_USE_DEVICE_AUTH -> result.success(configHelper.isUseDeviceAuth())
             MethodChannelConstants.METHOD_SET_USE_DEVICE_AUTH -> setUseDeviceAuth(call, result)
             MethodChannelConstants.METHOD_IS_HID_DEVICE -> result.success(configHelper.isHidDevice())
@@ -81,21 +105,69 @@ class MethodChannelHandler(
             MethodChannelConstants.METHOD_DELETE_OTA_FILE_INDEX -> deleteOtaFileIndex(call, result)
             MethodChannelConstants.METHOD_TRY_TO_CHECK_STORAGE_ENVIRONMENT -> tryToCheckStorageEnvironment(result)
             MethodChannelConstants.METHOD_PICK_FILE -> pickFile(result)
-            MethodChannelConstants.METHOD_START_OTA -> startOTA(call,result)
+            MethodChannelConstants.METHOD_START_OTA -> startOTA(call, result)
             MethodChannelConstants.METHOD_DELETE_ALL_LOG_FILE -> deleteAllLogFiles(result)
             MethodChannelConstants.METHOD_GET_WIFI_IP_ADDRESS -> getWifiIpAddress(result)
             MethodChannelConstants.METHOD_GET_LOG_FILE_DIR_PATH -> getLogFileDirPath(result)
             MethodChannelConstants.METHOD_POP_ALL_ACTIVITY -> popAllActivity(result)
             MethodChannelConstants.METHOD_HANDLE_FILE_PICKED -> handleFilePicked(call, result)
+            MethodChannelConstants.METHOD_SEND_CUSTOM_COMMAND -> sendCustomCmd(call, result)
             else -> result.notImplemented()
         }
     }
 
-    private fun startScan(call: MethodCall, result: MethodChannel.Result) {
+    override fun onDestroy(owner: LifecycleOwner) {
+        cleanup()
+        lifecycleOwner.lifecycle.removeObserver(this)
+    }
+
+    fun cleanup() {
+        // Clean up all Handler callbacks
+        timeoutRunnable?.let { mainHandler.removeCallbacks(it) }
+        timeoutRunnable = null
+
+        // Clean up all callbacks
+        permissionCallback = null
+        filePickCallback = null
+        storageCallback = null
+
+        // Clean up ViewModel references
+        downloadFileViewModel = null
+        otaViewModel = null
+
+        // Clean up LogHelper
+        logHelper.cleanUp()
+
+        // Remove all pending messages from Handler
+        mainHandler.removeCallbacksAndMessages(null)
+
+        // Stop scanning
+        if (connectVM.isScanning()) {
+            connectVM.stopScan()
+            connectVM.clearScanDeviceList()
+        }
+
+        // Clean up ConnectVM
+        connectVM.cleanUp()
+
+        // Clean up storage permission helper callback
+        val activity = activityRef.get()
+        activity?.storagePermissionHelper?.callback = null
+
+        // Clear static Uri
+        MainActivity.clearSelectedUri()
+    }
+
+    private fun startScan(result: MethodChannel.Result) {
+        val activity = activityRef.get()
+        if (activity == null) {
+            result.error("ACTIVITY_NULL", "Activity is destroyed", null)
+            return
+        }
+
         val checkResult = BluetoothEnvironmentChecker.checkBluetoothEnvironment(activity)
 
         if (!checkResult.hasBluetoothPermission || !checkResult.hasLocationPermission) {
-            // 请求缺失的权限
             requestMissingPermissions(checkResult, result)
             return
         }
@@ -112,61 +184,61 @@ class MethodChannelHandler(
             return
         }
 
-        val timeout = (call.argument<Number>("timeout")?.toLong()) ?: OtaConstant.SCAN_TIMEOUT
-        if (connectVM.startScan(timeout)) {
-            result.success(true)
-        } else {
-            result.error("SCAN_START_FAILED", "Failed to start BLE scan", null)
-        }
+        connectVM.startScan()
+        result.success(true)
     }
 
-    /**
-     * 请求缺失的权限
-     */
-    private fun requestMissingPermissions(checkResult: BluetoothEnvironmentChecker.CheckResult, result: MethodChannel.Result) {
+    private fun requestMissingPermissions(
+        checkResult: BluetoothEnvironmentChecker.CheckResult,
+        result: MethodChannel.Result
+    ) {
+        val activity = activityRef.get()
+        if (activity == null) {
+            result.error("ACTIVITY_NULL", "Activity is destroyed", null)
+            return
+        }
+
         val permissionsToRequest = mutableListOf<String>()
 
-        // 添加蓝牙权限（Android 12+）
         if (!checkResult.hasBluetoothPermission && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             permissionsToRequest.add(Manifest.permission.BLUETOOTH_SCAN)
             permissionsToRequest.add(Manifest.permission.BLUETOOTH_CONNECT)
         }
 
-        // 未声明 neverForLocation 时，Android 12+ 同样需要定位权限，否则扫描结果为空
         if (!checkResult.hasLocationPermission) {
             permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
-            permissionsToRequest.add(Manifest.permission.ACCESS_COARSE_LOCATION)
         }
 
         if (permissionsToRequest.isNotEmpty()) {
-            // 通过插件请求权限
-            plugin.requestMissingPermissions(permissionsToRequest.toTypedArray()) { granted ->
+            permissionCallback = { granted ->
                 if (granted) {
-                    // 权限授予成功，重新检查环境
                     val newCheckResult = BluetoothEnvironmentChecker.checkBluetoothEnvironment(activity)
                     if (newCheckResult.isAllReady) {
-                        if (connectVM.startScan()) {
-                            result.success(true)
-                        } else {
-                            result.error("SCAN_START_FAILED", "Failed to start BLE scan after permissions granted", null)
-                        }
+                        connectVM.startScan()
+                        result.success(true)
                     } else {
                         handleUnreadyEnvironment(newCheckResult, result)
                     }
                 } else {
-                    // 权限被拒绝
                     result.error("PERMISSION_DENIED", "Required permissions were denied", null)
                 }
+                permissionCallback = null
+            }
+
+            activity.requestMissingPermissions(permissionsToRequest.toTypedArray()) { granted ->
+                permissionCallback?.invoke(granted)
             }
         } else {
             result.error("PERMISSION_CHECK_FAILED", "Permission check failed unexpectedly", null)
         }
     }
 
-    /**
-     * 处理环境未就绪的情况
-     */
-    private fun handleUnreadyEnvironment(checkResult: BluetoothEnvironmentChecker.CheckResult, result: MethodChannel.Result) {
+    private fun handleUnreadyEnvironment(
+        checkResult: BluetoothEnvironmentChecker.CheckResult,
+        result: MethodChannel.Result
+    ) {
+        val activity = activityRef.get() ?: return
+
         when {
             !checkResult.isBluetoothEnabled -> {
                 BluetoothEnvironmentChecker.openBluetoothSettings(activity)
@@ -199,9 +271,8 @@ class MethodChannelHandler(
             result.error("INVALID_INDEX", "index=$index", null)
             return
         }
-        // Check if device is not connected
         if (connectVM.isConnected()) {
-            // Multiple device connections are not allowed, so return
+            result.error("ALREADY_CONNECTED", "Device is already connected", null)
             return
         }
         val scanDevice = connectVM.scanDeviceList[index]
@@ -212,27 +283,24 @@ class MethodChannelHandler(
     private fun disconnectDevice(call: MethodCall, result: MethodChannel.Result) {
         val index = call.argument<Int>(MethodChannelConstants.ARG_INDEX) ?: -1
 
-        // 检查索引是否在有效范围内
         if (index !in connectVM.scanDeviceList.indices) {
-            // 如果索引无效，返回错误信息
             result.error("INVALID_INDEX", "index=$index", null)
             return
         }
 
-        // 获取指定索引的设备
         val scanDevice = connectVM.scanDeviceList[index]
-
-        // 断开设备连接
         connectVM.disconnectBtDevice(scanDevice.device)
-
-        // 返回成功结果
         result.success(true)
     }
 
-    private fun setBleWay(call: MethodCall, result: MethodChannel.Result) {
-        val isBle = call.argument<Boolean>(MethodChannelConstants.ARG_IS_BLE) ?: true
-        configHelper.setBleWay(isBle)
-        result.success(true)
+    private fun setConnectWay(call: MethodCall, result: MethodChannel.Result) {
+        val connectWay = call.argument<Int>(MethodChannelConstants.ARG_CONNECT_WAY)
+        if (connectWay != null) {
+            configHelper.setConnectWay(connectWay)
+            result.success(true)
+        } else {
+            result.error("INVALID_ARGUMENT", "connectWay must not be null", null)
+        }
     }
 
     private fun setUseDeviceAuth(call: MethodCall, result: MethodChannel.Result) {
@@ -267,6 +335,10 @@ class MethodChannelHandler(
     }
 
     private fun getAppVersion(): String {
+        val activity = activityRef.get()
+        if (activity == null) {
+            return "Unknown"
+        }
         val appVersionName = ViewUtil.getAppVersionName(activity)
         val appVersionCode = ViewUtil.getAppVersion(activity)
         return OtaConstant.formatString("V%s(%d)", appVersionName, appVersionCode)
@@ -275,19 +347,22 @@ class MethodChannelHandler(
     private fun downloadFile(call: MethodCall, result: MethodChannel.Result) {
         val httpUrl = call.argument<String>(MethodChannelConstants.ARG_HTTP_URL)
         if (httpUrl != null) {
-            downloadFileViewModel.downloadFile(httpUrl)
+            downloadFileViewModel = DownloadFileViewModel.getInstance()
+            downloadFileViewModel?.downloadFile(httpUrl)
             result.success(null)
         } else {
             result.error("INVALID_ARGUMENT", "httpUrl must not be null", null)
         }
     }
 
-    private  fun isOTa(result: MethodChannel.Result) {
-        result.success(otaViewModel.isOTA())
+    private fun isOTa(result: MethodChannel.Result) {
+        otaViewModel = OTAViewModel.getInstance()
+        result.success(otaViewModel?.isOTA() ?: false)
     }
 
     private fun readFileList(result: MethodChannel.Result) {
-        otaViewModel.readFileList()
+        otaViewModel = OTAViewModel.getInstance()
+        otaViewModel?.readFileList()
         result.success(null)
     }
 
@@ -312,38 +387,52 @@ class MethodChannelHandler(
     }
 
     private fun tryToCheckStorageEnvironment(result: MethodChannel.Result) {
-        // 添加超时处理
-        val timeoutRunnable = Runnable {
-            if (storagePermissionHelper.callback != null) {
-                storagePermissionHelper.callback = null
-                result.error("PERMISSION_TIMEOUT", "Permission request timeout", null)
-            }
+        val activity = activityRef.get()
+        if (activity == null) {
+            result.error("ACTIVITY_NULL", "Activity is destroyed", null)
+            return
         }
 
-        val handler = Handler(Looper.getMainLooper())
-        handler.postDelayed(timeoutRunnable, 10000) // 10秒超时
+        // Clean up old timeoutRunnable
+        timeoutRunnable?.let { mainHandler.removeCallbacks(it) }
 
-        storagePermissionHelper.tryToCheckStorageEnvironment(object : IActionCallback<Boolean> {
+        timeoutRunnable = Runnable {
+            if (activity.storagePermissionHelper.callback != null) {
+                activity.storagePermissionHelper.callback = null
+                result.error("PERMISSION_TIMEOUT", "Permission request timeout", null)
+            }
+            timeoutRunnable = null
+        }
+
+        mainHandler.postDelayed(timeoutRunnable!!, 10000)
+
+        storageCallback = object : IActionCallback<Boolean> {
             override fun onSuccess(granted: Boolean) {
-                handler.removeCallbacks(timeoutRunnable)
+                timeoutRunnable?.let { mainHandler.removeCallbacks(it) }
+                timeoutRunnable = null
+                storageCallback = null
                 result.success(granted)
             }
 
             override fun onError(error: BaseError?) {
-                handler.removeCallbacks(timeoutRunnable)
-                JL_Log.e("storageEnvironmentChecker", "Error checking storage environment")
+                timeoutRunnable?.let { mainHandler.removeCallbacks(it) }
+                timeoutRunnable = null
+                storageCallback = null
+                JL_Log.e("MethodChannelHandler", "Error checking storage environment: ${error?.message}")
                 result.error("STORAGE_PERMISSION_DENIED", "Storage permission denied", null)
             }
-        })
+        }
+
+        activity.storagePermissionHelper.tryToCheckStorageEnvironment(storageCallback!!)
     }
 
     private fun startOTA(call: MethodCall, result: MethodChannel.Result) {
         val path = call.argument<String>(MethodChannelConstants.ARG_PATH)
         if (path != null) {
-            otaViewModel.startOTA(path)
+            otaViewModel?.startOTA(path)
             result.success(true)
-        }else {
-            result.error("INVALID_INDEX", "Index must be non-negative", null)
+        } else {
+            result.error("INVALID_ARGUMENT", "path must not be null", null)
         }
     }
 
@@ -353,10 +442,16 @@ class MethodChannelHandler(
     }
 
     private fun getWifiIpAddress(result: MethodChannel.Result) {
+        val activity = activityRef.get()
+        if (activity == null) {
+            result.error("ACTIVITY_NULL", "Activity is destroyed", null)
+            return
+        }
+
         try {
             val ipAddress = NetworkUtil.getWifiIpAddress(activity)
             val url = if (ipAddress.isNullOrEmpty()) {
-                CONNECT_WIFI_TIPS
+                activity.getString(R.string.connect_wifi_tips)
             } else {
                 "http://$ipAddress:${Constants.HTTP_PORT}"
             }
@@ -374,7 +469,7 @@ class MethodChannelHandler(
     private fun popAllActivity(result: MethodChannel.Result) {
         try {
             ActivityManager.getInstance().popAllActivity()
-            Handler(Looper.getMainLooper()).postDelayed({
+            mainHandler.postDelayed({
                 Process.killProcess(Process.myPid())
                 exitProcess(0)
             }, 500)
@@ -386,46 +481,86 @@ class MethodChannelHandler(
 
     private fun handleFilePicked(call: MethodCall, result: MethodChannel.Result) {
         val fileName = call.argument<String>(MethodChannelConstants.ARG_FILE_NAME)
-        if (fileName != null) {
-            JlOtaPlugin.selectedUri?.let {
-                FileTransferUtil.handleSelectFile(
-                    MyApplication.getInstance(),
-                    it,fileName,
-                    object : IActionCallback<Boolean> {
-                        override fun onSuccess(message: Boolean?) {
-                            OTAViewModel.getInstance().readFileList()
-                            result.success(true)
-                        }
-
-                        override fun onError(error: BaseError?) {
-                            result.error("FILE_TRANSFER_ERROR", "Error handling file transfer", null)
-                        }
-                    }
-                )
-            }
-        } else {
-            result.error("INVALID_ARGUMENT", "fileName must not be null", null)
+        if (fileName.isNullOrBlank()) {
+            result.error("INVALID_ARGUMENT", "fileName must not be null or blank", null)
+            return
         }
+
+        val selectedUri = MainActivity.getSelectedUri()
+        if (selectedUri == null) {
+            result.error("NO_SELECTED_URI", "No file selected", null)
+            return
+        }
+
+        MainActivity.clearSelectedUri()
+
+        // Wrap result with WeakReference to prevent callbacks after Activity is destroyed
+        val resultRef = WeakReference(result)
+
+        val callback = object : IActionCallback<Boolean> {
+            override fun onSuccess(message: Boolean?) {
+                val r = resultRef.get()
+                if (r != null) {
+                    OTAViewModel.getInstance().readFileList()
+                    r.success(true)
+                }
+                filePickCallback = null
+            }
+
+            override fun onError(error: BaseError?) {
+                val r = resultRef.get()
+                if (r != null) {
+                    val errorMsg = error?.message ?: "Unknown error"
+                    JL_Log.e("MethodChannelHandler", "File transfer error: $errorMsg")
+                    r.error("FILE_TRANSFER_ERROR", "Error handling file transfer: $errorMsg", null)
+                }
+                filePickCallback = null
+            }
+        }
+
+        filePickCallback = callback
+
+        FileTransferUtil.handleSelectFile(
+            MyApplication.getInstance(),
+            selectedUri,
+            fileName,
+            callback
+        )
     }
 
+    private fun sendCustomCmd(
+        call: MethodCall,
+        result: MethodChannel.Result?
+    ) {
+        // Extract and validate arguments from Flutter method call
+        val arguments = call.arguments as? Map<*, *> ?: run {
+            result?.error("INVALID_ARGUMENTS", "Arguments are missing or invalid", null)
+            return
+        }
+
+        // Extract custom data payload from arguments
+        val data = arguments[MethodChannelConstants.ARG_CUSTOM_DATA] as? ByteArray
+        if (data == null) {
+            result?.error("INVALID_DATA", "Custom data is missing or invalid", null)
+            return
+        }
+
+        bluetoothHelper.writeDataToDevice(bluetoothHelper.getConnectedDevice(),data)
+    }
 
     private fun formatBleMtu(mtu: Int): Int {
-        return if (mtu < BluetoothConstant.BLE_MTU_MIN) {
-            BluetoothConstant.BLE_MTU_MIN
-        } else if (mtu > BluetoothConstant.BLE_MTU_MAX) {
-            BluetoothConstant.BLE_MTU_MAX
-        } else {
-            mtu
+        return when {
+            mtu < BluetoothConstant.BLE_MTU_MIN -> BluetoothConstant.BLE_MTU_MIN
+            mtu > BluetoothConstant.BLE_MTU_MAX -> BluetoothConstant.BLE_MTU_MAX
+            else -> mtu
         }
     }
 
     private fun getSelectedItems(): MutableList<String> {
         val clone = mutableListOf<String>()
-        for (path in OTAViewModel.getInstance().selectedFilePaths) {
-            File(path).run {
-                if (this.exists() && this.isFile) {
-                    clone.add(path)
-                }
+        otaViewModel?.selectedFilePaths?.forEach { path ->
+            File(path).takeIf { it.exists() && it.isFile }?.let {
+                clone.add(path)
             }
         }
         return clone
@@ -433,28 +568,36 @@ class MethodChannelHandler(
 
     private fun isSelectedOtaFile(file: File?): Boolean {
         if (file == null) return false
-        return OTAViewModel.getInstance().selectedFilePaths.contains(file.path)
+        return otaViewModel?.selectedFilePaths?.contains(file.path) == true
     }
 
     private fun setSelectedOtaIndex(pos: Int) {
-        val file = otaViewModel.getFiles()[pos]
+        val viewModel = otaViewModel ?: return
+        val files = viewModel.getFiles()
+        if (pos !in files.indices) return
+
+        val file = files[pos]
         if (isSelectedOtaFile(file)) {
-            OTAViewModel.getInstance().selectedFilePaths.remove(file.path)
+            viewModel.selectedFilePaths.remove(file.path)
         } else {
-            if (OTAViewModel.getInstance().selectedFilePaths.size == 1) {
-                OTAViewModel.getInstance().selectedFilePaths.clear()
+            if (viewModel.selectedFilePaths.size == 1) {
+                viewModel.selectedFilePaths.clear()
             }
-            OTAViewModel.getInstance().selectedFilePaths.add(file.path)
+            viewModel.selectedFilePaths.add(file.path)
         }
-        OTAViewModel.getInstance().selectedFilePathsMLD.postValue(OTAViewModel.getInstance().selectedFilePaths)
+        viewModel.selectedFilePathsMLD.postValue(viewModel.selectedFilePaths)
     }
 
     private fun deleteOtaFileIndex(pos: Int) {
-        val file = otaViewModel.getFiles()[pos]
+        val viewModel = otaViewModel ?: return
+        val files = viewModel.getFiles()
+        if (pos !in files.indices) return
+
+        val file = files[pos]
         if (file.exists()) {
             file.delete()
         }
-        OTAViewModel.getInstance().readFileList()
+        viewModel.readFileList()
     }
 
     private fun getLogFiles(result: MethodChannel.Result) {
@@ -469,13 +612,24 @@ class MethodChannelHandler(
     }
 
     private fun shareLogFile(call: MethodCall, result: MethodChannel.Result) {
+        val activity = activityRef.get()
+        if (activity == null) {
+            result.error("ACTIVITY_NULL", "Activity is destroyed", null)
+            return
+        }
+
         val logFileIndex = call.argument<Int>(MethodChannelConstants.ARG_LOG_FILE_INDEX) ?: -1
         logHelper.shareLogFile(activity, logFileIndex)
         result.success(true)
     }
 
     private fun pickFile(result: MethodChannel.Result) {
-        plugin.pickFile()
+        val activity = activityRef.get()
+        if (activity == null) {
+            result.error("ACTIVITY_NULL", "Activity is destroyed", null)
+            return
+        }
+        activity.pickFile()
         result.success(null)
     }
 }

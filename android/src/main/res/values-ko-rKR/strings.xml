@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--Global-->
+    <string name="app_name">JieLi OTA</string>
+
+    <!--Device Type-->
+    <string name="classic_device_type">클래식 블루투스</string>
+    <string name="ble_device_type">BLE 장치</string>
+    <string name="dual_mode">듀얼 모드 블루투스 장치</string>
+    <string name="unknown_device">알 수 없는 유형</string>
+
+    <!--OTA State-->
+    <string name="ota_complete">업그레이드 완료</string>
+    <string name="ota_upgrade_cancel">업그레이드 취소됨</string>
+
+    <!--局域网文件传输/Snapdrop-->
+    <string name="update_file">업그레이드 파일</string>
+    <string name="log_file">로그 인쇄</string>
+    <string name="connect_wifi_tips">사용 가능한 와이파이에 연결하십시오.</string>
+
+    <!--Permissions-->
+    <string name="open_gpg_tip">근처 Bluetooth 기기를 작동하려면 GPS 기능이 필요합니다. 계속하려면 위치 서비스를 켜주세요.</string>
+    <string name="open_bluetooth_tip">근처 Bluetooth 기기를 작동하려면 Bluetooth 기능이 필요합니다. 계속하려면 Bluetooth를 켜세요.</string>
+    <string name="grant_bluetooth_permission">근처 Bluetooth 기기를 작동하려면 Bluetooth 권한이 필요합니다. 계속하기 전에 권한을 부여해 주세요.</string>
+    <string name="grant_location_permission">근처 Bluetooth 기기를 작동하려면 위치 권한이 필요합니다. 계속하기 전에 권한을 부여하세요.</string>
+    <string name="grant_external_storage_permission">파일을 추가하려면 저장 권한이 필요합니다. 계속하기 전에 권한을 부여하세요.</string>
+
+    <!--Device Status-->
+    <string name="device_must_mandatory_upgrade">디바이스 강제 업그레이드 필요</string>
+</resources>

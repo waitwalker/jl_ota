@@ -1,5 +1,7 @@
 package com.jieli.otasdk.tool.ota.ble;
 
+import static android.os.Build.VERSION_CODES.LOLLIPOP;
+
 import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -12,6 +14,7 @@ import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.le.BluetoothLeScanner;
 import android.bluetooth.le.ScanCallback;
+import android.bluetooth.le.ScanFilter;
 import android.bluetooth.le.ScanResult;
 import android.bluetooth.le.ScanSettings;
 import android.content.BroadcastReceiver;
@@ -27,28 +30,30 @@ import android.text.TextUtils;
 
 import androidx.annotation.NonNull;
 
-import com.jieli.otasdk.util.ReConnectHelper;
 import com.jieli.jl_bt_ota.constant.BluetoothConstant;
 import com.jieli.jl_bt_ota.util.BluetoothUtil;
 import com.jieli.jl_bt_ota.util.CHexConver;
 import com.jieli.jl_bt_ota.util.CommonUtil;
 import com.jieli.jl_bt_ota.util.JL_Log;
+import com.jieli.jl_bt_ota.util.UuidUtil;
 import com.jieli.otasdk.MyApplication;
 import com.jieli.otasdk.tool.config.ConfigHelper;
 import com.jieli.otasdk.tool.ota.ble.interfaces.BleEventCallback;
 import com.jieli.otasdk.tool.ota.ble.interfaces.OnWriteDataCallback;
+import com.jieli.otasdk.tool.ota.ble.model.BleConnectParam;
 import com.jieli.otasdk.tool.ota.ble.model.BleDevice;
 import com.jieli.otasdk.tool.ota.ble.model.BleScanInfo;
+import com.jieli.otasdk.tool.ota.ble.model.BleSendTask;
 import com.jieli.otasdk.util.AppUtil;
+import com.jieli.otasdk.util.ReConnectHelper;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
-
-import static android.os.Build.VERSION_CODES.LOLLIPOP;
 
 /**
  * Ble连接管理类
@@ -58,25 +63,6 @@ import static android.os.Build.VERSION_CODES.LOLLIPOP;
  */
 public class BleManager {
     private final static String TAG = BleManager.class.getSimpleName();
-    private final Context mContext;
-    @SuppressLint("StaticFieldLeak")
-    private volatile static BleManager instance;
-    private final ConfigHelper configHelper = ConfigHelper.Companion.getInstance();
-
-    private BaseBtAdapterReceiver mAdapterReceiver;
-    private final BluetoothAdapter mBluetoothAdapter;
-    private BluetoothLeScanner mBluetoothLeScanner;
-    private final ReConnectHelper mReConnectHelper;
-
-    private volatile BluetoothDevice mUsingDevice;            //正在通讯的设备
-
-    private final Map<String, BleDevice> mBleDeviceMap = new HashMap<>();
-    private final List<BluetoothDevice> mDiscoveredBleDevices = new ArrayList<>();
-    private final BleEventCallbackManager mCallbackManager = new BleEventCallbackManager();
-
-    private volatile boolean isBleScanning;
-    private NotifyCharacteristicRunnable mNotifyCharacteristicRunnable;
-
 
     private final static int MIN_CONNECT_TIME = 8 * 1000; //连接最小时间超时
     //BLE服务UUID
@@ -98,13 +84,57 @@ public class BleManager {
     private final static int CALLBACK_TIMEOUT = 6000;
     private final static int RECONNECT_BLE_DELAY = 2000;
 
+    /**
+     * 搜索BLE设备超时消息
+     */
     private final static int MSG_SCAN_BLE_TIMEOUT = 0x1010;
+    /**
+     * 连接BLE设备超时消息
+     */
     private final static int MSG_CONNECT_BLE_TIMEOUT = 0x1011;
+    /**
+     * 搜索HID设备消息
+     */
     private final static int MSG_SCAN_HID_DEVICE = 0X1012;
+    /**
+     * 使能BLE属性超时消息
+     */
     private final static int MSG_NOTIFY_BLE_TIMEOUT = 0x1013;
+    /**
+     * 调整BLE的MTU超时消息
+     */
     private final static int MSG_CHANGE_BLE_MTU_TIMEOUT = 0x1014;
-    private final static int MSG_BLE_DISCOVER_SERVICES_CALLBACK_TIMEOUT = 0x1015;
+    /**
+     * 发现BLE服务超时消息
+     */
+    private final static int MSG_DISCOVER_SERVICES_TIMEOUT = 0x1015;
+    /**
+     * 断开BLE超时消息
+     */
     private final static int MSG_DISCONNECT_BLE_TIMEOUT = 0x1016;
+    /**
+     * 检查系统BLE连接超时消息
+     */
+    private final static int MSG_CHECK_SYSTEM_BLE_TIMEOUT = 0x1017;
+
+    @SuppressLint("StaticFieldLeak")
+    private volatile static BleManager instance;
+    private final Context mContext;
+    private final ConfigHelper configHelper = ConfigHelper.Companion.getInstance();
+    private final BluetoothAdapter mBluetoothAdapter;
+    private final BluetoothLeScanner mBluetoothLeScanner;
+    private final ReConnectHelper mReConnectHelper;
+    private BaseBtAdapterReceiver mAdapterReceiver;
+
+    private final Map<String, BleDevice> mBleDeviceMap = new HashMap<>();
+    private final List<BluetoothDevice> mDiscoveredBleDevices = new ArrayList<>();
+    private final BleEventCallbackManager mCallbackManager = new BleEventCallbackManager();
+
+    private volatile boolean isBleScanning;
+    private NotifyCharacteristicRunnable mNotifyCharacteristicRunnable;
+    private CheckSystemBleThread checkSystemBleThread;
+
+
     private final Handler mHandler = new Handler(Looper.getMainLooper(), new Handler.Callback() {
         @Override
         public boolean handleMessage(@NonNull Message msg) {
@@ -122,16 +152,7 @@ public class BleManager {
                     break;
                 }
                 case MSG_SCAN_HID_DEVICE: {
-                    List<BluetoothDevice> lists = BluetoothUtil.getSystemConnectedBtDeviceList(mContext);
-                    if (null != lists && AppUtil.checkHasConnectPermission(mContext)) {
-                        for (BluetoothDevice device : lists) {
-                            if (device.getType() != BluetoothDevice.DEVICE_TYPE_CLASSIC &&
-                                    device.getBondState() == BluetoothDevice.BOND_BONDED) {
-                                handleDiscoveryBle(device, new BleScanInfo().setEnableConnect(true));
-                            }
-                        }
-                    }
-                    mHandler.sendEmptyMessageDelayed(MSG_SCAN_HID_DEVICE, 1000);
+                    findHidDevice();
                     break;
                 }
                 case MSG_NOTIFY_BLE_TIMEOUT: {
@@ -147,14 +168,15 @@ public class BleManager {
                     BleDevice bleDevice = getBleDevice(device);
                     JL_Log.i(TAG, "MSG_CHANGE_BLE_MTU_TIMEOUT", "device : " + printDeviceInfo(device) + ", " + bleDevice);
                     if (null == bleDevice) return false;
+                    bleDevice.setMtu(BluetoothConstant.BLE_MTU_MIN);
                     handleBleConnection(device, BluetoothProfile.STATE_CONNECTED);
                     break;
                 }
-                case MSG_BLE_DISCOVER_SERVICES_CALLBACK_TIMEOUT: {
+                case MSG_DISCOVER_SERVICES_TIMEOUT: {
                     if (!(msg.obj instanceof BluetoothDevice)) return false;
                     BluetoothDevice device = (BluetoothDevice) msg.obj;
                     BleDevice bleDevice = getBleDevice(device);
-                    JL_Log.i(TAG, "MSG_BLE_DISCOVER_SERVICES_CALLBACK_TIMEOUT", "device : " + printDeviceInfo(device) + ", " + bleDevice);
+                    JL_Log.i(TAG, "MSG_DISCOVER_SERVICES_TIMEOUT", "device : " + printDeviceInfo(device) + ", " + bleDevice);
                     if (null == bleDevice) return false;
                     final BluetoothGatt gatt = bleDevice.getGatt();
                     if (gatt != null) {
@@ -164,8 +186,10 @@ public class BleManager {
                             break;
                         }
                     }
-                    JL_Log.i(TAG, "MSG_BLE_DISCOVER_SERVICES_CALLBACK_TIMEOUT", "disconnectBleDevice");
-                    bleDevice.setNeedReconnect(true);
+                    if (!bleDevice.isOverReconnectLimit()) {
+                        JL_Log.i(TAG, "MSG_DISCOVER_SERVICES_TIMEOUT", "reconnectBleDevice");
+                        bleDevice.setNeedReconnect(true);
+                    }
                     disconnectBleDevice(device);
                     break;
                 }
@@ -177,6 +201,10 @@ public class BleManager {
                     if (null == gatt) return false;
                     closeGatt(gatt);
                     handleBleConnection(device, BluetoothProfile.STATE_DISCONNECTED);
+                    break;
+                }
+                case MSG_CHECK_SYSTEM_BLE_TIMEOUT: {
+                    stopCheckSystemBleThread();
                     break;
                 }
             }
@@ -193,6 +221,8 @@ public class BleManager {
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         if (Build.VERSION.SDK_INT >= LOLLIPOP && mBluetoothAdapter != null) {
             mBluetoothLeScanner = mBluetoothAdapter.getBluetoothLeScanner();
+        } else {
+            mBluetoothLeScanner = null;
         }
         mReConnectHelper = new ReConnectHelper(context, this);
         registerReceiver();
@@ -210,30 +240,13 @@ public class BleManager {
         return instance;
     }
 
-    /**
-     * 获取已连接的BLE设备列表
-     *
-     * @param context 上下文
-     * @return 已连接的BLE设备列表
-     */
-    @SuppressLint("MissingPermission")
-    public static List<BluetoothDevice> getConnectedBleDeviceList(Context context) {
-        if (context == null || !AppUtil.checkHasConnectPermission(context)) return null;
-        BluetoothManager mBluetoothManager = (BluetoothManager) context.getSystemService(Context.BLUETOOTH_SERVICE);
-        if (mBluetoothManager != null) {
-            return mBluetoothManager.getConnectedDevices(BluetoothProfile.GATT);
-        }
-        return null;
-    }
-
     public void destroy() {
         JL_Log.w(TAG, "destroy", "instance : " + instance);
         unregisterReceiver();
-        stopConnectTimeout();
         clearConnectedBleDevices();
 
         if (isBleScanning()) stopLeScan();
-        isBleScanning(false);
+        setBleScanning(false, 0);
         mDiscoveredBleDevices.clear();
         mReConnectHelper.release();
 
@@ -243,11 +256,11 @@ public class BleManager {
     }
 
     public void registerBleEventCallback(BleEventCallback callback) {
-        mCallbackManager.registerBleEventCallback(callback);
+        mCallbackManager.addCallback(callback);
     }
 
     public void unregisterBleEventCallback(BleEventCallback callback) {
-        mCallbackManager.unregisterBleEventCallback(callback);
+        mCallbackManager.removeCallback(callback);
     }
 
     public boolean isBluetoothEnable() {
@@ -265,26 +278,18 @@ public class BleManager {
             JL_Log.w(TAG, "startLeScan", "Missing location permissions.");
             return false;
         }
-        // 蓝牙开关切换后 scanner 实例会失效，这里兜底重新获取，
-        // 避免因单例创建时蓝牙未开启导致 mBluetoothLeScanner 为 null 而退回废弃的 startLeScan 通道
-        if (Build.VERSION.SDK_INT >= LOLLIPOP && mBluetoothAdapter != null && mBluetoothLeScanner == null) {
-            mBluetoothLeScanner = mBluetoothAdapter.getBluetoothLeScanner();
-        }
         if (timeout <= 0) timeout = SCAN_BLE_TIMEOUT;
         if (isBleScanning()) {
             JL_Log.i(TAG, "startLeScan", "BLE is searching.");
-            if (mBluetoothLeScanner != null && Build.VERSION.SDK_INT >= LOLLIPOP) {
+            if (mBluetoothLeScanner != null) {
                 mBluetoothLeScanner.flushPendingScanResults(mScanCallback);
             }
-            mDiscoveredBleDevices.clear();
-            mHandler.removeMessages(MSG_SCAN_BLE_TIMEOUT);
-            mHandler.sendEmptyMessageDelayed(MSG_SCAN_BLE_TIMEOUT, timeout);
-            isBleScanning(true);
+            setBleScanning(true, timeout);
             syncSystemBleDevice();
             return true;
         }
         boolean ret;
-        if (Build.VERSION.SDK_INT >= LOLLIPOP && mBluetoothLeScanner != null) {
+        if (mBluetoothLeScanner != null) {
             ScanSettings scanSettings;
             int scanMode = ScanSettings.SCAN_MODE_LOW_LATENCY; //修改搜索BLE模式 -- 均衡模式
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -301,23 +306,15 @@ public class BleManager {
                         .setScanMode(scanMode)
                         .build();
             }
-            try {
-                // 传 null 表示不过滤；部分机型对 empty list 会当成“匹配不到任何设备”
-                mBluetoothLeScanner.startScan(null, scanSettings, mScanCallback);
-                ret = true;
-            } catch (Exception e) {
-                JL_Log.e(TAG, "startLeScan", "startScan failed: " + e.getMessage());
-                ret = false;
-            }
+            List<ScanFilter> filters = new ArrayList<>();
+            mBluetoothLeScanner.startScan(filters, scanSettings, mScanCallback);
+            ret = true;
         } else {
             ret = mBluetoothAdapter.startLeScan(mLeScanCallback);
         }
         JL_Log.i(TAG, "startLeScan", CommonUtil.formatString("%s. timeout : %d.", ret, timeout));
-        isBleScanning(ret);
+        setBleScanning(ret, timeout);
         if (ret) {
-            mDiscoveredBleDevices.clear();
-            mHandler.removeMessages(MSG_SCAN_BLE_TIMEOUT);
-            mHandler.sendEmptyMessageDelayed(MSG_SCAN_BLE_TIMEOUT, timeout);
             syncSystemBleDevice();
         }
         return ret;
@@ -328,22 +325,30 @@ public class BleManager {
         if (!checkScanEnv("stopLeScan")) return false;
         if (!isBleScanning()) return false;
         try {
-            if (Build.VERSION.SDK_INT >= LOLLIPOP && mBluetoothLeScanner != null) {
+            if (mBluetoothLeScanner != null) {
                 mBluetoothLeScanner.stopScan(mScanCallback);
             } else {
                 mBluetoothAdapter.stopLeScan(mLeScanCallback);
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (Exception ignore) {
+
         }
-        mHandler.removeMessages(MSG_SCAN_BLE_TIMEOUT);
+        removeTimeTask(MSG_SCAN_BLE_TIMEOUT);
         mHandler.removeMessages(MSG_SCAN_HID_DEVICE);
-        isBleScanning(false);
+        setBleScanning(false, 0);
         return true;
     }
 
     public BluetoothDevice getConnectedBtDevice() {
-        return mUsingDevice;
+        List<BluetoothDevice> connectedBleDevices = getConnectedDeviceList();
+        for (BluetoothDevice device : connectedBleDevices) {
+            final BleDevice bleDevice = getBleDevice(device);
+            if (null == bleDevice) continue;
+            if (bleDevice.isConnected() && bleDevice.isUsing()) {
+                return device;
+            }
+        }
+        return null;
     }
 
     public BluetoothGatt getConnectedBtGatt(BluetoothDevice device) {
@@ -377,13 +382,11 @@ public class BleManager {
         List<BleDevice> bleDevices = getSortList();
         List<BluetoothDevice> devices = new ArrayList<>();
         for (BleDevice bleDevice : bleDevices) {
-            if (null == bleDevice || null == bleDevice.getGatt()
-                    || bleDevice.getConnection() != BluetoothProfile.STATE_CONNECTED) continue;
-            final BluetoothGatt gatt = bleDevice.getGatt();
-            final BluetoothDevice device = gatt.getDevice();
-            if (null != device) {
-                devices.add(device);
-            }
+            if (null == bleDevice.getGatt() || bleDevice.getConnection() != BluetoothProfile.STATE_CONNECTED)
+                continue;
+            final BluetoothDevice device = bleDevice.getGatt().getDevice();
+            if (null == device) continue;
+            devices.add(device);
         }
         return devices;
     }
@@ -407,20 +410,15 @@ public class BleManager {
     }
 
     public boolean isConnectedDevice(BluetoothDevice device) {
-        if (null == device) return false;
-        return isConnectedDevice(device.getAddress());
+        final BleDevice bleDevice = getBleDevice(device);
+        if (null == bleDevice) return false;
+        return bleDevice.isConnected() && bleDevice.getGatt() != null;
     }
 
-    public boolean isConnectedDevice(String address) {
-        if (!BluetoothAdapter.checkBluetoothAddress(address)) return false;
-        List<BluetoothDevice> devices = getConnectedDeviceList();
-        if (devices.isEmpty()) return false;
-        for (BluetoothDevice device : devices) {
-            if (device.getAddress().equals(address)) {
-                return true;
-            }
-        }
-        return false;
+    public boolean isConnectedGattOverBrEdrDevice(BluetoothDevice device) {
+        final BleDevice bleDevice = getBleDevice(device);
+        if (null == bleDevice) return false;
+        return bleDevice.isConnectGattOverBrEdr() && bleDevice.isConnected();
     }
 
     public BluetoothDevice getConnectingDevice() {
@@ -440,46 +438,54 @@ public class BleManager {
     }
 
     @SuppressLint("MissingPermission")
-    public boolean connectBleDevice(BluetoothDevice device) {
+    public boolean connectBleDevice(BluetoothDevice device, @NonNull BleConnectParam param) {
         if (!checkConnectEnv("connectBleDevice", device) || !isBluetoothEnable())
             return false;
         if (isConnectedDevice(device)) {
+            JL_Log.i(TAG, "connectBLEDevice", CommonUtil.formatString("Device(%s) is connected.", printDeviceInfo(device)));
             mCallbackManager.onBleConnection(device, BluetoothProfile.STATE_CONNECTED);
             return true;
         }
+
         final BluetoothDevice connectingDevice = getConnectingDevice();
         if (connectingDevice != null) {
+            boolean isSameDevice = BluetoothUtil.deviceEquals(connectingDevice, device);
             JL_Log.e(TAG, "connectBleDevice", CommonUtil.formatString("Device(%s) is connecting, please wait.", printDeviceInfo(connectingDevice)));
-            return isConnectingDevice(device);
+            if (isSameDevice) return true;
+            disconnectBleDevice(connectingDevice);
+            SystemClock.sleep(300);
         }
         if (isBleScanning()) {
             stopLeScan();
         }
         //回调BLE连接中状态
-        final BleDevice bleDevice = addBleDevice(device);
-        startConnectTimeout(device);
+        final BleDevice bleDevice = addBleDevice(device, param);
+        startTimeoutTask(MSG_CONNECT_BLE_TIMEOUT, device, CONNECT_BLE_TIMEOUT);
         handleBleConnection(device, BluetoothProfile.STATE_CONNECTING);
 
-        BluetoothGatt gatt = null;
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                gatt = device.connectGatt(
-                        mContext,
-                        false,
-                        mBluetoothGattCallback,
-                        BluetoothDevice.TRANSPORT_LE
-                );
-            } else {
-                gatt = device.connectGatt(
-                        mContext,
-                        false,
-                        mBluetoothGattCallback
-                );
+        boolean ret;
+        //连接Gatt Over BrEdr的设备，进行配对关系判断，防止兼容性问题
+        if (bleDevice.getParam().isConnectGattOverBrEdr() && device.getBondState() != BluetoothDevice.BOND_BONDED) {
+            bleDevice.setWaitBoundResult(true);
+
+            if (device.getBondState() == BluetoothDevice.BOND_NONE) {
+                ret = BluetoothUtil.createBond(device);
+                JL_Log.d(TAG, "connectBleDevice", ret
+                        ? CommonUtil.formatString("Preparing to start the device(%s) pairing process.", printDeviceInfo(device))
+                        : CommonUtil.formatString("Device(%s) pairing process failed to start.", printDeviceInfo(device)));
+
+                if (!ret) {
+                    handleBleConnection(device, BluetoothProfile.STATE_DISCONNECTED);
+                }
+                return ret;
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+
+            // BOND_BONDING state, wait for pairing result
+            return true;
         }
-        boolean ret = gatt != null;
+
+        BluetoothGatt gatt = connectBluetoothGatt(device, param);
+        ret = gatt != null;
         bleDevice.setGatt(gatt);
         JL_Log.d(TAG, "connectBleDevice", ret ? CommonUtil.formatString("Prepare to connect to BLE(%s)", printDeviceInfo(device))
                 : CommonUtil.formatString("Failed to connect to BLE(%s)", printDeviceInfo(device)));
@@ -487,6 +493,13 @@ public class BleManager {
             handleBleConnection(device, BluetoothProfile.STATE_DISCONNECTED);
         }
         return ret;
+    }
+
+
+    public boolean connectBleDevice(BluetoothDevice device) {
+        return connectBleDevice(device, new BleConnectParam()
+                .setRequestMtu(configHelper.getBleRequestMtu())
+                .setOtaUUID(BLE_UUID_SERVICE, BLE_UUID_WRITE, BLE_UUID_NOTIFICATION));
     }
 
     @SuppressLint("MissingPermission")
@@ -503,8 +516,7 @@ public class BleManager {
             case BluetoothProfile.STATE_CONNECTED: {
                 if (null != gatt) {
                     JL_Log.d(TAG, "disconnectBleDevice", "Gatt#disconnect");
-                    mHandler.removeMessages(MSG_DISCONNECT_BLE_TIMEOUT);
-                    mHandler.sendMessageDelayed(mHandler.obtainMessage(MSG_DISCONNECT_BLE_TIMEOUT, device), CALLBACK_TIMEOUT);
+                    startTimeoutTask(MSG_DISCONNECT_BLE_TIMEOUT, device, CALLBACK_TIMEOUT);
                     gatt.disconnect();
                 }
                 break;
@@ -528,8 +540,12 @@ public class BleManager {
         addSendTask(device, serviceUUID, characteristicUUID, data, callback);
     }
 
-    private void isBleScanning(boolean isScanning) {
+    private void setBleScanning(boolean isScanning, long timeout) {
         isBleScanning = isScanning;
+        if (isScanning) {
+            mDiscoveredBleDevices.clear();
+            startTimeoutTask(MSG_SCAN_BLE_TIMEOUT, null, timeout);
+        }
         mCallbackManager.onDiscoveryBleChange(isScanning);
         if (isBleScanning && configHelper.isHidDevice()) {
             mHandler.sendEmptyMessage(MSG_SCAN_HID_DEVICE);
@@ -561,6 +577,10 @@ public class BleManager {
             JL_Log.w(TAG, method, "Device is null.");
             return false;
         }
+        /*if (!isBluetoothEnable()) {
+            JL_Log.w(TAG, method, "Bluetooth is close.");
+            return false;
+        }*/
         return true;
     }
 
@@ -569,10 +589,10 @@ public class BleManager {
         return mBleDeviceMap.get(device.getAddress());
     }
 
-    private BleDevice addBleDevice(@NonNull BluetoothDevice device) {
+    private BleDevice addBleDevice(@NonNull BluetoothDevice device, @NonNull BleConnectParam param) {
         BleDevice cacheDevice = getBleDevice(device);
         if (null == cacheDevice) {
-            cacheDevice = new BleDevice(mContext, device);
+            cacheDevice = new BleDevice(device, param);
             mBleDeviceMap.put(device.getAddress(), cacheDevice);
         }
         return cacheDevice;
@@ -588,7 +608,6 @@ public class BleManager {
         BleDevice bleDevice = mBleDeviceMap.remove(address);
         JL_Log.i(TAG, "removeConnectedBle", "address : " + address + ", " + bleDevice);
         if (null == bleDevice) return null;
-        bleDevice.stopSendDataThread();
         final List<BluetoothDevice> connectedDeviceList = getConnectedDeviceList();
         JL_Log.d(TAG, "removeConnectedBle", "connectedDeviceList size : " + connectedDeviceList.size());
         if (connectedDeviceList.isEmpty()) {
@@ -599,26 +618,59 @@ public class BleManager {
         return bleDevice;
     }
 
+    @SuppressLint("MissingPermission")
+    private BluetoothGatt connectBluetoothGatt(@NonNull BluetoothDevice device, @NonNull BleConnectParam param) {
+        BluetoothGatt bluetoothGatt;
+        int transport = param.getTransport();
+        int phyMask = 1;
+        JL_Log.d(TAG, "connectBluetoothGatt", "device : " + device + ", " + param);
+        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.O) {
+            bluetoothGatt = device.connectGatt(mContext, false, mBluetoothGattCallback,
+                    transport, phyMask, mHandler);
+        } else if (Build.VERSION.SDK_INT == Build.VERSION_CODES.O) {
+            bluetoothGatt = device.connectGatt(mContext, false, mBluetoothGattCallback, transport, phyMask);
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            bluetoothGatt = device.connectGatt(mContext, false, mBluetoothGattCallback, transport);
+        } else {
+            bluetoothGatt = device.connectGatt(mContext, false, mBluetoothGattCallback);
+        }
+
+        if (null == bluetoothGatt) {
+            JL_Log.i(TAG, "connectBluetoothGatt", "Failed to connect ble.");
+            return null;
+        }
+        return bluetoothGatt;
+    }
+
     @NonNull
     private List<BleDevice> getSortList() {
         if (mBleDeviceMap.isEmpty()) return new ArrayList<>();
         List<BleDevice> bleDevices = new ArrayList<>(mBleDeviceMap.values());
-        Collections.sort(bleDevices, (o1, o2) -> {
-            if (null == o1 && null == o2) return 0;
-            if (null == o1) return 1;
-            if (null == o2) return -1;
-            return Long.compare(o2.getConnectedTime(), o1.getConnectedTime());
-        });
+        if (bleDevices.size() > 1) {
+            Collections.sort(bleDevices, (o1, o2) -> {
+                if (null == o1 && null == o2) return 0;
+                if (null == o1) return 1;
+                if (null == o2) return -1;
+                return Long.compare(o2.getConnectedTime(), o1.getConnectedTime());
+            });
+        }
         return bleDevices;
     }
 
+    @SuppressLint("MissingPermission")
     private void clearConnectedBleDevices() {
         if (!mBleDeviceMap.isEmpty()) {
             Map<String, BleDevice> clone = new HashMap<>(mBleDeviceMap);
             for (String key : clone.keySet()) {
                 BleDevice bleDevice = clone.get(key);
                 if (null == bleDevice) continue;
-                disconnectBleDevice(bleDevice.getDevice());
+                final BluetoothGatt gatt = bleDevice.getGatt();
+                if (null == gatt) continue;
+                if (BluetoothUtil.isBluetoothEnable()) {
+                    gatt.disconnect();
+                    closeGatt(gatt);
+                }
+                mCallbackManager.onBleConnection(bleDevice.getDevice(), BluetoothProfile.STATE_DISCONNECTED);
             }
             mBleDeviceMap.clear();
         }
@@ -632,44 +684,76 @@ public class BleManager {
         gatt.close();
     }
 
-    private void setConnectedBtDevice(BluetoothDevice mConnectedBtDevice) {
-        this.mUsingDevice = mConnectedBtDevice;
+    private void setConnectedBtDevice(BluetoothDevice device) {
+        final BluetoothDevice connectedDevice = getConnectedBtDevice();
+        if (null != device && !BluetoothUtil.deviceEquals(connectedDevice, device)) {
+            final BleDevice oldDevice = getBleDevice(connectedDevice);
+            if (oldDevice != null) {
+                oldDevice.setUsing(false);
+            }
+            final BleDevice bleDevice = getBleDevice(device);
+            boolean isSwitch = false;
+            if (bleDevice != null) {
+                bleDevice.setUsing(true);
+                isSwitch = true;
+            }
+            if (isSwitch) {
+                mCallbackManager.onSwitchBleDevice(device);
+            }
+        }
     }
 
     @SuppressLint("MissingPermission")
     private void filterDevice(BluetoothDevice device, int rssi, byte[] scanRecord,
                               boolean isBleEnableConnect) {
-        if (AppUtil.checkHasConnectPermission(mContext) && isBluetoothEnable() && !TextUtils.isEmpty(device.getName())
-                && !mDiscoveredBleDevices.contains(device)) {
-            JL_Log.d(TAG, "notify device : " + printDeviceInfo(device));
-            mDiscoveredBleDevices.add(device);
+        if (AppUtil.checkHasConnectPermission(mContext) && isBluetoothEnable() && !TextUtils.isEmpty(device.getName())) {
+//            JL_Log.d(TAG, "notify device : " + printDeviceInfo(device));
             handleDiscoveryBle(device, new BleScanInfo().setRawData(scanRecord).setRssi(rssi).setEnableConnect(isBleEnableConnect));
         }
     }
 
-    private void startConnectTimeout(BluetoothDevice device) {
-        if (!mHandler.hasMessages(MSG_CONNECT_BLE_TIMEOUT)) {
-            mHandler.sendMessageDelayed(mHandler.obtainMessage(MSG_CONNECT_BLE_TIMEOUT, device), CONNECT_BLE_TIMEOUT);
+    private void startTimeoutTask(int what, BluetoothDevice device, long timeout) {
+        removeTimeTask(what);
+        if (null == device) {
+            mHandler.sendEmptyMessageDelayed(what, timeout);
+            return;
         }
+        mHandler.sendMessageDelayed(mHandler.obtainMessage(what, device), timeout);
     }
 
-    private void stopConnectTimeout() {
-        if (mHandler.hasMessages(MSG_CONNECT_BLE_TIMEOUT)) {
-            mHandler.removeMessages(MSG_CONNECT_BLE_TIMEOUT);
-        }
+    private void removeTimeTask(int what) {
+        mHandler.removeMessages(what);
     }
 
+    @SuppressLint("MissingPermission")
     private void syncSystemBleDevice() {
-        final List<BluetoothDevice> mSysConnectedBleList = getConnectedBleDeviceList(mContext);
-        if (mSysConnectedBleList != null && !mSysConnectedBleList.isEmpty()) {
-            for (BluetoothDevice bleDev : mSysConnectedBleList) {
-                if (!BluetoothUtil.deviceEquals(bleDev, mUsingDevice)) {
-                    if (!mDiscoveredBleDevices.contains(bleDev)) {
-                        mDiscoveredBleDevices.add(bleDev);
-                        handleDiscoveryBle(bleDev, new BleScanInfo().setEnableConnect(true));
-                    }
+        stopCheckSystemBleThread();
+        startTimeoutTask(MSG_CHECK_SYSTEM_BLE_TIMEOUT, null, CALLBACK_TIMEOUT);
+        checkSystemBleThread = new CheckSystemBleThread();
+        checkSystemBleThread.start();
+    }
+
+    private void stopCheckSystemBleThread() {
+        removeTimeTask(MSG_CHECK_SYSTEM_BLE_TIMEOUT);
+        if (null != checkSystemBleThread) {
+            checkSystemBleThread.interrupt();
+            checkSystemBleThread = null;
+        }
+    }
+
+    private void findHidDevice() {
+        List<BluetoothDevice> lists = BluetoothUtil.getSystemConnectedBtDeviceList(mContext);
+        if (null != lists && AppUtil.checkHasConnectPermission(mContext)) {
+            for (BluetoothDevice device : lists) {
+                if (isConnectedDevice(device)) continue;
+                if (device.getType() != BluetoothDevice.DEVICE_TYPE_CLASSIC &&
+                        device.getBondState() == BluetoothDevice.BOND_BONDED) {
+                    handleDiscoveryBle(device, new BleScanInfo().setEnableConnect(true));
                 }
             }
+        }
+        if (isBleScanning()) {
+            mHandler.sendEmptyMessageDelayed(MSG_SCAN_HID_DEVICE, 1000);
         }
     }
 
@@ -689,14 +773,18 @@ public class BleManager {
                                   int status, byte[] data) {
         final BleDevice bleDevice = getBleDevice(gatt.getDevice());
         if (bleDevice != null) {
-            SendBleDataThread.BleSendTask task = new SendBleDataThread.BleSendTask(gatt, serviceUUID, characteristicUUID, data, null);
+            BleSendTask task = new BleSendTask(gatt, serviceUUID, characteristicUUID, data, null);
             task.setStatus(status);
             bleDevice.wakeupSendThread(task);
         }
     }
 
     private void handleDiscoveryBle(BluetoothDevice device, BleScanInfo bleScanInfo) {
-        mCallbackManager.onDiscoveryBle(device, bleScanInfo);
+        if (!mDiscoveredBleDevices.contains(device)) {
+            mDiscoveredBleDevices.add(device);
+            JL_Log.d(TAG, "handleDiscoveryBle", "onDiscoveryBle " + printDeviceInfo(device) + ", " + bleScanInfo);
+            mCallbackManager.onDiscoveryBle(device, bleScanInfo);
+        }
     }
 
     private void handleBleConnection(BluetoothDevice device, int status) {
@@ -704,27 +792,22 @@ public class BleManager {
         if (null == bleDevice) return;
         int prevState = bleDevice.getConnection();
         JL_Log.i(TAG, "handleBleConnection", CommonUtil.formatString("device : " + printDeviceInfo(device)
-                + ", prevState : " + prevState + ", status : " + status));
+                + ", prevState : " + BluetoothUtil.printBtConnectionState(prevState)
+                + ", status : " + BluetoothUtil.printBtConnectionState(status)));
         if (prevState == status) return; //相同连接状态
         bleDevice.setConnection(status);
+        if (status != BluetoothProfile.STATE_CONNECTING) {
+            removeTimeTask(MSG_NOTIFY_BLE_TIMEOUT);
+        }
         switch (status) {
             case BluetoothProfile.STATE_CONNECTED: {
-                mHandler.removeMessages(MSG_NOTIFY_BLE_TIMEOUT);
-                bleDevice.setConnectedTime(System.currentTimeMillis());
-                bleDevice.startSendDataThread();
                 if (getConnectedBtDevice() == null) {
                     setConnectedBtDevice(device);
                 }
                 break;
             }
             case BluetoothProfile.STATE_DISCONNECTED: {
-                mHandler.removeMessages(MSG_NOTIFY_BLE_TIMEOUT);
-                bleDevice.setConnectedTime(0);
                 removeConnectedBle(device);
-                break;
-            }
-            case BluetoothProfile.STATE_CONNECTING: {
-                bleDevice.setConnectedTime(System.currentTimeMillis());
                 break;
             }
         }
@@ -738,6 +821,7 @@ public class BleManager {
             IntentFilter intentFilter = new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
             intentFilter.addAction(BluetoothDevice.ACTION_ACL_CONNECTED);
             intentFilter.addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED);
+            intentFilter.addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
             mContext.registerReceiver(mAdapterReceiver, intentFilter);
         }
     }
@@ -795,7 +879,8 @@ public class BleManager {
         } else {
             JL_Log.w(TAG, "enableBLEDeviceNotification", "(setCharacteristicNotification) ---> failed.");
         }
-        JL_Log.w(TAG, "enableBLEDeviceNotification", bRet + ", serviceUUID : " + serviceUUID + ", characteristicUUID : " + characteristicUUID);
+        JL_Log.d(TAG, "enableBLEDeviceNotification", bRet + ", serviceUUID : " + UuidUtil.read16BitUUID(serviceUUID)
+                + ", characteristicUUID : " + UuidUtil.read16BitUUID(characteristicUUID));
         return bRet;
     }
 
@@ -842,7 +927,7 @@ public class BleManager {
     @SuppressLint("MissingPermission")
     private void startChangeMtu(BluetoothGatt gatt, int mtu) {
         if (gatt == null || !AppUtil.checkHasConnectPermission(mContext)) {
-            JL_Log.w(TAG, "startChangeMtu", "-- param is error.");
+            JL_Log.w(TAG, "startChangeMtu", "Gatt is null.");
             return;
         }
         if (mHandler.hasMessages(MSG_CHANGE_BLE_MTU_TIMEOUT)) {
@@ -851,33 +936,35 @@ public class BleManager {
         }
         final BluetoothDevice device = gatt.getDevice();
         if (device == null) {
-            JL_Log.w(TAG, "startChangeMtu", "-startChangeMtu- device is null.");
+            JL_Log.w(TAG, "startChangeMtu", "device is null.");
             return;
         }
         boolean ret = false;
         if (mtu > BluetoothConstant.BLE_MTU_MIN) {
+            //开始超时任务
+            startTimeoutTask(MSG_CHANGE_BLE_MTU_TIMEOUT, device, CALLBACK_TIMEOUT);
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                 ret = gatt.requestMtu(mtu + 3);
             }
         }
         JL_Log.d(TAG, "startChangeMtu", "requestMtu : " + ret + ", mtu : " + mtu);
-        if (ret) { //调整成功，开始超时任务
-            mHandler.sendMessageDelayed(mHandler.obtainMessage(MSG_CHANGE_BLE_MTU_TIMEOUT, device), CALLBACK_TIMEOUT);
-        } else {
+        if (!ret) {
+            stopChangeMtu();
             handleBleConnection(device, BluetoothProfile.STATE_CONNECTED);
         }
     }
 
     //回收调整MTU的超时任务
     private void stopChangeMtu() {
-        mHandler.removeMessages(MSG_CHANGE_BLE_MTU_TIMEOUT);
+        removeTimeTask(MSG_CHANGE_BLE_MTU_TIMEOUT);
     }
 
     private String printDeviceInfo(BluetoothDevice device) {
         return BluetoothUtil.printBtDeviceInfo(mContext, device);
     }
 
-    private final BluetoothAdapter.LeScanCallback mLeScanCallback = (device, rssi, scanRecord) -> filterDevice(device, rssi, scanRecord, true);
+    private final BluetoothAdapter.LeScanCallback mLeScanCallback = (device, rssi, scanRecord) ->
+            filterDevice(device, rssi, scanRecord, true);
 
     private final ScanCallback mScanCallback = new ScanCallback() {
         @Override
@@ -894,13 +981,9 @@ public class BleManager {
         }
 
         @Override
-        public void onBatchScanResults(List<ScanResult> results) {
-
-        }
-
-        @Override
         public void onScanFailed(int errorCode) {
-            JL_Log.d(TAG, "onScanFailed", "code : " + errorCode);
+            JL_Log.w(TAG, "onScanFailed", "code : " + errorCode);
+            if (errorCode == ScanCallback.SCAN_FAILED_ALREADY_STARTED) return;
             stopLeScan();
         }
     };
@@ -923,43 +1006,45 @@ public class BleManager {
             final BluetoothDevice device = gatt.getDevice();
             if (null == device) return;
             final BleDevice bleDevice = getBleDevice(device);
-            JL_Log.i(TAG, "onConnectionStateChange", CommonUtil.formatString("device : %s, status = %d, newState = %d.\n%s",
-                    printDeviceInfo(device), status, newState, bleDevice));
+            if (null == bleDevice) return;
+            JL_Log.i(TAG, "onConnectionStateChange", CommonUtil.formatString("device : %s, status = %d, newState = %s.\n%s",
+                    printDeviceInfo(device), status, BluetoothUtil.printBtConnectionState(newState), bleDevice));
             if (newState == BluetoothProfile.STATE_DISCONNECTED || newState == BluetoothProfile.STATE_DISCONNECTING
                     || newState == BluetoothProfile.STATE_CONNECTED) {
-                stopConnectTimeout();
+                removeTimeTask(MSG_CONNECT_BLE_TIMEOUT);
                 if (newState == BluetoothProfile.STATE_CONNECTED) {  //BLE连接成功
                     bleDevice.setGatt(gatt);
+                    startTimeoutTask(MSG_DISCOVER_SERVICES_TIMEOUT, device, CALLBACK_TIMEOUT);
                     boolean ret = gatt.discoverServices();
                     JL_Log.d(TAG, "onConnectionStateChange", "discoverServices : " + ret);
-                    if (ret) {
-                        mHandler.removeMessages(MSG_BLE_DISCOVER_SERVICES_CALLBACK_TIMEOUT);
-                        mHandler.sendMessageDelayed(mHandler.obtainMessage(MSG_BLE_DISCOVER_SERVICES_CALLBACK_TIMEOUT, device), CALLBACK_TIMEOUT);
-                    } else {
+                    if (!ret) {
                         disconnectBleDevice(device);
                     }
                     return;
                 } else {
-                    mHandler.removeMessages(MSG_DISCONNECT_BLE_TIMEOUT);
-                    closeGatt(gatt);
+                    removeTimeTask(MSG_DISCOVER_SERVICES_TIMEOUT);
+                    removeTimeTask(MSG_DISCONNECT_BLE_TIMEOUT);
+                    if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+                        closeGatt(gatt);
 
-                    if (bleDevice.getConnection() != BluetoothProfile.STATE_CONNECTED) { //非连接成功过程才触发重连机制
-                        long usedConnectTime = System.currentTimeMillis() - bleDevice.getConnectedTime(); //连接已耗费时间
-                        boolean isNeedReconnect = bleDevice.isNeedReconnect() || (status != 19 && usedConnectTime > 0 && usedConnectTime < MIN_CONNECT_TIME);
-                        JL_Log.d(TAG, "onConnectionStateChange", "usedConnectTime = " + usedConnectTime + ", limit time = " + MIN_CONNECT_TIME
-                                + ", isNeedReconnect : " + isNeedReconnect);
-                        if (isNeedReconnect) { //Todo: 遇到了异常断开情况, 尝试重连设备
-                            if (!bleDevice.isOverReconnectLimit()) {
-                                JL_Log.i(TAG, "onConnectionStateChange", "Ready to reconnect device.");
-                                bleDevice.setConnection(BluetoothProfile.STATE_DISCONNECTED)
-                                        .setMtu(BluetoothConstant.BLE_MTU_MIN)
-                                        .setConnectedTime(0L);
-                                SystemClock.sleep(1000);
-                                if (!connectBleDevice(device)) {
-                                    bleDevice.setConnection(BluetoothProfile.STATE_CONNECTING);
-                                    handleBleConnection(device, BluetoothProfile.STATE_DISCONNECTED);
+                        if (!bleDevice.isConnected()) { //非连接成功过程才触发重连机制
+                            long usedConnectTime = System.currentTimeMillis() - bleDevice.getConnectedTime(); //连接已耗费时间
+                            boolean isNeedReconnect = bleDevice.isNeedReconnect() || (bleDevice.getParam().isNeedReconnect()
+                                    && status != 19 && usedConnectTime > 0 && usedConnectTime < MIN_CONNECT_TIME);
+                            JL_Log.d(TAG, "onConnectionStateChange", "usedConnectTime = " + usedConnectTime
+                                    + ", limit time = " + MIN_CONNECT_TIME + ", isNeedReconnect : " + isNeedReconnect);
+                            if (isNeedReconnect) { //遇到了异常断开情况, 尝试重连设备
+                                if (!bleDevice.isOverReconnectLimit()) {
+                                    JL_Log.i(TAG, "onConnectionStateChange", "Ready to reconnect device.");
+                                    bleDevice.setConnection(BluetoothProfile.STATE_DISCONNECTED)
+                                            .setMtu(BluetoothConstant.BLE_MTU_MIN);
+                                    SystemClock.sleep(1000);
+                                    if (!connectBleDevice(device, bleDevice.getParam())) {
+                                        bleDevice.setConnection(BluetoothProfile.STATE_CONNECTING);
+                                        handleBleConnection(device, BluetoothProfile.STATE_DISCONNECTED);
+                                    }
+                                    return;
                                 }
-                                return;
                             }
                         }
                     }
@@ -967,7 +1052,6 @@ public class BleManager {
             }
             handleBleConnection(device, newState);
         }
-
 
         @SuppressLint("MissingPermission")
         @Override
@@ -977,16 +1061,19 @@ public class BleManager {
             if (null == device) return;
             final BleDevice bleDevice = getBleDevice(device);
             if (null == bleDevice) return;
-            mHandler.removeMessages(MSG_BLE_DISCOVER_SERVICES_CALLBACK_TIMEOUT);
+            removeTimeTask(MSG_DISCOVER_SERVICES_TIMEOUT);
             mCallbackManager.onBleServiceDiscovery(device, status, gatt.getServices());
             boolean ret = false;
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 AppUtil.printBleGattServices(mContext, device, gatt, status);
+                UUID serviceUUID = bleDevice.getParam().getOtaServiceUUID();
+                UUID writeUUID = bleDevice.getParam().getOtaWriteCharacteristicUUID();
+                UUID notifyUUID = bleDevice.getParam().getOtaNotifyCharacteristicUUID();
                 for (BluetoothGattService service : gatt.getServices()) {
-                    if (BLE_UUID_SERVICE.equals(service.getUuid()) && null != service.getCharacteristic(BLE_UUID_WRITE)
-                            && null != service.getCharacteristic(BLE_UUID_NOTIFICATION)) {
+                    if (UuidUtil.equalUUID(serviceUUID, service.getUuid()) && null != service.getCharacteristic(writeUUID)
+                            && null != service.getCharacteristic(notifyUUID)) {
                         JL_Log.i(TAG, "onServicesDiscovered", "start NotifyCharacteristicRunnable...");
-                        mNotifyCharacteristicRunnable = new NotifyCharacteristicRunnable(gatt, BLE_UUID_SERVICE, BLE_UUID_NOTIFICATION);
+                        mNotifyCharacteristicRunnable = new NotifyCharacteristicRunnable(gatt, serviceUUID, notifyUUID);
                         mHandler.post(mNotifyCharacteristicRunnable);
                         ret = true;
                         break;
@@ -1013,7 +1100,8 @@ public class BleManager {
                 serviceUUID = gattService.getUuid();
             }
             JL_Log.d(TAG, CommonUtil.formatString("[onCharacteristicChanged] <<< deice : %s, serviceUuid = %s, characteristicUuid = %s, \ndata : [%s]",
-                    printDeviceInfo(device), serviceUUID, characteristicUUID, CHexConver.byte2HexStr(data)));
+                    device, UuidUtil.read16BitUUID(serviceUUID), UuidUtil.read16BitUUID(characteristicUUID),
+                    CHexConver.byte2HexStr(data)));
             mCallbackManager.onBleDataNotification(device, serviceUUID, characteristicUUID, data);
         }
 
@@ -1027,8 +1115,9 @@ public class BleManager {
             BluetoothGattService gattService = characteristic.getService();
             if (gattService != null) serviceUUID = gattService.getUuid();
             byte[] data = characteristic.getValue();
-            JL_Log.d(TAG, "onCharacteristicWrite", CommonUtil.formatString("device : %s, serviceUuid = %s, characteristicUuid = %s, status = %d, \ndata : [%s]",
-                    printDeviceInfo(device), serviceUUID, characteristicUUID, status, CHexConver.byte2HexStr(data)));
+            JL_Log.d(TAG, CommonUtil.formatString("[onCharacteristicWrite] >>> device : %s, serviceUuid = %s," +
+                            " characteristicUuid = %s, status = %s, \ndata : [%s]", device, UuidUtil.read16BitUUID(serviceUUID),
+                    UuidUtil.read16BitUUID(characteristicUUID), CommonUtil.formatInt(status), CHexConver.byte2HexStr(data)));
             wakeupSendThread(gatt, serviceUUID, characteristicUUID, status, data);
             mCallbackManager.onBleWriteStatus(device, serviceUUID, characteristicUUID, data, status);
         }
@@ -1041,6 +1130,7 @@ public class BleManager {
             if (null == device || null == descriptor) return;
             UUID serviceUuid = null;
             UUID characteristicUuid = null;
+            UUID descriptorUuid = descriptor.getUuid();
             BluetoothGattCharacteristic characteristic = descriptor.getCharacteristic();
             if (null != characteristic) {
                 characteristicUuid = characteristic.getUuid();
@@ -1049,31 +1139,35 @@ public class BleManager {
                     serviceUuid = bluetoothGattService.getUuid();
                 }
             }
-            JL_Log.i(TAG, "onDescriptorWrite", CommonUtil.formatString("device : %s, serviceUuid = %s, characteristicUuid = %s, descriptor = %s, status = %d",
-                    printDeviceInfo(device), serviceUuid, characteristicUuid, descriptor.getUuid(), status));
+            JL_Log.i(TAG, "onDescriptorWrite", CommonUtil.formatString("device : %s, serviceUuid = %s, characteristicUuid = %s," +
+                            " descriptorUuid = %s, status = %d", device, UuidUtil.read16BitUUID(serviceUuid), UuidUtil.read16BitUUID(characteristicUuid),
+                    UuidUtil.read16BitUUID(descriptorUuid), status));
             mCallbackManager.onBleNotificationStatus(device, serviceUuid, characteristicUuid, status);
-            if (mNotifyCharacteristicRunnable != null && BluetoothUtil.deviceEquals(device, mNotifyCharacteristicRunnable.getBleDevice())
-                    && serviceUuid != null && serviceUuid.equals(mNotifyCharacteristicRunnable.getServiceUUID())
-                    && characteristicUuid != null && characteristicUuid.equals(mNotifyCharacteristicRunnable.getCharacteristicUUID())
-                    && descriptor.getUuid() != null && descriptor.getUuid().equals(mNotifyCharacteristicRunnable.mDescriptorUUID)) {
+            if (mNotifyCharacteristicRunnable != null && mNotifyCharacteristicRunnable.isSame(device, serviceUuid, characteristicUuid, descriptorUuid)) {
                 if (status == BluetoothGatt.GATT_SUCCESS) {
                     mNotifyCharacteristicRunnable = null;
-                    // TODO: 2022/6/28 由于部分手机(小米11 Lite)的兼容性问题，MTU不能调整到最大，建议适当减小MTU
-//                    startChangeMtu(gatt, 128); //调整MTU最大为128
-                    int requestMTU = configHelper.getBleRequestMtu();
+                    BleDevice bleDevice = getBleDevice(device);
+                    if (null == bleDevice) return;
+                    int requestMTU = bleDevice.getParam().getRequestMtu();
                     if (requestMTU > 509) {
                         requestMTU = 509;
                     }
-                    startChangeMtu(gatt, requestMTU);
-//                    handleBleConnectedEvent(device);
-                } else {
-                    int num = mNotifyCharacteristicRunnable.getRetryNum();
-                    if (num < 3) {
-                        mNotifyCharacteristicRunnable.setRetryNum(++num);
-                        mHandler.postDelayed(mNotifyCharacteristicRunnable, 100);
-                    } else {
-                        disconnectBleDevice(device);
+                    if (bleDevice.isConnectGattOverBrEdr()) { //Gatt Over BR/EDR服务不能调节MTU，默认为请求MTU值
+                        bleDevice.setMtu(requestMTU);
+                        mCallbackManager.onBleDataBlockChanged(device, requestMTU + 3, status);
+                        handleBleConnection(device, BluetoothProfile.STATE_CONNECTED);
+                        return;
                     }
+                    startChangeMtu(gatt, requestMTU);
+                    return;
+                }
+                int num = mNotifyCharacteristicRunnable.getRetryNum();
+                if (num < 3) {
+                    mNotifyCharacteristicRunnable.setRetryNum(++num);
+                    mHandler.postDelayed(mNotifyCharacteristicRunnable, 100);
+                } else {
+                    mNotifyCharacteristicRunnable = null;
+                    disconnectBleDevice(device);
                 }
             }
         }
@@ -1101,57 +1195,209 @@ public class BleManager {
 
     private class BaseBtAdapterReceiver extends BroadcastReceiver {
 
+        @SuppressLint("MissingPermission")
         @Override
         public void onReceive(Context context, Intent intent) {
-            if (intent == null) return;
-            String action = intent.getAction();
-            if (action == null) return;
-            switch (action) {
-                case BluetoothAdapter.ACTION_STATE_CHANGED: {
-                    int state = intent.getIntExtra(BluetoothAdapter.EXTRA_CONNECTION_STATE, -1);
-                    int prevState = intent.getIntExtra(BluetoothAdapter.EXTRA_PREVIOUS_STATE, -1);
-                    if (mBluetoothAdapter != null && state == -1) {
-                        state = mBluetoothAdapter.getState();
-                    }
-                    if (state == prevState) return;
-                    if (state == BluetoothAdapter.STATE_OFF) {
-                        isBleScanning(false);
-                        mDiscoveredBleDevices.clear();
-                        clearConnectedBleDevices();
-                        mCallbackManager.onAdapterChange(false);
-                    } else if (state == BluetoothAdapter.STATE_ON) {
-                        mCallbackManager.onAdapterChange(true);
-                    }
-                    break;
-                }
-                case BluetoothDevice.ACTION_ACL_CONNECTED: {
-                    BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-                    JL_Log.i(TAG, "ACTION_ACL_CONNECTED", "device : "
-                            + printDeviceInfo(device));
-                    break;
-                }
-                case BluetoothDevice.ACTION_ACL_DISCONNECTED: {
-                    BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-                    JL_Log.i(TAG, "ACTION_ACL_DISCONNECTED", "device : "
-                            + printDeviceInfo(device));
-                    break;
-                }
+            if (intent == null || intent.getAction() == null) {
+                return;
+            }
 
+            String action = intent.getAction();
+
+            switch (action) {
+                case BluetoothAdapter.ACTION_STATE_CHANGED:
+                    handleAdapterStateChanged(intent);
+                    break;
+
+                case BluetoothDevice.ACTION_ACL_CONNECTED:
+                case BluetoothDevice.ACTION_ACL_DISCONNECTED:
+                    handleAclConnection(intent, action);
+                    break;
+
+                case BluetoothDevice.ACTION_BOND_STATE_CHANGED:
+                    handleBondStateChanged(intent);
+                    break;
+
+                default:
+                    JL_Log.d(TAG, "Unhandled action: " + action);
+                    break;
+            }
+        }
+
+        /**
+         * 处理蓝牙适配器状态变化
+         */
+        private void handleAdapterStateChanged(Intent intent) {
+            int currentState = getCurrentAdapterState(intent);
+            int previousState = intent.getIntExtra(BluetoothAdapter.EXTRA_PREVIOUS_STATE, -1);
+
+            if (currentState == previousState) {
+                return;
+            }
+
+            switch (currentState) {
+                case BluetoothAdapter.STATE_OFF:
+                    onBluetoothOff();
+                    break;
+
+                case BluetoothAdapter.STATE_ON:
+                    onBluetoothOn();
+                    break;
+
+                default:
+                    JL_Log.d(TAG, "Adapter state changed to: " + currentState);
+                    break;
+            }
+        }
+
+        /**
+         * 获取当前适配器状态
+         */
+        private int getCurrentAdapterState(Intent intent) {
+            int state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1);
+
+            if (state == -1 && mBluetoothAdapter != null) {
+                state = mBluetoothAdapter.getState();
+            }
+
+            return state;
+        }
+
+        /**
+         * 蓝牙关闭时的处理
+         */
+        private void onBluetoothOff() {
+            setBleScanning(false, 0);
+            mDiscoveredBleDevices.clear();
+            clearConnectedBleDevices();
+            mCallbackManager.onAdapterChange(false);
+        }
+
+        /**
+         * 蓝牙开启时的处理
+         */
+        private void onBluetoothOn() {
+            mCallbackManager.onAdapterChange(true);
+        }
+
+        /**
+         * 处理ACL连接事件
+         */
+        private void handleAclConnection(Intent intent, String action) {
+            BluetoothDevice device = extractDeviceFromIntent(intent);
+            String eventType = BluetoothDevice.ACTION_ACL_CONNECTED.equals(action) ?
+                    "CONNECTED" : "DISCONNECTED";
+
+            JL_Log.i(TAG, "ACTION_ACL_" + eventType,
+                    "device: " + printDeviceInfo(device));
+        }
+
+        /**
+         * 处理绑定状态变化
+         */
+        private void handleBondStateChanged(Intent intent) {
+            BluetoothDevice device = extractDeviceFromIntent(intent);
+            if (device == null) {
+                JL_Log.w(TAG, "ACTION_BOND_STATE_CHANGED", "Device is null");
+                return;
+            }
+
+            int bondState = getBondStateFromIntent(intent, device);
+            BleDevice bleDevice = getBleDevice(device);
+
+            logBondStateChange(device, bondState, bleDevice);
+
+            // 检查是否需要处理
+            if (!shouldProcessBondStateChange(bleDevice)) {
+                return;
+            }
+
+            // 处理最终的绑定结果
+            processFinalBondResult(device, bondState, bleDevice);
+        }
+
+        /**
+         * 从Intent中提取设备
+         */
+        private BluetoothDevice extractDeviceFromIntent(Intent intent) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                return intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice.class);
+            } else {
+                return intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+            }
+        }
+
+        /**
+         * 获取绑定状态
+         */
+        private int getBondStateFromIntent(Intent intent, BluetoothDevice device) {
+            int bondState = intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, -1);
+
+            if (bondState == -1) {
+                bondState = device.getBondState();
+            }
+
+            return bondState;
+        }
+
+        /**
+         * 记录绑定状态变化
+         */
+        private void logBondStateChange(BluetoothDevice device, int bondState, BleDevice bleDevice) {
+            JL_Log.i(TAG, "ACTION_BOND_STATE_CHANGED",
+                    String.format(Locale.US, "device: %s, bond: %s, bleDevice: %s",
+                            printDeviceInfo(device),
+                            BluetoothUtil.printBoundState(bondState),
+                            bleDevice != null ? bleDevice.toString() : "null"));
+        }
+
+        /**
+         * 判断是否应该处理绑定状态变化
+         */
+        private boolean shouldProcessBondStateChange(BleDevice bleDevice) {
+            return bleDevice != null && bleDevice.isWaitBoundResult();
+        }
+
+        /**
+         * 处理最终的绑定结果
+         */
+        private void processFinalBondResult(BluetoothDevice device, int bondState, BleDevice bleDevice) {
+            // 只处理最终状态（绑定成功或失败）
+            if (bondState != BluetoothDevice.BOND_BONDED && bondState != BluetoothDevice.BOND_NONE) {
+                return;
+            }
+
+            // 清除等待标记
+            bleDevice.setWaitBoundResult(false);
+
+            boolean isBondSuccess = (bondState == BluetoothDevice.BOND_BONDED);
+            boolean connectResult = false;
+
+            if (isBondSuccess) {
+                // 绑定成功，尝试连接
+                bleDevice.setConnection(BluetoothProfile.STATE_DISCONNECTED);
+                connectResult = connectBleDevice(device, bleDevice.getParam());
+            }
+
+            // 连接失败或绑定失败，断开连接
+            if (!connectResult) {
+                handleBleConnection(device, BluetoothProfile.STATE_DISCONNECTED);
             }
         }
     }
 
+
     private class NotifyCharacteristicRunnable implements Runnable {
-        private final BluetoothGatt mGatt;
-        private final UUID mServiceUUID;
-        private final UUID mCharacteristicUUID;
-        public final UUID mDescriptorUUID = BLE_UUID_NOTIFICATION_DESCRIPTOR;
+        private final BluetoothGatt bluetoothGatt;
+        private final UUID serviceUUID;
+        private final UUID characteristicUUID;
+        public final UUID descriptorUUID = BLE_UUID_NOTIFICATION_DESCRIPTOR;
         private int retryNum = 0;
 
         private NotifyCharacteristicRunnable(BluetoothGatt gatt, UUID serviceUUID, UUID characteristicUUID) {
-            this.mGatt = gatt;
-            this.mServiceUUID = serviceUUID;
-            this.mCharacteristicUUID = characteristicUUID;
+            this.bluetoothGatt = gatt;
+            this.serviceUUID = serviceUUID;
+            this.characteristicUUID = characteristicUUID;
         }
 
         private void setRetryNum(int retryNum) {
@@ -1162,31 +1408,50 @@ public class BleManager {
             return retryNum;
         }
 
-        private BluetoothDevice getBleDevice() {
-            if (mGatt == null) return null;
-            return mGatt.getDevice();
+        public boolean isSame(BluetoothDevice device, UUID serviceUUID, UUID characteristicUUID, UUID descriptorUUID) {
+            return BluetoothUtil.deviceEquals(getBleDevice(), device) &&
+                    UuidUtil.equalUUID(this.serviceUUID, serviceUUID) &&
+                    UuidUtil.equalUUID(this.characteristicUUID, characteristicUUID) &&
+                    UuidUtil.equalUUID(this.descriptorUUID, descriptorUUID);
         }
 
-        private UUID getServiceUUID() {
-            return mServiceUUID;
-        }
-
-        private UUID getCharacteristicUUID() {
-            return mCharacteristicUUID;
+        public BluetoothDevice getBleDevice() {
+            if (bluetoothGatt == null) return null;
+            return bluetoothGatt.getDevice();
         }
 
         @Override
         public void run() {
-            boolean ret = enableBLEDeviceNotification(mGatt, mServiceUUID, mCharacteristicUUID);
-            JL_Log.w(TAG, "enableBLEDeviceNotification", CommonUtil.formatString("%s, service uuid = %s, characteristic uuid = %s",
-                    ret, mServiceUUID, mCharacteristicUUID));
+            final BluetoothDevice device = getBleDevice();
+            if (null == device) return;
+            startTimeoutTask(MSG_NOTIFY_BLE_TIMEOUT, device, CALLBACK_TIMEOUT);
+            boolean ret = enableBLEDeviceNotification(bluetoothGatt, serviceUUID, characteristicUUID);
+            JL_Log.i(TAG, "enableBLEDeviceNotification", CommonUtil.formatString("%s, service uuid = %s, characteristic uuid = %s",
+                    ret, UuidUtil.read16BitUUID(serviceUUID), UuidUtil.read16BitUUID(characteristicUUID)));
             if (!ret) {
-                if (mGatt != null) {
-                    disconnectBleDevice(mGatt.getDevice());
+                removeTimeTask(MSG_NOTIFY_BLE_TIMEOUT);
+                disconnectBleDevice(device);
+            }
+        }
+    }
+
+    private class CheckSystemBleThread extends Thread {
+
+        @Override
+        public void run() {
+            if (!AppUtil.checkHasConnectPermission(mContext)) return;
+            final BluetoothManager btManager = (BluetoothManager) mContext.getSystemService(Context.BLUETOOTH_SERVICE);
+            if (btManager == null) return;
+            try {
+                List<BluetoothDevice> sysConnectedBleList = btManager.getConnectedDevices(BluetoothProfile.GATT);
+                if (null == sysConnectedBleList) return;
+                for (BluetoothDevice bleDev : sysConnectedBleList) {
+                    if (isConnectedDevice(bleDev)) continue;
+                    handleDiscoveryBle(bleDev, new BleScanInfo().setEnableConnect(true));
                 }
-            } else {
-                mHandler.removeMessages(MSG_NOTIFY_BLE_TIMEOUT);
-                mHandler.sendMessageDelayed(mHandler.obtainMessage(MSG_NOTIFY_BLE_TIMEOUT, mGatt.getDevice()), CALLBACK_TIMEOUT);
+                removeTimeTask(MSG_CHECK_SYSTEM_BLE_TIMEOUT);
+            } catch (Exception ignore) {
+
             }
         }
     }

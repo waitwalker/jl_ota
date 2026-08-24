@@ -1,17 +1,21 @@
 import 'dart:async';
-import 'dart:developer';
 import 'package:flutter/material.dart';
+import 'package:jl_ota/ble_method.dart';
 import 'package:jl_ota/constant/constants.dart';
 import 'package:jl_ota_example/pages/file_list_page.dart';
 import 'package:jl_ota_example/pages/about_page.dart';
 import 'package:jl_ota_example/dialog/mtu_adjustment_dialog.dart';
 import 'package:jl_ota_example/l10n/app_localizations.dart';
+import 'package:jl_ota_example/pages/service_uuid_input_page.dart';
 import 'package:jl_ota_example/utils/app_util.dart';
 import 'package:jl_ota_example/widgets/toast_utils.dart';
+import 'package:provider/provider.dart';
 import '../data/setting_manager.dart';
-import '../dialog/save_settings_dialog.dart';
+import '../dialog/generic_confirm_dialog.dart';
+import '../utils/connection_state_manager.dart';
 import '../widgets/setting_components.dart';
 import '../widgets/setting_navigation_row_widget.dart';
+import 'custom_cmd_page.dart';
 
 /// Settings Page
 ///
@@ -30,9 +34,12 @@ class SettingPage extends StatefulWidget {
 }
 
 class _SettingPageState extends State<SettingPage> {
+  // Scroll controller for auto-scrolling
+  final ScrollController _scrollController = ScrollController();
+
   // State variables
   String _logFileDirPath = "";
-  String _currentCommunicationMethod = AppConstants.communicationWayBle;
+  int _currentCommunicationMethod = AppConstants.communicationWayBle;
   String _sdkVersion = "unknown";
   String _appVersion = "unknown";
 
@@ -40,6 +47,8 @@ class _SettingPageState extends State<SettingPage> {
   bool _isHidDevice = false;
   bool _customReconnectMethod = false;
   bool _connectUsingSdkBluetooth = false;
+  bool _isGattOverEdr = false;
+  List<String> _gattServiceUuids = [];
   int _mtu = 0;
 
   // Initial value tracking
@@ -47,8 +56,15 @@ class _SettingPageState extends State<SettingPage> {
   bool _initialHidDevice = false;
   bool _initialCustomReconnectMethod = false;
   bool _initialConnectUsingSdkBluetooth = false;
-  String _initialCommunicationMethod = AppConstants.communicationWayBle;
+  bool _initialGattOverEdr = false;
+  int _initialCommunicationMethod = AppConstants.communicationWayBle;
   int _initialMtu = 0;
+
+  bool get isBleEnabled => _currentCommunicationMethod == AppConstants.communicationWayBle;
+
+  bool get isUsingSdkBluetooth => _connectUsingSdkBluetooth;
+
+  String get mtuDisplay => _mtu > 0 ? _mtu.toString() : '';
 
   // Define color constants
   static const Color primaryColor = Color(0xFF628DFF);
@@ -58,8 +74,12 @@ class _SettingPageState extends State<SettingPage> {
   static const Color dividerColor = Color(0x0A000000);
 
   // Define MTU minimum and maximum values
-  static const int MIN_MTU = 23;
-  static const int MAX_MTU = 509;
+  static const int minMtu = 23;
+  static const int maxMtu = 509;
+
+  static const String defaultServiceUuid = 'AE00';
+
+  int _connectState = AppConstants.connectionFailed;
 
   @override
   void initState() {
@@ -72,6 +92,8 @@ class _SettingPageState extends State<SettingPage> {
     final loc = AppLocalizations.of(context)!;
     final isAndroid = AppUtil.isAndroid;
 
+    _connectState = context.watch<ConnectionStateManager>().connectState;
+
     // Check if any settings have been modified
     final bool hasChanges = _hasSettingsChanged();
 
@@ -83,6 +105,12 @@ class _SettingPageState extends State<SettingPage> {
         ),
         backgroundColor: Colors.white,
         centerTitle: true,
+        elevation: 0,
+        // Remove default shadow below AppBar
+        scrolledUnderElevation: 0,
+        // Prevent shadow from appearing when scrolling content
+        surfaceTintColor: Colors.white,
+        // Ensure the surface tint color remains white
         actions: [
           TextButton(
             onPressed: hasChanges ? () => _onSavePressed(isAndroid) : null,
@@ -94,6 +122,7 @@ class _SettingPageState extends State<SettingPage> {
         ],
       ),
       body: SingleChildScrollView(
+        controller: _scrollController,
         child: Column(
           children: [
             // Log path hint
@@ -149,27 +178,33 @@ class _SettingPageState extends State<SettingPage> {
               SettingSection(
                 title: loc.currentCommunicationMethod,
                 children: [
-                  CommunicationOption(
-                    title: loc.communicationWayBle,
-                    isSelected: _currentCommunicationMethod == AppConstants.communicationWayBle,
-                    onTap: () => _updateState(() => _currentCommunicationMethod = AppConstants.communicationWayBle),
-                  ),
+                  _buildCommunicationOptionBle(loc),
                   const Divider(height: 1, indent: 20, color: dividerColor),
-                  CommunicationOption(
-                    title: loc.communicationWaySpp,
-                    isSelected: _currentCommunicationMethod == AppConstants.communicationWaySpp,
-                    onTap: () => _updateState(() => _currentCommunicationMethod = AppConstants.communicationWaySpp),
-                  ),
+                  _buildCommunicationOptionSpp(loc),
+                  const Divider(height: 1, indent: 20, color: dividerColor),
+                  _buildCommunicationOptionGatt(loc),
                 ],
               ),
 
               // MTU adjustment
               SettingSection(
                 children: [
-                  SettingNavigationRow(
-                    title: loc.adjustMtu,
-                    subtitle: _mtu > 0 ? _mtu.toString() : '',
-                    onTap: () => showMtuAdjustmentDialog(context),
+                  Opacity(
+                    opacity: isBleEnabled ? 1.0 : 0.5,
+                    // 启用时完全不透明(1.0)，禁用时半透明(0.5)
+                    child: SettingNavigationRow(
+                      title: loc.adjustMtu,
+                      subtitle: mtuDisplay,
+                      onTap: isBleEnabled
+                          ? () {
+                              if (_connectState == AppConstants.connectionDisconnect && mounted) {
+                                ToastUtils.show(context, loc.bluetoothDisconnected);
+                              } else {
+                                showMtuAdjustmentDialog(context);
+                              }
+                            }
+                          : null,
+                    ),
                   ),
                 ],
               ),
@@ -186,6 +221,18 @@ class _SettingPageState extends State<SettingPage> {
                   ),
                 ],
               ),
+              SettingSection(
+                children: [
+                  SettingSwitchRow(
+                    title: loc.communicationWayGatt,
+                    value: _isGattOverEdr,
+                    onChanged: (gattOverEdrState) {
+                      if (gattOverEdrState) openUuidSettings(context);
+                      _updateState(() => _isGattOverEdr = gattOverEdrState);
+                    },
+                  ),
+                ],
+              ),
             ],
 
             // Log file access
@@ -193,7 +240,13 @@ class _SettingPageState extends State<SettingPage> {
               children: [
                 SettingNavigationRow(
                   title: loc.logFile,
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const FileListPage())),
+                  onTap: () {
+                    if (_connectState == AppConstants.connectionDisconnect && mounted) {
+                      ToastUtils.show(context, loc.bluetoothDisconnected);
+                    } else {
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => const FileListPage()));
+                    }
+                  },
                 ),
               ],
             ),
@@ -201,6 +254,17 @@ class _SettingPageState extends State<SettingPage> {
             // Version information
             SettingSection(
               children: [SettingNavigationRow(title: loc.sdkVersion, subtitle: _sdkVersion, onTap: () {}, showArrow: false)],
+            ),
+
+            // Custom command
+            SettingSection(
+              children: [
+                Opacity(
+                  opacity: isAndroid ? 1.0 : (isUsingSdkBluetooth ? 1.0 : 0.5),
+                  // 启用时完全不透明(1.0)，禁用时半透明(0.5)
+                  child: SettingNavigationRow(title: loc.customCommand, onTap: _onCustomCmdTap(isAndroid, loc)),
+                ),
+              ],
             ),
 
             // About application
@@ -219,14 +283,83 @@ class _SettingPageState extends State<SettingPage> {
     );
   }
 
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  /// Builds BLE communication option
+  Widget _buildCommunicationOptionBle(AppLocalizations loc) {
+    return CommunicationOption(
+      title: loc.communicationWayBle,
+      isSelected: _currentCommunicationMethod == AppConstants.communicationWayBle,
+      onTap: () => _updateState(() => _currentCommunicationMethod = AppConstants.communicationWayBle),
+    );
+  }
+
+  /// Builds SPP communication option
+  Widget _buildCommunicationOptionSpp(AppLocalizations loc) {
+    return CommunicationOption(
+      title: loc.communicationWaySpp,
+      isSelected: _currentCommunicationMethod == AppConstants.communicationWaySpp,
+      onTap: () => _updateState(() => _currentCommunicationMethod = AppConstants.communicationWaySpp),
+    );
+  }
+
+  /// Builds GATT communication option
+  Widget _buildCommunicationOptionGatt(AppLocalizations loc) {
+    return CommunicationOption(
+      title: loc.communicationWayGatt,
+      isSelected: _currentCommunicationMethod == AppConstants.communicationWayGattOverBrEdr,
+      onTap: () => _updateState(() => _currentCommunicationMethod = AppConstants.communicationWayGattOverBrEdr),
+    );
+  }
+
+  VoidCallback? _onCustomCmdTap(bool isAndroid, AppLocalizations loc) {
+    return (isAndroid || isUsingSdkBluetooth) ? () => _navigateToCustomCmd(loc) : null;
+  }
+
+  void _navigateToCustomCmd(AppLocalizations loc) {
+    if (_connectState == AppConstants.connectionDisconnect) {
+      ToastUtils.show(context, loc.bluetoothDisconnected);
+      return;
+    }
+    Navigator.push(context, MaterialPageRoute(builder: (context) => const CustomCmdPage()));
+  }
+
+  // Auto-scroll to bottom after the first frame
+  void _autoScrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      }
+    });
+  }
+
   // Check if settings have changed
   bool _hasSettingsChanged() {
-    return _isDeviceAuthenticated != _initialDeviceAuthenticated ||
-        _isHidDevice != _initialHidDevice ||
-        _customReconnectMethod != _initialCustomReconnectMethod ||
-        _connectUsingSdkBluetooth != _initialConnectUsingSdkBluetooth ||
-        _currentCommunicationMethod != _initialCommunicationMethod ||
-        _mtu != _initialMtu;
+    final current = (
+      _isDeviceAuthenticated,
+      _isHidDevice,
+      _customReconnectMethod,
+      _connectUsingSdkBluetooth,
+      _isGattOverEdr,
+      _currentCommunicationMethod,
+      _mtu,
+    );
+
+    final initial = (
+      _initialDeviceAuthenticated,
+      _initialHidDevice,
+      _initialCustomReconnectMethod,
+      _initialConnectUsingSdkBluetooth,
+      _initialGattOverEdr,
+      _initialCommunicationMethod,
+      _initialMtu,
+    );
+
+    return current != initial;
   }
 
   // Initialize data
@@ -239,6 +372,9 @@ class _SettingPageState extends State<SettingPage> {
       if (AppUtil.isAndroid) _loadAndroidSettings(),
       if (AppUtil.isIOS) _loadIOSSettings(),
     ]);
+
+    // Auto-scroll to bottom after data is loaded
+    _autoScrollToBottom();
   }
 
   // Load log path
@@ -276,11 +412,9 @@ class _SettingPageState extends State<SettingPage> {
       SettingManager.loadMtu(),
     ]);
 
-    log("result:$results");
-
     final bool isHid = results[0] as bool;
     final bool customReconnect = results[1] as bool;
-    final String commMethod = results[2] as String;
+    final int commMethod = results[2] as int;
     final int mtu = results[3] as int;
 
     setState(() {
@@ -300,9 +434,13 @@ class _SettingPageState extends State<SettingPage> {
   // Load iOS-specific settings
   Future<void> _loadIOSSettings() async {
     final useSdkBt = await SettingManager.loadSdkBluetooth();
+    final useGattOverEdr = await SettingManager.isUseGattOverEdr();
+
     setState(() {
       _connectUsingSdkBluetooth = useSdkBt;
       _initialConnectUsingSdkBluetooth = useSdkBt;
+      _isGattOverEdr = useGattOverEdr;
+      _initialGattOverEdr = useGattOverEdr;
     });
   }
 
@@ -317,34 +455,37 @@ class _SettingPageState extends State<SettingPage> {
   Future<void> _onSavePressed(bool isAndroid) async {
     if (!_hasSettingsChanged()) return;
 
-    await showDialog(
-      context: context,
-      builder: (context) => SaveSettingsDialog(
-        onCancel: () {
-          ToastUtils.show(context, AppLocalizations.of(context)!.failedToSaveSettings);
-        },
-        onConfirm: () async {
-          await SettingManager.saveSettings(
-            isAndroid: isAndroid,
-            deviceAuth: _isDeviceAuthenticated,
-            hidDevice: _isHidDevice,
-            customReconnect: _customReconnectMethod,
-            communicationMethod: _currentCommunicationMethod,
-            mtu: _mtu,
-            useSdkBluetooth: _connectUsingSdkBluetooth,
-          );
+    await context.showConfirmDialog(
+      message: AppLocalizations.of(context)!.saveAndRestartMessage,
+      cancelText: AppLocalizations.of(context)!.cancel,
+      confirmText: AppLocalizations.of(context)!.restart,
+      onCancel: () {
+        ToastUtils.show(context, AppLocalizations.of(context)!.failedToSaveSettings);
+      },
+      onConfirm: () async {
+        await SettingManager.saveSettings(
+          isAndroid: isAndroid,
+          deviceAuth: _isDeviceAuthenticated,
+          hidDevice: _isHidDevice,
+          customReconnect: _customReconnectMethod,
+          communicationMethod: _currentCommunicationMethod,
+          mtu: _mtu,
+          useSdkBluetooth: _connectUsingSdkBluetooth,
+          gattOverEdr: _isGattOverEdr,
+          gattServiceUuids: _gattServiceUuids,
+        );
 
-          // Update initial values to current values
-          setState(() {
-            _initialDeviceAuthenticated = _isDeviceAuthenticated;
-            _initialHidDevice = _isHidDevice;
-            _initialCustomReconnectMethod = _customReconnectMethod;
-            _initialConnectUsingSdkBluetooth = _connectUsingSdkBluetooth;
-            _initialCommunicationMethod = _currentCommunicationMethod;
-            _initialMtu = _mtu;
-          });
-        },
-      ),
+        // Update initial values to current values
+        setState(() {
+          _initialDeviceAuthenticated = _isDeviceAuthenticated;
+          _initialHidDevice = _isHidDevice;
+          _initialCustomReconnectMethod = _customReconnectMethod;
+          _initialConnectUsingSdkBluetooth = _connectUsingSdkBluetooth;
+          _initialGattOverEdr = _isGattOverEdr;
+          _initialCommunicationMethod = _currentCommunicationMethod;
+          _initialMtu = _mtu;
+        });
+      },
     );
   }
 
@@ -354,9 +495,29 @@ class _SettingPageState extends State<SettingPage> {
       context: context,
       builder: (context) => MtuAdjustmentDialog(
         currentMtu: _mtu,
-        minMtu: MIN_MTU,
-        maxMtu: MAX_MTU,
+        minMtu: minMtu,
+        maxMtu: maxMtu,
         onMtuSelected: (selectedMtu) => _updateState(() => _mtu = selectedMtu),
+      ),
+    );
+  }
+
+  Future<void> openUuidSettings(BuildContext context) async {
+    final savedUUIDs = await BleMethod.getGattServiceUuids();
+
+    if (!context.mounted) return;
+
+    final initialUUIDs = savedUUIDs.isEmpty ? [defaultServiceUuid] : savedUUIDs;
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (ctx) => ServiceUUIDInputPage(
+          initialUUIDs: initialUUIDs,
+          onSave: (gattServiceUuids) {
+            _gattServiceUuids = gattServiceUuids;
+          },
+        ),
       ),
     );
   }

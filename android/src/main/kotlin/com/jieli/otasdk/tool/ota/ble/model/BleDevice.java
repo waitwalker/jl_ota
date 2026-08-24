@@ -11,8 +11,10 @@ import android.content.Context;
 import androidx.annotation.NonNull;
 
 import com.jieli.jl_bt_ota.constant.BluetoothConstant;
+import com.jieli.jl_bt_ota.util.BluetoothUtil;
 import com.jieli.jl_bt_ota.util.CHexConver;
 import com.jieli.jl_bt_ota.util.JL_Log;
+import com.jieli.otasdk.MyApplication;
 import com.jieli.otasdk.tool.ota.ble.SendBleDataThread;
 import com.jieli.otasdk.tool.ota.ble.interfaces.IBleOp;
 import com.jieli.otasdk.tool.ota.ble.interfaces.OnThreadStateListener;
@@ -28,19 +30,20 @@ import java.util.UUID;
  * @since 2022/12/5
  */
 public class BleDevice {
-    private final String tag = "BleManager";
+    private final static String TAG = "BleManager";
 
     private final static int MAX_RETRY_CONNECT_COUNT = 1;//最大尝试连接次数
 
     /**
-     * 上下文
-     */
-    @NonNull
-    private final Context context;
-    /**
      * 蓝牙设备类型
      */
+    @NonNull
     private final BluetoothDevice device;
+    /**
+     * 连接参数
+     */
+    @NonNull
+    private final BleConnectParam param;
     /**
      * 重连次数限制
      */
@@ -50,37 +53,45 @@ public class BleDevice {
      */
     private int connection = BluetoothProfile.STATE_DISCONNECTED;
     /**
-     * GATT对象
-     */
-    private BluetoothGatt gatt;
-    /**
      * 协商后的MTU值
      */
     private int mtu = BluetoothConstant.BLE_MTU_MIN;
     /**
-     * 连接时间戳
+     * GATT对象
      */
-    private long connectedTime;
+    private BluetoothGatt gatt;
     /**
      * 发送数据线程
      */
     private SendBleDataThread sendDataThread;
     /**
-     * 重连次数
+     * 连接时间戳
      */
-    private int reconnectCount = 0;
+    private long connectedTime;
     /**
      * 是否需要主动回连
      */
     private boolean isNeedReconnect;
+    /**
+     * 重连次数
+     */
+    private int reconnectCount = 0;
+    /**
+     * 是否正在使用
+     */
+    private boolean isUsing;
+    /**
+     * 是否等待配对结果
+     */
+    private boolean isWaitBoundResult;
 
-    public BleDevice(@NonNull Context context, @NonNull BluetoothDevice device) {
-        this(context, device, MAX_RETRY_CONNECT_COUNT);
+    public BleDevice(@NonNull BluetoothDevice device, @NonNull BleConnectParam param) {
+        this(device, param, MAX_RETRY_CONNECT_COUNT);
     }
 
-    public BleDevice(@NonNull Context context, @NonNull BluetoothDevice device, int reconnectLimit) {
-        this.context = context;
+    public BleDevice(@NonNull BluetoothDevice device, @NonNull BleConnectParam param, int reconnectLimit) {
         this.device = device;
+        this.param = param;
         this.reconnectLimit = reconnectLimit;
     }
 
@@ -89,17 +100,39 @@ public class BleDevice {
         return device;
     }
 
+    @NonNull
+    public BleConnectParam getParam() {
+        return param;
+    }
+
     public int getConnection() {
         return connection;
     }
 
     public BleDevice setConnection(int connection) {
-        this.connection = connection;
+        if (this.connection != connection) {
+            this.connection = connection;
+            if (connection == BluetoothProfile.STATE_CONNECTED) {
+                setConnectedTime(System.currentTimeMillis());
+                startSendDataThread();
+            } else if (connection == BluetoothProfile.STATE_DISCONNECTED) {
+                setConnectedTime(0L);
+                setUsing(false);
+                stopSendDataThread();
+            } else if (connection == BluetoothProfile.STATE_CONNECTING) {
+                setConnectedTime(System.currentTimeMillis());
+                setUsing(false);
+            }
+        }
         return this;
     }
 
     public boolean isConnecting() {
         return connection == BluetoothProfile.STATE_CONNECTING;
+    }
+
+    public boolean isConnected() {
+        return connection == BluetoothProfile.STATE_CONNECTED;
     }
 
     public BluetoothGatt getGatt() {
@@ -147,7 +180,46 @@ public class BleDevice {
         return this;
     }
 
-    public void startSendDataThread() {
+    public boolean isUsing() {
+        return isUsing;
+    }
+
+    public BleDevice setUsing(boolean using) {
+        isUsing = using;
+        return this;
+    }
+
+    public boolean isWaitBoundResult() {
+        return isWaitBoundResult;
+    }
+
+    public BleDevice setWaitBoundResult(boolean waitBoundResult) {
+        isWaitBoundResult = waitBoundResult;
+        return this;
+    }
+
+    /**
+     * 是否连接Gatt over BR/EDR
+     */
+    public boolean isConnectGattOverBrEdr() {
+        return param.getTransport() == BluetoothConstant.TRANSPORT_BREDR;
+    }
+
+    public void wakeupSendThread(BleSendTask task) {
+        if (sendDataThread != null && task != null && gatt.equals(task.getBleGatt())) {
+            sendDataThread.wakeupSendThread(task);
+        }
+    }
+
+    public boolean addSendTask(UUID serviceUUID, UUID characteristicUUID, byte[] data, OnWriteDataCallback callback) {
+        boolean ret = false;
+        if (sendDataThread != null && sendDataThread.isRunning()) {
+            ret = sendDataThread.addSendTask(gatt, serviceUUID, characteristicUUID, data, callback);
+        }
+        return ret;
+    }
+
+    private void startSendDataThread() {
         if (sendDataThread == null || !sendDataThread.isRunning()) {
             sendDataThread = new SendBleDataThread(new IBleOp() {
                 @Override
@@ -176,41 +248,27 @@ public class BleDevice {
         }
     }
 
-    public void stopSendDataThread() {
+    private void stopSendDataThread() {
         if (sendDataThread != null) {
             sendDataThread.stopThread();
         }
     }
 
-    public void wakeupSendThread(SendBleDataThread.BleSendTask task) {
-        if (sendDataThread != null && task != null && gatt.equals(task.getBleGatt())) {
-            sendDataThread.wakeupSendThread(task);
-        }
-    }
-
-    public boolean addSendTask(UUID serviceUUID, UUID characteristicUUID, byte[] data, OnWriteDataCallback callback) {
-        boolean ret = false;
-        if (sendDataThread != null && sendDataThread.isRunning()) {
-            ret = sendDataThread.addSendTask(gatt, serviceUUID, characteristicUUID, data, callback);
-        }
-        return ret;
-    }
-
     @SuppressLint("MissingPermission")
     private boolean writeDataToDeviceByBle(BluetoothGatt gatt, UUID serviceUUID, UUID characteristicUUID, byte[] data) {
         if (gatt == null || null == serviceUUID || null == characteristicUUID || null == data || data.length == 0
-                || !AppUtil.checkHasConnectPermission(this.context)) {
-            JL_Log.d(tag, "writeDataByBle", "param is invalid.");
+                || !AppUtil.checkHasConnectPermission(MyApplication.Companion.getInstance())) {
+            JL_Log.d(TAG, "writeDataByBle", "param is invalid.");
             return false;
         }
         BluetoothGattService gattService = gatt.getService(serviceUUID);
         if (null == gattService) {
-            JL_Log.d(tag, "writeDataByBle", "service is null.");
+            JL_Log.d(TAG, "writeDataByBle", "service is null.");
             return false;
         }
         BluetoothGattCharacteristic gattCharacteristic = gattService.getCharacteristic(characteristicUUID);
         if (null == gattCharacteristic) {
-            JL_Log.d(tag, "writeDataByBle", "characteristic is null");
+            JL_Log.d(TAG, "writeDataByBle", "characteristic is null");
             return false;
         }
         boolean ret = false;
@@ -220,7 +278,7 @@ public class BleDevice {
         } catch (Exception e) {
             e.printStackTrace();
         }
-        JL_Log.d(tag, "writeDataByBle", ret + ", data = " + CHexConver.byte2HexStr(data));
+        JL_Log.d(TAG, "writeDataByBle", "device : " + gatt.getDevice() + ", put send queue : " + ret + ", data = " + CHexConver.byte2HexStr(data));
         return ret;
     }
 
@@ -229,13 +287,15 @@ public class BleDevice {
         return "BleDevice{" +
                 "device=" + device +
                 ", reconnectLimit=" + reconnectLimit +
-                ", connection=" + connection +
-                ", gatt=" + gatt +
+                ", connection=" + BluetoothUtil.printBtConnectionState(connection) +
                 ", mtu=" + mtu +
                 ", connectedTime=" + connectedTime +
+                ", gatt=" + gatt +
                 ", sendDataThread=" + sendDataThread +
                 ", reconnectCount=" + reconnectCount +
                 ", isNeedReconnect=" + isNeedReconnect +
+                ", isUsing=" + isUsing +
+                ", isWaitBoundResult=" + isWaitBoundResult +
                 '}';
     }
 }

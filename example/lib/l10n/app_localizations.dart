@@ -280,6 +280,12 @@ abstract class AppLocalizations {
   /// **'SPP'**
   String get communicationWaySpp;
 
+  /// Communication way is gatt option
+  ///
+  /// In en, this message translates to:
+  /// **'GATT Over BR/EDR'**
+  String get communicationWayGatt;
+
   /// Adjust the MTU size
   ///
   /// In en, this message translates to:
@@ -657,6 +663,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Device must be forced to upgrade'**
   String get deviceMustMandatoryUpgrade;
+
+  /// Label for bluetooth disconnected
+  ///
+  /// In en, this message translates to:
+  /// **'Bluetooth disconnected'**
+  String get bluetoothDisconnected;
+
+  /// Label for gatt uuid placeholder
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter one or more UUIDs, separated by commas or newlines'**
+  String get gattUuidPlaceholder;
+
+  /// Label for gatt service uuid
+  ///
+  /// In en, this message translates to:
+  /// **'GATT Service UUID'**
+  String get gattServiceUuid;
+
+  /// Label for gatt uuid tips
+  ///
+  /// In en, this message translates to:
+  /// **'Example: 180A, 0000180D-0000-1000-8000-00805F9B34FB'**
+  String get gattUuidTips;
+
+  /// Label for gatt uuid error empty
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter at least one UUID'**
+  String get gattUuidErrorEmpty;
+
+  /// Label for gatt uuid error empty
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid UUID format:\n%s'**
+  String get gattUuidErrorInvalidFmt;
+
+  /// Label for custom command
+  ///
+  /// In en, this message translates to:
+  /// **'Custom command'**
+  String get customCommand;
+
+  /// Label for send custom command
+  ///
+  /// In en, this message translates to:
+  /// **'Send custom command'**
+  String get sendCustomCmd;
+
+  /// Label for received data
+  ///
+  /// In en, this message translates to:
+  /// **'Received data'**
+  String get receivedData;
+
+  /// Label for input data
+  ///
+  /// In en, this message translates to:
+  /// **'Input data'**
+  String get inputData;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

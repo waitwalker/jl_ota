@@ -3,6 +3,7 @@ package com.jieli.otasdk.util
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
 import android.content.Context
+import com.jieli.otasdk.R
 import com.jieli.otasdk.data.constant.OtaConstant
 import com.jieli.otasdk.data.model.device.ScanDevice
 
@@ -14,10 +15,6 @@ import com.jieli.otasdk.data.model.device.ScanDevice
  * @desc 设备工具类
  */
 object DeviceUtil {
-    private const val DEVICE_TYPE_CLASSIC = "Classic device"
-    private const val DEVICE_TYPE_BLE = "Ble device"
-    private const val DEVICE_TYPE_DUAL = "Dual mode"
-    private const val DEVICE_TYPE_UNKNOWN = "Unknown device"
 
     /**
      * 获取设备名称。
@@ -43,10 +40,10 @@ object DeviceUtil {
     fun getBtDeviceTypeString(context: Context, device: BluetoothDevice?): String {
         if (!PermissionUtil.hasBluetoothConnectPermission(context) || device == null) return ""
         return when (device.type) {
-            BluetoothDevice.DEVICE_TYPE_CLASSIC -> DEVICE_TYPE_CLASSIC
-            BluetoothDevice.DEVICE_TYPE_LE -> DEVICE_TYPE_BLE
-            BluetoothDevice.DEVICE_TYPE_DUAL -> DEVICE_TYPE_DUAL
-            BluetoothDevice.DEVICE_TYPE_UNKNOWN -> DEVICE_TYPE_UNKNOWN
+            BluetoothDevice.DEVICE_TYPE_CLASSIC -> context.getString(R.string.classic_device_type)
+            BluetoothDevice.DEVICE_TYPE_LE -> context.getString(R.string.ble_device_type)
+            BluetoothDevice.DEVICE_TYPE_DUAL -> context.getString(R.string.dual_mode)
+            BluetoothDevice.DEVICE_TYPE_UNKNOWN -> context.getString(R.string.unknown_device)
             else -> ""
         }
     }

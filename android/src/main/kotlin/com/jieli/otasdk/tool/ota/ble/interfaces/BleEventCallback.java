@@ -65,4 +65,10 @@ public abstract class BleEventCallback implements IBleEventCallback {
     public void onConnectionUpdated(BluetoothDevice device, int interval, int latency, int timeout, int status) {
 
     }
+
+    @Override
+    public void onSwitchBleDevice(BluetoothDevice device) {
+
+    }
 }
+

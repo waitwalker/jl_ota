@@ -19,7 +19,6 @@
     entity.pid = self.pid;
     entity.uid = self.uid;
     entity.mType = self.mType;
-    entity.advInfo = self.advInfo;
     return entity;
 }
 

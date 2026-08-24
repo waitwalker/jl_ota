@@ -129,6 +129,10 @@
   "@communicationWaySpp": {
     "description": "Communication way is spp option"
   },
+  "communicationWayGatt": "GATT Over BR/EDR",
+  "@communicationWayGatt": {
+    "description": "Communication way is gatt option"
+  },
   "adjustMtu": "MTUを調整",
   "@adjustMtu": {
     "description": "Adjust the MTU size"
@@ -380,5 +384,45 @@
   "deviceMustMandatoryUpgrade": "デバイスは強制アップデートが必要です",
   "@deviceMustMandatoryUpgrade": {
     "description": "Label for device must be forced to upgrade"
+  },
+  "bluetoothDisconnected": "Bluetoothが切断されました",
+  "@bluetoothDisconnected": {
+    "description": "Label for bluetooth disconnected"
+  },
+  "gattUuidPlaceholder": "UUIDを1つ以上入力してください。コンマまたは改行で区切ってください",
+  "@gattUuidPlaceholder": {
+    "description": "Label for gatt uuid placeholder"
+  },
+  "gattServiceUuid": "GATTサービスUUID",
+  "@gattServiceUuid": {
+    "description": "Label for gatt service uuid"
+  },
+  "gattUuidTips": "例：180A, 0000180D-0000-1000-8000-00805F9B34FB",
+  "@gattUuidTips": {
+    "description": "Label for gatt uuid tips"
+  },
+  "gattUuidErrorEmpty": "少なくとも1つのUUIDを入力してください",
+  "@gattUuidErrorEmpty": {
+    "description": "Label for gatt uuid error empty"
+  },
+  "gattUuidErrorInvalidFmt": "無効なUUID形式:\n%s",
+  "@gattUuidErrorInvalidFmt": {
+    "description": "Label for gatt uuid error empty"
+  },
+  "customCommand": "カスタムコマンド",
+  "@customCommand": {
+    "description": "Label for custom command"
+  },
+  "sendCustomCmd": "カスタムコマンドを送信する",
+  "@sendCustomCmd": {
+    "description": "Label for send custom command"
+  },
+  "receivedData": "受信データ",
+  "@receivedData": {
+    "description": "Label for received data"
+  },
+  "inputData": "入力されたデータ",
+  "@inputData": {
+    "description": "Label for input data"
   }
 }

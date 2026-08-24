@@ -44,6 +44,9 @@ class BleEventConstants {
   /// 处理修改的升级文件名称
   static const String TYPE_HANDLE_FILE_PICKED = 'handleFilePicked';
 
+  /// 处理自定义命令的事件
+  static const String TYPE_CUSTOM_COMMAND_DATA = 'customDataUpdate';
+
   /// 用于在事件数据中标识事件类型的键。
   static const String KEY_TYPE = 'type';
 
@@ -112,6 +115,9 @@ class BleEventConstants {
 
   /// 升级文件名称
   static const String KEY_FILE_NAME = 'fileName';
+
+  /// 自定义命令的键
+  static const String KEY_CUSTOM_DATA = 'customData';
 
   /// 表示下载文件正在进行中的状态
   static const String STATUS_ON_PROGRESS = 'onProgress';

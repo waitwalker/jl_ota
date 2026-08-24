@@ -14,18 +14,151 @@ import 'package:flutter/widgets.dart';
 class $AssetsImagesGen {
   const $AssetsImagesGen();
 
+  /// File path: assets/images/custom_bubble.png
+  AssetGenImage get customBubble =>
+      const AssetGenImage('assets/images/custom_bubble.png');
+
+  /// File path: assets/images/custom_slider.png
+  AssetGenImage get customSlider =>
+      const AssetGenImage('assets/images/custom_slider.png');
+
+  /// File path: assets/images/ic_add_file.png
+  AssetGenImage get icAddFile =>
+      const AssetGenImage('assets/images/ic_add_file.png');
+
+  /// File path: assets/images/ic_app_logo_small.png
+  AssetGenImage get icAppLogoSmall =>
+      const AssetGenImage('assets/images/ic_app_logo_small.png');
+
+  /// File path: assets/images/ic_arrow_right_gray.png
+  AssetGenImage get icArrowRightGray =>
+      const AssetGenImage('assets/images/ic_arrow_right_gray.png');
+
+  /// File path: assets/images/ic_delete.png
+  AssetGenImage get icDelete =>
+      const AssetGenImage('assets/images/ic_delete.png');
+
+  /// File path: assets/images/ic_delete_white.png
+  AssetGenImage get icDeleteWhite =>
+      const AssetGenImage('assets/images/ic_delete_white.png');
+
+  /// File path: assets/images/ic_device_choose.png
+  AssetGenImage get icDeviceChoose =>
+      const AssetGenImage('assets/images/ic_device_choose.png');
+
+  /// File path: assets/images/ic_fail_big.png
+  AssetGenImage get icFailBig =>
+      const AssetGenImage('assets/images/ic_fail_big.png');
+
+  /// File path: assets/images/ic_file.png
+  AssetGenImage get icFile => const AssetGenImage('assets/images/ic_file.png');
+
+  /// File path: assets/images/ic_file_choose_nol.png
+  AssetGenImage get icFileChooseNol =>
+      const AssetGenImage('assets/images/ic_file_choose_nol.png');
+
+  /// File path: assets/images/ic_file_choose_sel.png
+  AssetGenImage get icFileChooseSel =>
+      const AssetGenImage('assets/images/ic_file_choose_sel.png');
+
+  /// File path: assets/images/ic_launcher_logo.png
+  AssetGenImage get icLauncherLogo =>
+      const AssetGenImage('assets/images/ic_launcher_logo.png');
+
+  /// File path: assets/images/ic_return.png
+  AssetGenImage get icReturn =>
+      const AssetGenImage('assets/images/ic_return.png');
+
+  /// File path: assets/images/ic_right_arrow_small_gray.png
+  AssetGenImage get icRightArrowSmallGray =>
+      const AssetGenImage('assets/images/ic_right_arrow_small_gray.png');
+
+  /// File path: assets/images/ic_scan_download.png
+  AssetGenImage get icScanDownload =>
+      const AssetGenImage('assets/images/ic_scan_download.png');
+
+  /// File path: assets/images/ic_success_big.png
+  AssetGenImage get icSuccessBig =>
+      const AssetGenImage('assets/images/ic_success_big.png');
+
   /// File path: assets/images/icon.png
   AssetGenImage get icon => const AssetGenImage('assets/images/icon.png');
+
+  /// File path: assets/images/icon_computer.png
+  AssetGenImage get iconComputer =>
+      const AssetGenImage('assets/images/icon_computer.png');
+
+  /// File path: assets/images/icon_delete.png
+  AssetGenImage get iconDelete =>
+      const AssetGenImage('assets/images/icon_delete.png');
+
+  /// File path: assets/images/icon_phone.png
+  AssetGenImage get iconPhone =>
+      const AssetGenImage('assets/images/icon_phone.png');
+
+  /// File path: assets/images/icon_return_white.png
+  AssetGenImage get iconReturnWhite =>
+      const AssetGenImage('assets/images/icon_return_white.png');
+
+  /// File path: assets/images/icon_share.png
+  AssetGenImage get iconShare =>
+      const AssetGenImage('assets/images/icon_share.png');
 
   /// Directory path: assets/images/icons
   $AssetsImagesIconsGen get icons => const $AssetsImagesIconsGen();
 
+  /// File path: assets/images/img_empty_folder.png
+  AssetGenImage get imgEmptyFolder =>
+      const AssetGenImage('assets/images/img_empty_folder.png');
+
+  /// File path: assets/images/img_file_transfer_bg.png
+  AssetGenImage get imgFileTransferBg =>
+      const AssetGenImage('assets/images/img_file_transfer_bg.png');
+
   /// List of all assets
-  List<AssetGenImage> get values => [icon];
+  List<AssetGenImage> get values => [
+    customBubble,
+    customSlider,
+    icAddFile,
+    icAppLogoSmall,
+    icArrowRightGray,
+    icDelete,
+    icDeleteWhite,
+    icDeviceChoose,
+    icFailBig,
+    icFile,
+    icFileChooseNol,
+    icFileChooseSel,
+    icLauncherLogo,
+    icReturn,
+    icRightArrowSmallGray,
+    icScanDownload,
+    icSuccessBig,
+    icon,
+    iconComputer,
+    iconDelete,
+    iconPhone,
+    iconReturnWhite,
+    iconShare,
+    imgEmptyFolder,
+    imgFileTransferBg,
+  ];
 }
 
 class $AssetsImagesIconsGen {
   const $AssetsImagesIconsGen();
+
+  /// File path: assets/images/icons/bg_launcher.png
+  AssetGenImage get bgLauncher =>
+      const AssetGenImage('assets/images/icons/bg_launcher.png');
+
+  /// File path: assets/images/icons/bg_launcher@2x.png
+  AssetGenImage get bgLauncher2x =>
+      const AssetGenImage('assets/images/icons/bg_launcher@2x.png');
+
+  /// File path: assets/images/icons/bg_launcher@3x.png
+  AssetGenImage get bgLauncher3x =>
+      const AssetGenImage('assets/images/icons/bg_launcher@3x.png');
 
   /// File path: assets/images/icons/tab_icon_bt_nol.png
   AssetGenImage get tabIconBtNol =>
@@ -101,6 +234,9 @@ class $AssetsImagesIconsGen {
 
   /// List of all assets
   List<AssetGenImage> get values => [
+    bgLauncher,
+    bgLauncher2x,
+    bgLauncher3x,
     tabIconBtNol,
     tabIconBtNol2x,
     tabIconBtNol3x,
@@ -125,7 +261,11 @@ class $AssetsImagesIconsGen {
 class Assets {
   const Assets._();
 
+  static const AssetGenImage fileShare = AssetGenImage('assets/file_share.gif');
   static const $AssetsImagesGen images = $AssetsImagesGen();
+
+  /// List of all assets
+  static List<AssetGenImage> get values => [fileShare];
 }
 
 class AssetGenImage {

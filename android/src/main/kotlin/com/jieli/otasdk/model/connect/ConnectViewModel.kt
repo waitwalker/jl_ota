@@ -8,10 +8,11 @@ import com.jieli.jl_bt_ota.util.BluetoothUtil
 import com.jieli.otasdk.data.constant.OtaConstant
 import com.jieli.otasdk.data.model.ScanResult
 import com.jieli.otasdk.data.model.device.ScanDevice
+import com.jieli.otasdk.model.connect.base.BluetoothViewModel
 import com.jieli.otasdk.tool.bluetooth.OnBTEventCallback
 import com.jieli.otasdk.tool.ota.ble.model.BleScanInfo
-import com.jieli.otasdk.model.connect.base.BluetoothViewModel
 import com.jieli.otasdk.util.AppUtil
+import kotlinx.coroutines.*
 
 /**
  * @author zqjasonZhong
@@ -32,58 +33,62 @@ class ConnectViewModel private constructor() : BluetoothViewModel() {
                 }
             }
         }
+
+        /**
+         * Destroy the singleton instance and release resources
+         */
+        fun destroyInstance() {
+            instance?.cleanUp()
+            instance = null
+        }
     }
 
     /**
-     * 回调蓝牙状态
+     * LiveData for Bluetooth state changes (true = enabled, false = disabled)
      */
     val bluetoothStateMLD = MutableLiveData<Boolean>()
 
     /**
-     * 回调搜索结果
+     * LiveData for scan results
      */
     val scanResultMLD = MutableLiveData<ScanResult>()
 
     /**
-     * 缓存的搜索设备列表
+     * Cached list of scanned devices
      */
     var scanDeviceList = mutableListOf<ScanDevice>()
+        internal set  // Restrict external modification
+
+    private var isNeedScan = false
+
+    @Volatile
+    private var isCleaned = false
 
     private val btEventCallback = object : OnBTEventCallback() {
 
         override fun onAdapterChange(bEnabled: Boolean) {
+            if (isCleaned) return
             bluetoothStateMLD.postValue(bEnabled)
         }
 
         override fun onDiscoveryChange(bStart: Boolean, scanType: Int) {
-            scanResultMLD.value = ScanResult(
-                if (bStart) {
-                    ScanResult.SCAN_STATUS_SCANNING
-                } else {
-                    ScanResult.SCAN_STATUS_IDLE
-                }
-            )
+            if (isCleaned) return
+
+            updateScanStatus(bStart)
+
             if (bStart) {
-                getConnectedDevice()?.let { device ->
-                    SystemClock.sleep(50)
-                    scanResultMLD.value = ScanResult(ScanResult.SCAN_STATUS_FOUND_DEV,
-                        ScanDevice(device, 0, ByteArray(0)).apply {
-                            state = StateCode.CONNECTION_OK
-                        })
-                }
+                postConnectedDeviceIfExists()
+            } else if (isNeedScan) {
+                handleRestartScan()
             }
         }
 
         override fun onDiscovery(device: BluetoothDevice?, bleScanMessage: BleScanInfo?) {
-            if (null == device) return
-            com.jieli.jl_bt_ota.util.JL_Log.d("ConnectViewModel", "Found Dev: address = ${device.address}, info = $bleScanMessage")
-            val data = bleScanMessage?.rawData ?: ByteArray(0)
-            val result = ScanResult(
-                ScanResult.SCAN_STATUS_FOUND_DEV,
-                ScanDevice(device, bleScanMessage?.rssi ?: 0, data).apply {
-                    state = getDeviceConnection(device)
-                })
-            scanResultMLD.value = result
+            if (isCleaned) return
+            val bluetoothDevice = device ?: return
+
+            val scanResult = createScanResult(bluetoothDevice, bleScanMessage)
+            scanResultMLD.value = scanResult
         }
     }
 
@@ -93,8 +98,10 @@ class ConnectViewModel private constructor() : BluetoothViewModel() {
 
     override fun onCleared() {
         super.onCleared()
-        destroy()
+        cleanUp()
     }
+
+    fun isSwitchOtaMode(): Boolean = configHelper.isEnableBroadcastBox()
 
     fun getScanFilter(): String? = configHelper.getScanFilter()
 
@@ -104,38 +111,107 @@ class ConnectViewModel private constructor() : BluetoothViewModel() {
 
     fun isScanning(): Boolean = bluetoothHelper.isScanning()
 
-    /**
-     * 启动扫描
-     * @return true 表示扫描已启动（或本就在扫描中）；false 表示启动失败（如蓝牙未开启、权限缺失等）
-     */
-    fun startScan(timeout: Long = OtaConstant.SCAN_TIMEOUT): Boolean {
+    fun startScan() {
+        if (isCleaned) return
+
         if (!BluetoothUtil.isBluetoothEnable()) {
             AppUtil.enableBluetooth(getContext())
-            return false
+            return
         }
-        if (isScanning()) return true
-        return bluetoothHelper.startScan(timeout)
+
+        if (isScanning()) {
+            scheduleRestartScan()
+            bluetoothHelper.stopScan()
+            return
+        }
+
+        bluetoothHelper.startScan(OtaConstant.SCAN_TIMEOUT)
     }
 
     fun stopScan() {
-        if (!isScanning()) return
+        if (isCleaned) return
         bluetoothHelper.stopScan()
     }
 
     fun connectBtDevice(device: BluetoothDevice?) {
-        if (null == device) return
+        if (isCleaned || device == null) return
         bluetoothHelper.connectDevice(device)
     }
 
     fun disconnectBtDevice(device: BluetoothDevice?) {
-        if (null == device) return
+        if (isCleaned || device == null) return
         bluetoothHelper.disconnectDevice(device)
     }
 
-    override fun destroy() {
-        super.destroy()
+    fun clearScanDeviceList() {
+        if (isCleaned) return
+        scanDeviceList = mutableListOf()
+    }
+
+    fun cleanUp() {
+        if (isCleaned) return
+
+        isCleaned = true
+
+        // Stop scanning
         stopScan()
+
+        // Unregister callback
         bluetoothHelper.unregisterCallback(btEventCallback)
-        instance = null
+
+        // Clear LiveData
+        clearLiveData()
+
+        // Reset properties
+        scanDeviceList = mutableListOf()
+        isNeedScan = false
+    }
+
+    private fun updateScanStatus(isScanning: Boolean) {
+        val status = if (isScanning) {
+            ScanResult.SCAN_STATUS_SCANNING
+        } else {
+            ScanResult.SCAN_STATUS_IDLE
+        }
+        scanResultMLD.value = ScanResult(status)
+    }
+
+    private fun postConnectedDeviceIfExists() {
+        getConnectedDevice()?.let { device ->
+            // Small delay to ensure scan is properly initialized
+            SystemClock.sleep(50)
+
+            if (!isCleaned) {
+                val scanDevice = ScanDevice(device, 0, ByteArray(0)).apply {
+                    state = StateCode.CONNECTION_OK
+                }
+                scanResultMLD.value = ScanResult(ScanResult.SCAN_STATUS_FOUND_DEV, scanDevice)
+            }
+        }
+    }
+
+    private fun handleRestartScan() {
+        isNeedScan = false
+        startScan()
+    }
+
+    private fun scheduleRestartScan() {
+        isNeedScan = true
+    }
+
+    private fun createScanResult(device: BluetoothDevice, bleScanMessage: BleScanInfo?): ScanResult {
+        val rssi = bleScanMessage?.rssi ?: 0
+        val rawData = bleScanMessage?.rawData ?: ByteArray(0)
+
+        val scanDevice = ScanDevice(device, rssi, rawData).apply {
+            state = getDeviceConnection(device)
+        }
+
+        return ScanResult(ScanResult.SCAN_STATUS_FOUND_DEV, scanDevice)
+    }
+
+    private fun clearLiveData() {
+        bluetoothStateMLD.value = null
+        scanResultMLD.value = null
     }
 }

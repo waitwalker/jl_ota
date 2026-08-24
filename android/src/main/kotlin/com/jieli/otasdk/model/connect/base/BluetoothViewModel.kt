@@ -1,6 +1,5 @@
 package com.jieli.otasdk.model.connect.base
 
-
 import android.bluetooth.BluetoothDevice
 import android.content.Context
 import androidx.lifecycle.MutableLiveData
@@ -23,21 +22,16 @@ import com.jieli.otasdk.util.AppUtil
  */
 open class BluetoothViewModel : ViewModel() {
     protected val tag: String = javaClass.simpleName
-    protected val configHelper = ConfigHelper.getInstance()
-    protected val bluetoothHelper = BluetoothHelper.getInstance()
+    protected val configHelper: ConfigHelper by lazy { ConfigHelper.getInstance() }
+    protected val bluetoothHelper: BluetoothHelper by lazy { BluetoothHelper.getInstance() }
 
-    val deviceConnectionMLD = MutableLiveData<DeviceConnection>()
+    private val _deviceConnectionMLD = MutableLiveData<DeviceConnection>()
+    val deviceConnectionMLD: MutableLiveData<DeviceConnection> = _deviceConnectionMLD
 
     private val btEventCallback = object : OnBTEventCallback() {
-
         override fun onDeviceConnection(device: BluetoothDevice?, way: Int, status: Int) {
-            JL_Log.i(tag, "onDeviceConnection", "device : $device, status : $status, way : $way")
-            deviceConnectionMLD.postValue(
-                DeviceConnection(
-                    device,
-                    AppUtil.changeConnectStatus(status)
-                )
-            )
+            val connection = DeviceConnection(device, AppUtil.changeConnectStatus(status))
+            _deviceConnectionMLD.postValue(connection)
         }
     }
 
@@ -45,29 +39,63 @@ open class BluetoothViewModel : ViewModel() {
         bluetoothHelper.registerCallback(btEventCallback)
     }
 
-    fun isConnected(): Boolean {
-        return bluetoothHelper.isConnected()
-    }
+    /**
+     * Check if any device is connected
+     */
+    fun isConnected(): Boolean = bluetoothHelper.isConnected()
 
-    fun isDeviceConnected(device: BluetoothDevice?): Boolean {
-        return bluetoothHelper.isDeviceConnected(device)
-    }
+    /**
+     * Check if the specified device is connected
+     *
+     * @param device The Bluetooth device to check
+     * @return true if the device is connected, false otherwise
+     */
+    open fun isDeviceConnected(device: BluetoothDevice?): Boolean =
+        bluetoothHelper.isDeviceConnected(device)
 
-    fun getConnectedDevice(): BluetoothDevice? {
-        return bluetoothHelper.getConnectedDevice()
-    }
+    /**
+     * Get the currently connected device
+     *
+     * @return The connected Bluetooth device, or null if no device is connected
+     */
+    fun getConnectedDevice(): BluetoothDevice? = bluetoothHelper.getConnectedDevice()
 
+    /**
+     * Get the application context
+     *
+     * @return The application context
+     */
     fun getContext(): Context = MyApplication.getInstance()
 
+    /**
+     * Get the device connection state
+     *
+     * @param device The Bluetooth device to check
+     * @return StateCode.CONNECTION_OK if connected,
+     *         StateCode.CONNECTION_CONNECTING if connecting,
+     *         StateCode.CONNECTION_DISCONNECT if disconnected
+     */
     fun getDeviceConnection(device: BluetoothDevice?): Int {
-        if (null == device) return StateCode.CONNECTION_DISCONNECT
-        if (isDeviceConnected(device)) return StateCode.CONNECTION_OK
-        if (BluetoothUtil.deviceEquals(device, bluetoothHelper.getConnectingDevice())) {
-            return StateCode.CONNECTION_CONNECTING
+        return when {
+            device == null -> StateCode.CONNECTION_DISCONNECT
+            isDeviceConnected(device) -> StateCode.CONNECTION_OK
+            BluetoothUtil.deviceEquals(device, bluetoothHelper.getConnectingDevice()) ->
+                StateCode.CONNECTION_CONNECTING
+            else -> StateCode.CONNECTION_DISCONNECT
         }
-        return StateCode.CONNECTION_DISCONNECT
     }
 
+    /**
+     * Clean up resources
+     */
+    override fun onCleared() {
+        super.onCleared()
+        destroy()
+    }
+
+    /**
+     * Destroy the ViewModel and unregister callbacks
+     */
     open fun destroy() {
         bluetoothHelper.unregisterCallback(btEventCallback)
     }

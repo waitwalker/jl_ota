@@ -24,60 +24,23 @@ class DeleteAllLogDialog extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // 标题部分
+              // Title section
               Text(
                 loc.isDeleteAllLogFiles,
-                textAlign: TextAlign.center, // 文本居中
+                textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: HexColor.hexColor('#242424'), fontFamily: 'PingFangSC'),
               ),
               const SizedBox(height: 19),
 
-              // 分隔线
-              Container(
-                color: HexColor.hexColor("#F5F5F5"),
-                height: 1,
-                width: double.infinity, // 确保分隔线充满宽度
-              ),
+              // Divider
+              Container(color: HexColor.hexColor("#F5F5F5"), height: 1, width: double.infinity),
 
-              // 按钮部分
+              // Button section
               Row(
                 children: [
-                  // 取消按钮
-                  Expanded(
-                    child: InkWell(
-                      onTap: onCancel,
-                      splashColor: Colors.transparent, // 去除水波纹效果
-                      highlightColor: Colors.transparent, // 去除高亮效果
-                      child: Container(
-                        height: AppConstants.dialogButtonHeight,
-                        alignment: Alignment.center,
-                        child: Text(
-                          loc.cancel,
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: HexColor.hexColor('#B0B0B0'), fontFamily: 'PingFangSC'),
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  // 分隔线
-                  Container(width: 1, height: AppConstants.dialogButtonHeight, color: HexColor.hexColor("#F5F5F5")),
-
-                  // 确认按钮
-                  Expanded(
-                    child: InkWell(
-                      onTap: onConfirm,
-                      splashColor: Colors.transparent, // 去除水波纹效果
-                      highlightColor: Colors.transparent, // 去除高亮效果
-                      child: Container(
-                        height: AppConstants.dialogButtonHeight,
-                        alignment: Alignment.center,
-                        child: Text(
-                          loc.confirm,
-                          style: TextStyle(color: HexColor.hexColor("#398BFF"), fontSize: 15, fontWeight: FontWeight.bold, fontFamily: 'PingFang SC'),
-                        ),
-                      ),
-                    ),
-                  ),
+                  _buildButton(text: loc.cancel, textColor: '#B0B0B0', fontFamily: 'PingFangSC', onTap: onCancel),
+                  _buildDivider(),
+                  _buildButton(text: loc.confirm, textColor: '#398BFF', fontFamily: 'PingFang SC', onTap: onConfirm),
                 ],
               ),
             ],
@@ -85,5 +48,29 @@ class DeleteAllLogDialog extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// Build a common button widget
+  Widget _buildButton({required String text, required String textColor, required String fontFamily, required VoidCallback onTap}) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        splashColor: Colors.transparent,
+        highlightColor: Colors.transparent,
+        child: Container(
+          height: AppConstants.dialogButtonHeight,
+          alignment: Alignment.center,
+          child: Text(
+            text,
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: HexColor.hexColor(textColor), fontFamily: fontFamily),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Build the divider between buttons
+  Widget _buildDivider() {
+    return Container(width: 1, height: AppConstants.dialogButtonHeight, color: HexColor.hexColor("#F5F5F5"));
   }
 }

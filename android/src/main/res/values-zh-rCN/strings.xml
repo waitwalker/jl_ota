@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--Global-->
+    <string name="app_name">杰理OTA升级</string>
+
+    <!--Device Type-->
+    <string name="classic_device_type">经典蓝牙</string>
+    <string name="ble_device_type">BLE设备</string>
+    <string name="dual_mode">双模蓝牙设备</string>
+    <string name="unknown_device">未知类型</string>
+
+    <!--OTA State-->
+    <string name="ota_complete">升级完成</string>
+    <string name="ota_upgrade_cancel">升级已取消</string>
+
+    <!--局域网文件传输/Snapdrop-->
+    <string name="update_file">升级文件</string>
+    <string name="log_file">打印日志</string>
+    <string name="connect_wifi_tips">请连接到可用的WIFI上</string>
+
+    <!--Permissions-->
+    <string name="open_gpg_tip">操作附近的蓝牙设备需要使用GPS功能，请打开定位服务才可继续</string>
+    <string name="open_bluetooth_tip">操作附近的蓝牙设备需要蓝牙功能，请打开蓝牙才可继续</string>
+    <string name="grant_bluetooth_permission">操作附近的蓝牙设备需要蓝牙权限，请授予后才可继续</string>
+    <string name="grant_location_permission">操作附近的蓝牙设备需要定位权限，请授予后才可继续</string>
+    <string name="grant_external_storage_permission">添加文件需要存储权限，请授予后才可继续</string>
+
+    <!--Device Status-->
+    <string name="device_must_mandatory_upgrade">设备需要强制升级</string>
+</resources>

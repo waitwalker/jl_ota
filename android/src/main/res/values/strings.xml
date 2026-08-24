@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Jieli OTA</string>
+
+    <!--Device Type-->
+    <string name="classic_device_type">Classic device</string>
+    <string name="ble_device_type">Ble device</string>
+    <string name="dual_mode">Dual mode</string>
+    <string name="unknown_device">Unknown device</string>
+
+    <!--OTA State-->
+    <string name="ota_complete">Upgrade is complete</string>
+    <string name="ota_upgrade_cancel">Upgrade cancelled</string>
+
+    <!--局域网文件传输/Snapdrop-->
+    <string name="update_file">Update file</string>
+    <string name="log_file">Log file</string>
+    <string name="connect_wifi_tips">Please connect to an available WIFI</string>
+
+    <!--Permissions-->
+    <string name="open_gpg_tip">GPS function is required to operate nearby Bluetooth devices. Please turn on the location service to continue.</string>
+    <string name="open_bluetooth_tip">Bluetooth function is required to operate nearby Bluetooth devices. Please turn on Bluetooth to continue.</string>
+    <string name="grant_bluetooth_permission">Bluetooth permissions are required to operate nearby Bluetooth devices. Please grant them before continuing.</string>
+    <string name="grant_location_permission">Location permission is required to operate nearby Bluetooth devices. Please grant it before continuing.</string>
+    <string name="grant_external_storage_permission">Adding files requires storage permissions, please grant them before continuing.</string>
+
+    <!--Device Status-->
+    <string name="device_must_mandatory_upgrade">Device must be forced to upgrade</string>
+</resources>

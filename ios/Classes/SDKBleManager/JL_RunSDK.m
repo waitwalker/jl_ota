@@ -18,14 +18,14 @@
 
 
 + (NSString *)textEntityStatus:(JL_EntityM_Status)status {
-    if (status < 0) return @"Unknown Error";
-    NSArray *arr = @[@"Bluetooth is not on", @"The connection fails", @"is connectioning", @"reconnectioning",
-                     @"Connection timeout", @"Connection rejected", @"Pairing failure", @"Pairing timeout", @"Paired",
-                     @"Switching between master and slave", @"Disconnect the success", @"Please turn on Bluetooth"];
+    if (status < 0) return kJL_TXT("unknown_error");
+    NSArray *arr = @[kJL_TXT("bluetooth_off"), kJL_TXT("bt_connect_failed"), kJL_TXT("device_connecting"), kJL_TXT("repeated_connection"),
+                     kJL_TXT("connect_timeout"), kJL_TXT("reject_by_device"), kJL_TXT("paire_failed"), kJL_TXT("paire_timeout"), kJL_TXT("paire_ok"),
+                     kJL_TXT("master_slave_switch"), kJL_TXT("disconnect_success"), kJL_TXT("open_bluetooth")];
     if (status+1 <= arr.count) {
         return arr[status];
     } else {
-        return @"Unknown Error";
+        return kJL_TXT("unknown_error");
     }
 }
 
@@ -110,10 +110,21 @@
     /*--- 获取设备信息 ---*/
     [self.mBleEntityM.mCmdManager cmdTargetFeatureResult:^(JL_CMDStatus status, uint8_t sn, NSData * _Nullable data) {
         if (status == JL_CMDStatusSuccess) {
-            JLModel_Device *model = [weakSelf.mBleEntityM.mCmdManager outputDeviceModel];
-            JL_OtaStatus upSt = model.otaStatus;
-            if (upSt == JL_OtaStatusForce) {
-                kJLLog(JLLOG_DEBUG, @"---> Enter force upgrade.");
+            JL_OTAManager *otaManager = [self.mBleEntityM.mCmdManager mOTAManager];
+            JLOtaSourcesExtendMode upSt = otaManager.otaSourceMode;
+            if (otaManager.otaStatus == JL_OtaStatusForce) {
+                if (otaManager.isSupportReuseSpaceOTA) {
+                    if (otaManager.otaSourceMode  == JLSourcesExtendModeNormal
+                        || otaManager.otaSourceMode == JLSourcesExtendModeDisable) {
+                        if (otaManager.bootloaderType == JL_BootLoaderYES) {
+                            kJLLog(JLLOG_DEBUG, @"---> Entering Loader upgrade.");
+                        }else{
+                            kJLLog(JLLOG_DEBUG, @"---> Entering resource upgrade.");
+                        }
+                    }
+                }else{
+                    kJLLog(JLLOG_DEBUG, @"---> Entering forced upgrade.");
+                }
                 if (weakSelf.selectedOtaFilePath) {
                     [weakSelf otaFuncWithFilePath:weakSelf.selectedOtaFilePath];
                 } else {
@@ -121,8 +132,15 @@
                 }
                 return;
             } else {
-                if (model.otaHeadset == JL_OtaHeadsetYES) {
-                    kJLLog(JLLOG_DEBUG, @"---> Enter force upgrade: OTA the other earbud.");
+                if (otaManager.otaHeadset == JL_OtaHeadsetYES) {
+                    if (weakSelf.selectedOtaFilePath) {
+                        [weakSelf otaFuncWithFilePath:weakSelf.selectedOtaFilePath];
+                    } else {
+                        callback(true);
+                    }
+                    return;
+                }
+                if (upSt == JLSourcesExtendModeFirmwareOnly) {
                     if (weakSelf.selectedOtaFilePath) {
                         [weakSelf otaFuncWithFilePath:weakSelf.selectedOtaFilePath];
                     } else {
@@ -131,17 +149,17 @@
                     return;
                 }
             }
-            kJLLog(JLLOG_DEBUG, @"---> The device works fine...");
             [JL_Tools mainTask:^{
                 /*--- 获取公共信息 ---*/
                 [weakSelf.mBleEntityM.mCmdManager cmdGetSystemInfo:JL_FunctionCodeCOMMON Result:nil];
                 callback(false);
             }];
         } else {
-            kJLLog(JLLOG_DEBUG, @"---> ERROR：There was an error retrieving the device information!");
+            kJLLog(JLLOG_DEBUG, @"---> ERROR: Device information retrieval error!");
         }
     }];
 }
+
 
 - (void)otaFuncWithFilePath:(NSString *)otaFilePath {
     kJLLog(JLLOG_DEBUG, @"current otaFilePath ---> %@", otaFilePath);

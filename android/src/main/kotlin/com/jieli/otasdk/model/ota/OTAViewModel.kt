@@ -1,10 +1,12 @@
 package com.jieli.otasdk.model.ota
 
 import android.bluetooth.BluetoothDevice
+import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import androidx.lifecycle.MutableLiveData
+import com.jieli.otasdk.R
 import com.jieli.jl_bt_ota.constant.ErrorCode
 import com.jieli.jl_bt_ota.constant.StateCode
 import com.jieli.jl_bt_ota.interfaces.BtEventCallback
@@ -45,8 +47,6 @@ class OTAViewModel : BluetoothViewModel() {
         // String Constants
         private const val DEVICE_DISCONNECTED = "Device is disconnected"
         private const val OTA_IS_RUNNING = "Ota is running."
-        private const val OTA_COMPLETE = "Upgrade is complete"
-        private const val OTA_UPGRADE_CANCEL = "Upgrade cancelled"
 
         @Volatile
         private var instance: OTAViewModel? = null
@@ -65,7 +65,7 @@ class OTAViewModel : BluetoothViewModel() {
         }
     }
 
-    private val otaManager = OTAManager(getContext())
+    val otaManager = OTAManager(getContext())
     val fileListMLD = MutableLiveData<MutableList<File>>()
     val otaConnectionMLD = MutableLiveData<DeviceConnection>()
     val mandatoryUpgradeMLD = MutableLiveData<BluetoothDevice>()
@@ -119,6 +119,15 @@ class OTAViewModel : BluetoothViewModel() {
 
     fun isOTA(): Boolean = otaManager.isOTA
 
+    fun isUseAuthDevice(): Boolean = configHelper.isUseDeviceAuth()
+
+    override fun isDeviceConnected(device: BluetoothDevice?): Boolean {
+        return super.isDeviceConnected(device) || BluetoothUtil.deviceEquals(
+            device,
+            otaManager.targetDevice
+        )
+    }
+
     fun getDeviceInfo(): TargetInfoResponse? = otaManager.getDeviceInfo(getConnectedDevice())
 
     fun readFileList() {
@@ -145,7 +154,9 @@ class OTAViewModel : BluetoothViewModel() {
         }
         otaManager.bluetoothOption.firmwareFilePath = filePath
         otaManager.startOTA(
-            CustomUpdateCallback(device, this)
+            CustomUpdateCallback(
+                getContext(), device, otaManager, this
+            )
         )
     }
 
@@ -170,7 +181,9 @@ class OTAViewModel : BluetoothViewModel() {
     }
 
     private class CustomUpdateCallback(
+        val context: Context,
         val device: BluetoothDevice?,
+        val otaManager: OTAManager,
         val viewModel: OTAViewModel
     ) : IUpgradeCallback {
 
@@ -179,6 +192,15 @@ class OTAViewModel : BluetoothViewModel() {
         }
 
         override fun onNeedReconnect(addr: String?, isNewReconnectWay: Boolean) {
+            // 如果开启自动回连设备，而且回连设备需要开启设备认证流程，请在此配置
+            otaManager.bluetoothOption.apply {
+                if (isAutoConnectBle) {
+                    if (!isUseAuthDevice && viewModel.isUseAuthDevice()) {
+                        isUseAuthDevice = true
+                    }
+                }
+            }
+
             viewModel.otaStateMLD.value = OTAReconnect(device, addr, isNewReconnectWay)
             if (viewModel.isUseReconnectWay()) {
                 viewModel.reconnectDev(addr, isNewReconnectWay)
@@ -191,7 +213,7 @@ class OTAViewModel : BluetoothViewModel() {
 
         override fun onStopOTA() {
             viewModel.otaStateMLD.value =
-                OTAEnd(device, ErrorCode.ERR_NONE, OTA_COMPLETE)
+                OTAEnd(device, ErrorCode.ERR_NONE, context.getString(R.string.ota_complete))
             val handler = Handler(Looper.getMainLooper())
             handler.postDelayed({
                 // 变地址导致无法判断device是否一致
@@ -211,7 +233,7 @@ class OTAViewModel : BluetoothViewModel() {
                 OTAEnd(
                     device,
                     ErrorCode.ERR_UNKNOWN,
-                    OTA_UPGRADE_CANCEL
+                    context.getString(R.string.ota_upgrade_cancel)
                 )
         }
 

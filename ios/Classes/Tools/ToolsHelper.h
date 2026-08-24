@@ -7,7 +7,6 @@
 //
 
 #import <Foundation/Foundation.h>
-#import <DFUnits/DFUnits.h>
 #import "JL_RunSDK.h"
 
 typedef NS_ENUM(NSUInteger, ProductType) {
@@ -67,6 +66,13 @@ NS_ASSUME_NONNULL_BEGIN
 /// - Parameter status: 是否使用SDK蓝牙连接
 +(void)setConnectBySDK:(BOOL)status;
 
+/// 是否使用GATT over EDR连接
++(BOOL)isGattOverEdr;
+
+/// 设置是否使用GATT over EDR
+/// - Parameter status: 是否使用GATT over EDR
++(void)setGattOverEdr:(BOOL)status;
+
 /// 是否启用自动化测试
 +(BOOL)isAutoTestOta;
 
@@ -109,6 +115,15 @@ NS_ASSUME_NONNULL_BEGIN
 /// ufw名字
 /// - Parameter fileName: 文件名
 +(NSURL *)targetSavePath:(NSString *)fileName;
+
+
+/// 设置GATT服务UUIDs
+/// - Parameter uuids: UUIDs
++(void)setGattServiceUUIDs:(NSArray *)uuids;
+
+
+/// 获取GATT服务UUIDs
++(NSArray  * _Nullable)getGattServiceUUIDs;
 
 
 @end

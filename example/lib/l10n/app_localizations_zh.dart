@@ -104,6 +104,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get communicationWaySpp => 'SPP';
 
   @override
+  String get communicationWayGatt => 'GATT Over BR/EDR';
+
+  @override
   String get adjustMtu => '调整MTU';
 
   @override
@@ -291,4 +294,34 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get deviceMustMandatoryUpgrade => '设备需要强制升级';
+
+  @override
+  String get bluetoothDisconnected => '蓝牙已断开';
+
+  @override
+  String get gattUuidPlaceholder => '请输入一个或多个 UUID，使用逗号或换行分隔';
+
+  @override
+  String get gattServiceUuid => 'GATT Service UUID';
+
+  @override
+  String get gattUuidTips => '示例: 180A, 0000180D-0000-1000-8000-00805F9B34FB';
+
+  @override
+  String get gattUuidErrorEmpty => '请输入至少一个 UUID';
+
+  @override
+  String get gattUuidErrorInvalidFmt => '以下 UUID 格式无效:\n%s';
+
+  @override
+  String get customCommand => '自定义命令';
+
+  @override
+  String get sendCustomCmd => '发送自定义命令';
+
+  @override
+  String get receivedData => '接收的数据';
+
+  @override
+  String get inputData => '输入的数据';
 }

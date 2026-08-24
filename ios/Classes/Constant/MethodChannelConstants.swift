@@ -16,12 +16,14 @@ struct MethodChannelConstants {
     static let METHOD_SET_SCAN_FILTER = "setScanFilter" // 设置扫描过滤条件的方法名
     static let METHOD_CONNECT_DEVICE = "connectDevice" // 连接设备的方法名
     static let METHOD_DISCONNECT_BT_DEVICE = "disconnectBtDevice" // 断开蓝牙设备连接的方法名
-    static let METHOD_IS_BLE_WAY = "isBleWay" // 检查是否使用BLE方式的方法名
-    static let METHOD_SET_BLE_WAY = "setBleWay" // 设置是否使用BLE方式的方法名
     static let METHOD_IS_USE_DEVICE_AUTH = "isUseDeviceAuth" // 检查是否使用设备认证的方法名
     static let METHOD_SET_USE_DEVICE_AUTH = "setUseDeviceAuth" // 设置是否使用设备认证的方法名
     static let METHOD_IS_USING_SDK_BLUETOOTH = "isUseSDKBluetooth" // 检查是否使用SDK蓝牙连接的方法名
     static let METHOD_SET_USING_SDK_BLUETOOTH = "setUseSDKBluetooth" // 设置是否使用SDK蓝牙连接的方法名
+    static let METHOD_IS_USING_GATT_OVER_EDR = "isUseGattOverEdr" // 检查是否使用Gatt Over edr的方法名
+    static let METHOD_SET_GATT_OVER_EDR = "setGattOverEdr" // 设置是否使用Gatt Over Edr的方法名
+    static let METHOD_GET_GATT_SERVICE_UUIDS = "getGattServiceUuids" // 获取Gatt Service UUIDs的方法名
+    static let METHOD_SET_GATT_SERVICE_UUIDS = "setGattServiceUuids" // 设置Gatt Service UUIDs的方法名
     static let METHOD_IS_HID_DEVICE = "isHidDevice" // 检查是否为HID设备的方法名
     static let METHOD_SET_HID_DEVICE = "setHidDevice" // 设置是否为HID设备的方法名
     static let METHOD_IS_USE_CUSTOM_RECONNECT_WAY = "isUseCustomReConnectWay" // 检查是否使用自定义重连方式的方法名
@@ -47,10 +49,10 @@ struct MethodChannelConstants {
     static let METHOD_POP_ALL_ACTIVITY = "popAllActivity" // 退出所有的Activity
     static let METHOD_ON_FILE_PICKED = "onFilePicked" // 当前从文本系统中选择的升级文件
     static let METHOD_HANDLE_FILE_PICKED = "handleFilePicked" // 处理修改的升级文件名称
+    static let METHOD_SEND_CUSTOM_COMMAND = "sendCustomCommand" // 发送自定义命令
 
     // 参数键
     static let ARG_FILTER = "filter" // 扫描过滤条件参数名
-    static let ARG_IS_BLE = "isBle" // 是否使用BLE方式参数名
     static let ARG_IS_AUTH = "isAuth" // 是否使用设备认证参数名
     static let ARG_IS_USING_SDK_BLUETOOTH = "isUsingSDKBluetooth" // 是否使用SDK蓝牙连接
     static let ARG_IS_HID = "isHid" // 是否为HID设备参数名
@@ -62,4 +64,7 @@ struct MethodChannelConstants {
     static let ARG_PATH = "path" // 升级的path
     static let ARG_INDEX = "index" // 索引参数名
     static let ARG_FILE_NAME = "fileName" // 升级文件名称
+    static let ARG_IS_USING_GATT_OVER_EDR = "isUsingGattOVerEdr" // 是否使用Gatt Over Edr
+    static let ARG_GATT_SERVICE_UUIDS = "gattServiceUuids" // Gatt Service uuids
+    static let ARG_CUSTOM_DATA = "customData" // 发送自定义命令的键
 }

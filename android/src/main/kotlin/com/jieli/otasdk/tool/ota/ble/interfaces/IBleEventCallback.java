@@ -105,4 +105,11 @@ public interface IBleEventCallback {
      * @param status   状态
      */
     void onConnectionUpdated(BluetoothDevice device, int interval, int latency, int timeout, int status);
+
+    /**
+     * 回调切换操作设备
+     *
+     * @param device 蓝牙设备对象
+     */
+    void onSwitchBleDevice(BluetoothDevice device);
 }

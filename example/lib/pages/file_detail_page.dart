@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:jl_ota/ble_event_stream.dart';
@@ -8,6 +7,9 @@ import 'package:jl_ota/constant/constants.dart';
 import 'package:jl_ota_example/extensions/hex_color.dart';
 
 import 'package:jl_ota/constant/ble_event_constants.dart';
+import 'package:provider/provider.dart';
+
+import '../utils/connection_state_manager.dart';
 
 /// A page that displays the detailed content of a log file.
 class FileDetailPage extends StatefulWidget {
@@ -24,6 +26,7 @@ class _FileDetailPageState extends State<FileDetailPage> {
   StreamSubscription? logDetailSubscription;
   String logDetailTxt = '';
   final String appKeyword = 'app_';
+  int _connectState = AppConstants.connectionFailed;
 
   @override
   void initState() {
@@ -33,6 +36,15 @@ class _FileDetailPageState extends State<FileDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    _connectState = context.watch<ConnectionStateManager>().connectState;
+
+    // Check connection status and navigate back if disconnected
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_connectState == AppConstants.connectionDisconnect && mounted) {
+        Navigator.of(context).pop();
+      }
+    });
+
     return Scaffold(
       appBar: AppBar(
         title: FittedBox(
@@ -85,23 +97,30 @@ class _FileDetailPageState extends State<FileDetailPage> {
   }
 
   void _initialize() async {
-    BleMethod.clickLogFileIndex(widget.index);
+    _logFileIndex();
+    _listenToLogDetails();
+  }
 
-    logDetailSubscription = BleEventStream.logDetailFilesStream.listen(
-      (logDetail) {
-        setState(() {
-          logDetailTxt = logDetail;
-        });
-      },
-      onError: (error) {
-        log("Error listening to logDetailFilesStream: $error");
-        logDetailSubscription?.cancel();
-      },
-    );
+  void _logFileIndex() {
+    BleMethod.clickLogFileIndex(widget.index);
+  }
+
+  void _listenToLogDetails() {
+    logDetailSubscription = BleEventStream.logDetailFilesStream.listen(_handleLogDetail, onError: _handleLogDetailError);
+  }
+
+  void _handleLogDetail(String logDetail) {
+    setState(() {
+      logDetailTxt = logDetail;
+    });
+  }
+
+  void _handleLogDetailError(dynamic error) {
+    logDetailSubscription?.cancel();
   }
 
   String _getDisplayName(String fullName) {
-    if (fullName.isEmpty) return '';
+    if (fullName.isEmpty) return fullName;
 
     final appIndex = fullName.indexOf(appKeyword);
     if (appIndex != -1) {

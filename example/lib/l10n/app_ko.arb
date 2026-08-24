@@ -129,6 +129,10 @@
   "@communicationWaySpp": {
     "description": "Communication way is spp option"
   },
+  "communicationWayGatt": "GATT Over BR/EDR",
+  "@communicationWayGatt": {
+    "description": "Communication way is gatt option"
+  },
   "adjustMtu": "MTU 조정",
   "@adjustMtu": {
     "description": "Adjust the MTU size"
@@ -376,5 +380,45 @@
   "deviceMustMandatoryUpgrade": "디바이스 강제 업그레이드 필요",
   "@deviceMustMandatoryUpgrade": {
     "description": "Label for device must be forced to upgrade"
+  },
+  "bluetoothDisconnected": "블루투스 연결이 끊어졌습니다",
+  "@bluetoothDisconnected": {
+    "description": "Label for bluetooth disconnected"
+  },
+  "gattUuidPlaceholder": "하나 이상의 UUID를 입력하세요. 쉼표나 줄바꿈으로 구분하세요",
+  "@gattUuidPlaceholder": {
+    "description": "Label for gatt uuid placeholder"
+  },
+  "gattServiceUuid": "GATT 서비스 UUID",
+  "@gattServiceUuid": {
+    "description": "Label for gatt service uuid"
+  },
+  "gattUuidTips": "예시: 180A, 0000180D-0000-1000-8000-00805F9B34FB",
+  "@gattUuidTips": {
+    "description": "Label for gatt uuid tips"
+  },
+  "gattUuidErrorEmpty": "하나 이상의 UUID를 입력하세요",
+  "@gattUuidErrorEmpty": {
+    "description": "Label for gatt uuid error empty"
+  },
+  "gattUuidErrorInvalidFmt": "잘못된 UUID 형식:\n%s",
+  "@gattUuidErrorInvalidFmt": {
+    "description": "Label for gatt uuid error empty"
+  },
+  "customCommand": "사용자 지정 명령",
+  "@customCommand": {
+    "description": "Label for custom command"
+  },
+  "sendCustomCmd": "사용자 지정 명령 보내기",
+  "@sendCustomCmd": {
+    "description": "Label for send custom command"
+  },
+  "receivedData": "수신된 데이터",
+  "@receivedData": {
+    "description": "Label for received data"
+  },
+  "inputData": "입력된 데이터",
+  "@inputData": {
+    "description": "Label for input data"
   }
 }

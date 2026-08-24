@@ -7,10 +7,13 @@ class AppConstants {
   static const String privacyPolicyUrl = 'https://cam.jieliapp.com/app/JL_OTA_app_privacy_policy.html';
 
   /// Constant representing BLE communication method
-  static const String communicationWayBle = 'BLE';
+  static const int communicationWayBle = 0;
 
   /// Constant representing SPP communication method
-  static const String communicationWaySpp = 'SPP';
+  static const int communicationWaySpp = 1;
+
+  /// Constant representing GATT OVER BR EDR communication method
+  static const int communicationWayGattOverBrEdr = 2;
 
   /// Icp number
   static const String icpNumber = '粤ICP备18069041号-15A';

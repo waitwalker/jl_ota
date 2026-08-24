@@ -24,17 +24,29 @@ class BleMethodConstants {
   /// 断开蓝牙设备连接的方法名。
   static const String METHOD_DISCONNECT_BT_DEVICE = 'disconnectBtDevice';
 
-  /// 检查是否使用BLE方式的方法名。
-  static const String METHOD_IS_BLE_WAY = 'isBleWay';
+  /// 获取当前连接方式的方法名。
+  static const String METHOD_GET_CONNECT_WAY = 'getConnectWay';
 
-  /// 设置是否使用BLE方式的方法名。
-  static const String METHOD_SET_BLE_WAY = 'setBleWay';
+  /// 设置当前连接方式的方法名。
+  static const String METHOD_SET_CONNECT_WAY = 'setConnectWay';
 
   /// 检查是否使用SDK蓝牙连接的方法名。
   static const String METHOD_IS_USING_SDK_BLUETOOTH = 'isUseSDKBluetooth';
 
   /// 设置是否使用SDK蓝牙连接的方法名。
   static const String METHOD_SET_USING_SDK_BLUETOOTH = 'setUseSDKBluetooth';
+
+  /// 检查是否使用Gatt Over edr的方法名。
+  static const String METHOD_IS_USING_GATT_OVER_EDR = 'isUseGattOverEdr';
+
+  /// 设置是否使用Gatt Over Edr的方法名。
+  static const String METHOD_SET_GATT_OVER_EDR = 'setGattOverEdr';
+
+  /// 获取Gatt Service UUIDs的方法名。
+  static const String METHOD_GET_GATT_SERVICE_UUIDS = 'getGattServiceUuids';
+
+  /// 设置Gatt Service UUIDs的方法名。
+  static const String METHOD_SET_GATT_SERVICE_UUIDS = 'setGattServiceUuids';
 
   /// 检查是否使用设备认证的方法名。
   static const String METHOD_IS_USE_DEVICE_AUTH = 'isUseDeviceAuth';
@@ -111,17 +123,26 @@ class BleMethodConstants {
   /// 退出所有的Activity
   static const String METHOD_POP_ALL_ACTIVITY = 'popAllActivity';
 
+  /// 发送自定义命令
+  static const String METHOD_SEND_CUSTOM_COMMAND = 'sendCustomCommand';
+
   /// 索引参数名。
   static const String ARG_INDEX = 'index';
 
   /// 过滤条件参数名。
   static const String ARG_FILTER = 'filter';
 
-  /// 是否使用BLE方式参数名。
-  static const String ARG_IS_BLE = 'isBle';
+  /// 使用连接方式的参数名。
+  static const String ARG_CONNECT_WAY = 'connectWay';
 
   /// 是否使用SDK蓝牙连接。
   static const String ARG_IS_USING_SDK_BLUETOOTH = 'isUsingSDKBluetooth';
+
+  /// 是否使用Gatt Over Edr。
+  static const String ARG_IS_USING_GATT_OVER_EDR = 'isUsingGattOVerEdr';
+
+  /// Gatt Service uuids
+  static const String ARG_GATT_SERVICE_UUIDS = 'gattServiceUuids';
 
   /// 是否使用设备认证参数名。
   static const String ARG_IS_AUTH = 'isAuth';
@@ -146,4 +167,7 @@ class BleMethodConstants {
 
   /// 升级的path
   static const String ARG_PATH = 'path';
+
+  /// 发送自定义命令的键
+  static const String ARG_CUSTOM_DATA = 'customData';
 }

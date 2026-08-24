@@ -104,6 +104,9 @@ class AppLocalizationsKo extends AppLocalizations {
   String get communicationWaySpp => 'SPP';
 
   @override
+  String get communicationWayGatt => 'GATT Over BR/EDR';
+
+  @override
   String get adjustMtu => 'MTU 조정';
 
   @override
@@ -291,4 +294,34 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get deviceMustMandatoryUpgrade => '디바이스 강제 업그레이드 필요';
+
+  @override
+  String get bluetoothDisconnected => '블루투스 연결이 끊어졌습니다';
+
+  @override
+  String get gattUuidPlaceholder => '하나 이상의 UUID를 입력하세요. 쉼표나 줄바꿈으로 구분하세요';
+
+  @override
+  String get gattServiceUuid => 'GATT 서비스 UUID';
+
+  @override
+  String get gattUuidTips => '예시: 180A, 0000180D-0000-1000-8000-00805F9B34FB';
+
+  @override
+  String get gattUuidErrorEmpty => '하나 이상의 UUID를 입력하세요';
+
+  @override
+  String get gattUuidErrorInvalidFmt => '잘못된 UUID 형식:\n%s';
+
+  @override
+  String get customCommand => '사용자 지정 명령';
+
+  @override
+  String get sendCustomCmd => '사용자 지정 명령 보내기';
+
+  @override
+  String get receivedData => '수신된 데이터';
+
+  @override
+  String get inputData => '입력된 데이터';
 }

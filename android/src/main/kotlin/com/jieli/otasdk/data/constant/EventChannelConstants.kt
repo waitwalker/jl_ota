@@ -19,6 +19,7 @@ object EventChannelConstants {
     const val TYPE_SELECTED_FILE_PATHS = "selectedFilePaths" // 选中文件路径列表事件类型
     const val TYPE_MANDATORY_UPGRADE = "mandatoryUpgrade" // 强制升级事件类型
     const val TYPE_OTA_STATE = "otaState" // OTA状态事件类型
+    const val TYPE_CUSTOM_DATA_UPDATE = "customDataUpdate" // 自定义数据更新
 
     // 状态值
     const val STATUS_ON_PROGRESS = "onProgress" // 正在进行中状态
@@ -52,6 +53,7 @@ object EventChannelConstants {
     const val KEY_IS_REQUIRED = "isRequired" // 是否必需键
     const val KEY_SUCCESS = "success" // 成功键
     const val KEY_CODE = "code" // 代码键
+    const val KEY_CUSTOM_DATA = "customData" // 自定义数据的值
 
     // 消息文本
     const val MSG_CHECKING_FILE = "Checking file" // 正在检查文件消息

@@ -61,7 +61,6 @@ public class AppUtil {
      * @return True if either coarse or fine location permission is granted.
      */
     public static boolean isHasLocationPermission(Context context) {
-        // BLUETOOTH_SCAN 未声明 neverForLocation 时，Android 12+ 同样需要定位权限，否则扫描结果为空。
         return isHasPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION)
                 || isHasPermission(context, Manifest.permission.ACCESS_FINE_LOCATION);
     }

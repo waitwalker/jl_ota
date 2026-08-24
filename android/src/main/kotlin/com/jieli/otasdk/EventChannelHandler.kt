@@ -6,6 +6,8 @@ import android.bluetooth.BluetoothDevice
 import android.os.Handler
 import android.os.Looper
 import android.view.WindowManager
+import androidx.lifecycle.Observer
+import com.jieli.jl_bt_ota.constant.Command
 import com.jieli.otasdk.data.constant.EventChannelConstants
 import com.jieli.otasdk.data.constant.OtaConstant
 import com.jieli.otasdk.data.model.ScanResult
@@ -14,7 +16,6 @@ import com.jieli.otasdk.data.model.device.ScanDevice
 import com.jieli.otasdk.data.model.ota.OTAEnd
 import com.jieli.otasdk.data.model.ota.OTAState
 import com.jieli.otasdk.data.model.ota.OTAWorking
-import com.jieli.otasdk.model.connect.ConnectViewModel
 import com.jieli.otasdk.model.ota.DownloadFileViewModel
 import com.jieli.otasdk.model.ota.OTAViewModel
 import com.jieli.otasdk.util.DeviceUtil
@@ -22,9 +23,16 @@ import com.jieli.otasdk.util.DownloadFileUtil
 import com.jieli.otasdk.util.FileUtil
 import com.jieli.jl_bt_ota.constant.ErrorCode
 import com.jieli.jl_bt_ota.constant.JL_Constant
+import com.jieli.jl_bt_ota.constant.StateCode
 import com.jieli.jl_bt_ota.util.BluetoothUtil
 import com.jieli.jl_bt_ota.util.CHexConver
 import com.jieli.jl_bt_ota.util.JL_Log
+import com.jieli.jl_bt_ota.interfaces.rcsp.OnRcspCallback
+import com.jieli.jl_bt_ota.model.base.CommandBase
+import com.jieli.jl_bt_ota.model.command.CustomCmd
+import com.jieli.jl_bt_ota.model.parameter.CustomParam
+import com.jieli.otasdk.model.connect.ConnectViewModel
+import com.jieli.otasdk.tool.bluetooth.BluetoothHelper
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.plugin.common.EventChannel
 import kotlin.math.roundToInt
@@ -44,112 +52,166 @@ class EventChannelHandler(private val activity: Activity) : EventChannel.StreamH
     private val otaViewModel by lazy { OTAViewModel.getInstance() }
     private val downloadFileVM by lazy { DownloadFileViewModel.getInstance() }
     private val logHelper by lazy { LogHelper.getInstance() }
+    private val bluetoothHelper: BluetoothHelper by lazy { BluetoothHelper.getInstance() }
+    private var rcspCallback: OnRcspCallback? = null
 
-    override fun onListen(arguments: Any?, sink: EventChannel.EventSink) {
-        eventSink = sink
-        logHelper.setEventSink(eventSink)
+    private val bluetoothStateObserver = Observer<Boolean> { isOpen ->
+        if (!isOpen) {
+            connectVM.scanDeviceList.clear()
+        }
+        sendEvent(
+            EventChannelConstants.TYPE_BLUETOOTH_STATE, mapOf(
+                EventChannelConstants.KEY_STATE to isOpen
+            )
+        )
+    }
 
-        connectVM.bluetoothStateMLD.observeForever { isOpen ->
-            if (!isOpen) {
-                connectVM.scanDeviceList.clear()
-            }
-            sendEvent(
-                EventChannelConstants.TYPE_BLUETOOTH_STATE, mapOf(
-                    EventChannelConstants.KEY_STATE to isOpen
+    private val deviceConnectionObserver = Observer<DeviceConnection> { deviceConnection ->
+        sendEvent(
+            EventChannelConstants.TYPE_DEVICE_CONNECTION, mapOf(
+                EventChannelConstants.KEY_STATE to deviceConnection.state
+            )
+        )
+        updateDeviceConnection(deviceConnection)
+    }
+
+    private val scanResultObserver = Observer<ScanResult> { result ->
+        handleScanResult(result)
+    }
+
+    private fun handleScanResult(result: ScanResult) {
+        when (result.state) {
+            ScanResult.SCAN_STATUS_SCANNING -> handleScanningState()
+            ScanResult.SCAN_STATUS_FOUND_DEV -> handleFoundDeviceState(result)
+            ScanResult.SCAN_STATUS_IDLE -> handleIdleState()
+        }
+    }
+
+    private fun handleScanningState() {
+        connectVM.scanDeviceList.clear()
+        sendScanDeviceList(ScanResult.SCAN_STATUS_SCANNING)
+    }
+
+    private fun handleFoundDeviceState(result: ScanResult) {
+        val device = result.device ?: return
+        val filter = connectVM.getScanFilter() ?: ""
+
+        if (shouldAddDevice(device, filter)) {
+            addAndSortDevice(device)
+            sendScanDeviceList(ScanResult.SCAN_STATUS_FOUND_DEV)
+        }
+    }
+
+    private fun shouldAddDevice(device: ScanDevice, filter: String): Boolean {
+        val currentList = connectVM.scanDeviceList
+        return !currentList.contains(device) && isValidDevice(device, filter)
+    }
+
+    private fun addAndSortDevice(device: ScanDevice) {
+        val currentList = connectVM.scanDeviceList.toMutableList()
+        currentList.add(device)
+        currentList.sortWith { o1, o2 -> o2.rssi.compareTo(o1.rssi) }
+        connectVM.scanDeviceList = currentList
+    }
+
+    private fun handleIdleState() {
+        sendScanDeviceList(ScanResult.SCAN_STATUS_IDLE)
+    }
+
+    private val otaConnectionObserver = Observer<DeviceConnection> { otaConnection ->
+        sendEvent(
+            EventChannelConstants.TYPE_OTA_CONNECTION, mapOf(
+                EventChannelConstants.KEY_STATE to otaConnection.state,
+                EventChannelConstants.KEY_DEVICE_TYPE to DeviceUtil.getBtDeviceTypeString(
+                    activity,
+                    otaConnection.device
                 )
             )
-        }
+        )
+    }
 
-        connectVM.deviceConnectionMLD.observeForever { deviceConnection ->
-            sendEvent(
-                EventChannelConstants.TYPE_DEVICE_CONNECTION, mapOf(
-                    EventChannelConstants.KEY_STATE to deviceConnection.state
-                )
-            )
+    private val downloadStatusObserver = Observer<DownloadFileUtil.DownloadFileEvent?> { downloadEvent ->
+        sendDownloadStatusEvent(downloadEvent)
+    }
 
-            updateDeviceConnection(deviceConnection)
-        }
-
-        connectVM.scanResultMLD.observeForever { result ->
-            when (result.state) {
-                ScanResult.SCAN_STATUS_SCANNING -> {
-                    connectVM.scanDeviceList.clear()
-                    sendScanDeviceList(ScanResult.SCAN_STATUS_SCANNING)
-                }
-
-                ScanResult.SCAN_STATUS_FOUND_DEV -> {
-                    result.device?.let {
-                        val currentList = connectVM.scanDeviceList.toMutableList()
-                        val filter = connectVM.getScanFilter() ?: ""
-                        if (!currentList.contains(it) && isValidDevice(it, filter)) {
-                            currentList.add(it)
-                            currentList.sortWith { o1, o2 ->
-                                o2.rssi.compareTo(o1.rssi)
-                            }
-                            connectVM.scanDeviceList = currentList
-                            sendScanDeviceList(ScanResult.SCAN_STATUS_FOUND_DEV)
-                        }
-                    }
-                }
-
-                ScanResult.SCAN_STATUS_IDLE -> {
-                    sendScanDeviceList(ScanResult.SCAN_STATUS_IDLE)
-                }
-            }
-        }
-
-        otaViewModel.otaConnectionMLD.observeForever { otaConnection ->
-            sendEvent(
-                EventChannelConstants.TYPE_OTA_CONNECTION, mapOf(
-                    EventChannelConstants.KEY_STATE to otaConnection.state,
-                    EventChannelConstants.KEY_DEVICE_TYPE to DeviceUtil.getBtDeviceTypeString(
-                        activity,
-                        otaConnection.device
-                    )
-                )
-            )
-        }
-
-        downloadFileVM.downloadStatusMLD.observeForever { downloadEvent ->
-            sendDownloadStatusEvent(downloadEvent)
-        }
-
-        otaViewModel.fileListMLD.observeForever { files ->
-            sendEvent(
-                EventChannelConstants.TYPE_OTA_FILE_LIST, mapOf(
+    private val fileListObserver = Observer<List<java.io.File>> { files ->
+        sendEvent(
+            EventChannelConstants.TYPE_OTA_FILE_LIST, mapOf(
                 EventChannelConstants.KEY_LIST to files.map { file ->
                     mapOf(
                         EventChannelConstants.KEY_NAME to FileUtil.getFileMsg(file),
                         EventChannelConstants.KEY_PATH to file.path
                     )
                 }
-            ))
-        }
-
-        otaViewModel.selectedFilePathsMLD.observeForever { selectedPaths ->
-            sendEvent(
-                EventChannelConstants.TYPE_SELECTED_FILE_PATHS, mapOf(
-                    EventChannelConstants.KEY_LIST to selectedPaths
-                )
             )
-        }
+        )
+    }
 
-        otaViewModel.mandatoryUpgradeMLD.observeForever { device ->
-            sendEvent(
-                EventChannelConstants.TYPE_MANDATORY_UPGRADE, mapOf(
-                    EventChannelConstants.KEY_IS_REQUIRED to (device != null)
-                )
+    private val selectedFilePathsObserver = Observer<List<String>> { selectedPaths ->
+        sendEvent(
+            EventChannelConstants.TYPE_SELECTED_FILE_PATHS, mapOf(
+                EventChannelConstants.KEY_LIST to selectedPaths
             )
+        )
+    }
+
+    private val mandatoryUpgradeObserver = Observer<BluetoothDevice?> { device ->
+        sendEvent(
+            EventChannelConstants.TYPE_MANDATORY_UPGRADE, mapOf(
+                EventChannelConstants.KEY_IS_REQUIRED to (device != null)
+            )
+        )
+        // if (!otaViewModel.isOTA()) {
+        //     ToastUtil.showToastShort(R.string.device_must_mandatory_upgrade)
+        // }
+    }
+
+    private val otaStateObserver = Observer<OTAState?> { otaState ->
+        handleOtaState(otaState)
+    }
+
+    override fun onListen(arguments: Any?, sink: EventChannel.EventSink) {
+        eventSink = sink
+        logHelper.setEventSink(eventSink)
+
+        connectVM.bluetoothStateMLD.observeForever(bluetoothStateObserver)
+        connectVM.deviceConnectionMLD.observeForever(deviceConnectionObserver)
+        connectVM.scanResultMLD.observeForever(scanResultObserver)
+        otaViewModel.otaConnectionMLD.observeForever(otaConnectionObserver)
+        downloadFileVM.downloadStatusMLD.observeForever(downloadStatusObserver)
+        otaViewModel.fileListMLD.observeForever(fileListObserver)
+        otaViewModel.selectedFilePathsMLD.observeForever(selectedFilePathsObserver)
+        otaViewModel.mandatoryUpgradeMLD.observeForever(mandatoryUpgradeObserver)
+        otaViewModel.otaStateMLD.observeForever(otaStateObserver)
+
+        rcspCallback = object : OnRcspCallback() {
+            override fun onRcspCommand(device: BluetoothDevice, cmd: CommandBase<*, *>) {
+                if (cmd.id != Command.CMD_EXTRA_CUSTOM || cmd !is CustomCmd) return
+                handleReceivedCustomCommand(bluetoothHelper.getConnectedDevice(),cmd)
+            }
         }
 
-        otaViewModel.otaStateMLD.observeForever { otaState ->
-            handleOtaState(otaState)
+        rcspCallback?.let {
+            otaViewModel.otaManager.addOnRcspCallback(it)
         }
     }
 
     override fun onCancel(arguments: Any?) {
+        connectVM.bluetoothStateMLD.removeObserver(bluetoothStateObserver)
+        connectVM.deviceConnectionMLD.removeObserver(deviceConnectionObserver)
+        connectVM.scanResultMLD.removeObserver(scanResultObserver)
+        otaViewModel.otaConnectionMLD.removeObserver(otaConnectionObserver)
+        downloadFileVM.downloadStatusMLD.removeObserver(downloadStatusObserver)
+        otaViewModel.fileListMLD.removeObserver(fileListObserver)
+        otaViewModel.selectedFilePathsMLD.removeObserver(selectedFilePathsObserver)
+        otaViewModel.mandatoryUpgradeMLD.removeObserver(mandatoryUpgradeObserver)
+        otaViewModel.otaStateMLD.removeObserver(otaStateObserver)
+
+        handler.removeCallbacksAndMessages(null)
+        otaViewModel.otaManager.removeRcspCallback(rcspCallback)
+
         eventSink = null
-        logHelper.cleanup()
+        logHelper.cleanUp()
     }
 
     private fun sendEvent(type: String, data: Map<String, Any>) {
@@ -172,9 +234,10 @@ class EventChannelHandler(private val activity: Activity) : EventChannel.StreamH
         }
         sendEvent(
             EventChannelConstants.TYPE_SCAN_DEVICE_LIST, mapOf(
-            EventChannelConstants.KEY_STATE to scanState,
-            EventChannelConstants.KEY_LIST to connectVM.scanDeviceList.map { deviceToMap(it) }
-        ))
+                EventChannelConstants.KEY_STATE to scanState,
+                EventChannelConstants.KEY_LIST to connectVM.scanDeviceList.map { deviceToMap(it) }
+            )
+        )
     }
 
     private fun sendDownloadStatusEvent(downloadEvent: DownloadFileUtil.DownloadFileEvent?) {
@@ -203,6 +266,7 @@ class EventChannelHandler(private val activity: Activity) : EventChannel.StreamH
         }
         sendEvent(EventChannelConstants.TYPE_DOWNLOAD_STATUS, eventMap)
     }
+
 
     /**
      * 从原始 BLE 广播包 (scanRecord) 中解析并提取纯 0xFF 厂商自定义数据
@@ -275,6 +339,7 @@ class EventChannelHandler(private val activity: Activity) : EventChannel.StreamH
             "adv_data" to advData
         )
     }
+
 
     @SuppressLint("MissingPermission")
     private fun isValidDevice(scanDevice: ScanDevice, filterStr: String): Boolean {
@@ -396,4 +461,43 @@ class EventChannelHandler(private val activity: Activity) : EventChannel.StreamH
         }
         return null
     }
+
+    private fun handleReceivedCustomCommand(device: BluetoothDevice?, cmd: CustomCmd) {
+        val param = cmd.param
+        val isNeedResponse = cmd.isResponseRequired
+
+        param?.data?.let { data ->
+            notifyCustomDataReceived(data)
+        }
+
+        if (isNeedResponse) {
+            sendResponseToDevice(bluetoothHelper.getConnectedDevice(), cmd)
+        }
+    }
+
+    private fun notifyCustomDataReceived(data: ByteArray) {
+        val dataList = data.map { it.toInt() }.toList()
+
+        val eventData = mapOf<String, Any>(
+            EventChannelConstants.KEY_CUSTOM_DATA to dataList
+        )
+
+        sendEvent(
+            EventChannelConstants.TYPE_CUSTOM_DATA_UPDATE,
+            eventData
+        )
+    }
+
+    private fun sendResponseToDevice(device: BluetoothDevice?, cmd: CustomCmd) {
+        val responseData = generateResponseData(cmd)
+        bluetoothHelper.writeDataToDevice(device,responseData)
+    }
+
+    private fun generateResponseData(cmd: CustomCmd): ByteArray {
+        return byteArrayOf()
+    }
+
+    private val CommandBase<*, *>.isResponseRequired: Boolean
+        get() = type == CommandBase.FLAG_HAVE_PARAMETER_AND_RESPONSE ||
+                type == CommandBase.FLAG_NO_PARAMETER_AND_RESPONSE
 }

@@ -83,12 +83,24 @@ class _DeviceFilterDialogState extends State<DeviceFilterDialog> {
   }
 
   Widget _buildButtons(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        FilterCancelButton(onPressed: () => {if (context.mounted) Navigator.pop(context)}),
+        _buildFilterButton(
+          label: loc.cancel,
+          textColor: FilterConstants.textColor,
+          fontFamily: FilterConstants.fontFamily,
+          onPressed: () {
+            if (context.mounted) Navigator.pop(context);
+          },
+        ),
         Container(width: FilterConstants.dividerHeight, height: FilterConstants.buttonDividerHeight, color: FilterConstants.dividerColor),
-        FilterConfirmButton(
+        _buildFilterButton(
+          label: loc.confirm,
+          textColor: FilterConstants.confirmButtonColor,
+          fontFamily: 'PingFang SC',
           onPressed: () {
             if (mounted) {
               widget.onFilterChanged(_controller.text);
@@ -98,6 +110,25 @@ class _DeviceFilterDialogState extends State<DeviceFilterDialog> {
           },
         ),
       ],
+    );
+  }
+
+  /// Build a common filter button widget
+  Widget _buildFilterButton({required String label, required Color textColor, required String fontFamily, required VoidCallback onPressed}) {
+    return Expanded(
+      child: InkWell(
+        onTap: onPressed,
+        splashColor: Colors.transparent,
+        highlightColor: Colors.transparent,
+        child: Container(
+          height: AppConstants.dialogButtonHeight,
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: textColor, fontFamily: fontFamily),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -142,58 +173,6 @@ class FilterTextField extends StatelessWidget {
         fillColor: FilterConstants.textFieldColor,
         hintText: AppLocalizations.of(context)!.pleaseSetFilter,
         border: InputBorder.none,
-      ),
-    );
-  }
-}
-
-/// Cancel button for filter dialog
-class FilterCancelButton extends StatelessWidget {
-  final VoidCallback onPressed;
-
-  const FilterCancelButton({super.key, required this.onPressed});
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: InkWell(
-        onTap: onPressed,
-        splashColor: Colors.transparent, // 去除水波纹效果
-        highlightColor: Colors.transparent, // 去除高亮效果
-        child: Container(
-          height: AppConstants.dialogButtonHeight,
-          alignment: Alignment.center,
-          child: Text(
-            AppLocalizations.of(context)!.cancel,
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: FilterConstants.textColor, fontFamily: FilterConstants.fontFamily),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Confirm button for filter dialog
-class FilterConfirmButton extends StatelessWidget {
-  final VoidCallback onPressed;
-
-  const FilterConfirmButton({super.key, required this.onPressed});
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: InkWell(
-        onTap: onPressed,
-        splashColor: Colors.transparent, // 去除水波纹效果
-        highlightColor: Colors.transparent, // 去除高亮效果
-        child: Container(
-          height: AppConstants.dialogButtonHeight,
-          alignment: Alignment.center,
-          child: Text(
-            AppLocalizations.of(context)!.confirm,
-            style: TextStyle(color: FilterConstants.confirmButtonColor, fontSize: 15, fontWeight: FontWeight.bold, fontFamily: 'PingFang SC'),
-          ),
-        ),
       ),
     );
   }

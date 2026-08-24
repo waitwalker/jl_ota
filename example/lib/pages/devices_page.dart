@@ -308,10 +308,9 @@ class _DevicesPageState extends State<DevicesPage> with WidgetsBindingObserver {
     }
   }
 
-  /// Start scanning for Bluetooth devices with a 3-second timeout
+  /// Start scanning for Bluetooth devices
   void _startScan() async {
-    if (!mounted) return;
-    await BleMethod.startScan(timeout: const Duration(seconds: 3));
+    await BleMethod.startScan();
   }
 
   /// Init data

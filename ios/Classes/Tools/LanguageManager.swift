@@ -7,6 +7,12 @@ import DFUnits
 //  Created by 李放 on 2025/9/4.
 //
 
+struct LanguageManagerConstants {
+    static let languageChineseSimplified = "zh-Hans"
+    static let languageKorean = "ko"
+    static let languageEnglish = "en"
+}
+
 /// Application Language Manager
 enum LanguageManager {
     static var currentLanguage: String {
@@ -19,12 +25,12 @@ enum LanguageManager {
     
     static func setupAppLanguage() {
         let systemLang = currentLanguage
-        if systemLang.hasPrefix("zh-Hans") {
-            setLanguage("zh-Hans")
-        } else if systemLang.hasPrefix("ko") {
-            setLanguage("ko")
+        if systemLang.hasPrefix(LanguageManagerConstants.languageChineseSimplified) {
+            setLanguage(LanguageManagerConstants.languageChineseSimplified)
+        } else if systemLang.hasPrefix(LanguageManagerConstants.languageKorean) {
+            setLanguage(LanguageManagerConstants.languageKorean)
         } else {
-            setLanguage("en")
+            setLanguage(LanguageManagerConstants.languageEnglish)
         }
     }
 }

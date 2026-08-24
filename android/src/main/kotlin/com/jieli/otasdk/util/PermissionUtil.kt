@@ -16,19 +16,13 @@ import permissions.dispatcher.PermissionUtils
 object PermissionUtil {
 
     /**
-     * 应用是否具有位置权限。
-     *
-     * 本插件的 `BLUETOOTH_SCAN` 未声明 `neverForLocation`，Android 12+ 仍必须持有定位权限，
-     * 否则系统会让扫描成功启动但回调空结果。
+     * 应用是否具有位置权限
      *
      * @param context Context 上下文
      * @return Boolean 结果
      */
     fun hasLocationPermission(context: Context): Boolean {
-        return PermissionUtils.hasSelfPermissions(
-            context,
-            Manifest.permission.ACCESS_FINE_LOCATION
-        ) || PermissionUtils.hasSelfPermissions(context, Manifest.permission.ACCESS_COARSE_LOCATION)
+        return PermissionUtils.hasSelfPermissions(context, Manifest.permission.ACCESS_FINE_LOCATION)
     }
 
     /**
@@ -70,8 +64,7 @@ object PermissionUtil {
     }
 
     /**
-     * 手机系统是否开启位置服务。
-     * 未声明 neverForLocation 时，定位服务关闭会导致 BLE 扫描结果为空。
+     * 手机系统是否开启位置服务
      *
      * @param context Context 上下文
      * @return Boolean 结果
