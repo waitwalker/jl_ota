@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:developer';
+import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -210,6 +211,11 @@ class _UpdatePageState extends State<UpdatePage> {
                         setState(() {
                           _selectedFilePath = filePath;
                         });
+                        if (filePath != null && filePath.isNotEmpty) {
+                          _logSelectedFile(filePath);
+                        } else {
+                          log('【文件取消】已取消选中固件文件', name: 'JL_OTA');
+                        }
                       },
                       onFileLongPressed: _showLongClickPopupMenu,
                       popupMenuManager: _popupMenuManager,
@@ -251,6 +257,23 @@ class _UpdatePageState extends State<UpdatePage> {
     );
   }
 
+  /// 打印选中的固件文件信息（大小以 KB 为单位）
+  void _logSelectedFile(String filePath) {
+    try {
+      final file = File(filePath);
+      final fileName = filePath.split(Platform.pathSeparator).last;
+      if (file.existsSync()) {
+        final int bytes = file.lengthSync();
+        final double kb = bytes / 1024.0;
+        log('【固件文件】名称: $fileName | 大小: ${kb.toStringAsFixed(1)} KB ($bytes Bytes) | 路径: $filePath', name: 'JL_OTA');
+      } else {
+        log('【固件文件】名称: $fileName | 路径: $filePath (文件不存在)', name: 'JL_OTA');
+      }
+    } catch (e) {
+      log('【固件文件】读取文件信息异常: $e', name: 'JL_OTA');
+    }
+  }
+
   @override
   void dispose() {
     _popupMenuManager.removeAddFilePopupMenu();
@@ -274,6 +297,9 @@ class _UpdatePageState extends State<UpdatePage> {
     setState(() {
       _isOtaStarted = true;
     });
+    if (_selectedFilePath != null && _selectedFilePath!.isNotEmpty) {
+      _logSelectedFile(_selectedFilePath!);
+    }
     await BleMethod.startOTA(_selectedFilePath!);
   }
 
@@ -329,7 +355,7 @@ class _UpdatePageState extends State<UpdatePage> {
     }
   }
 
-  _enterQrcodePage() {
+  void _enterQrcodePage() {
     Navigator.push(
       context,
       MaterialPageRoute(
