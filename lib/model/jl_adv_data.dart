@@ -1,5 +1,3 @@
-import 'dart:developer';
-
 /// 杰理设备广播数据模型类
 ///
 /// 包含杰理 BLE 广播包中解析出的厂商自定义数据、设备状态、UID/PID 及校验信息。
@@ -164,26 +162,27 @@ class JlAdvData {
     final bytes = _hexToBytes(rawHex);
     if (bytes == null || bytes.isEmpty) return null;
 
-    // 1. 长度不足 10 字节：不按 mix 协议解析，仅打印日志
-    if (bytes.length < 10) {
-      log('[JieLi Adv] 厂商数据长度不足 10 字节 (${bytes.length} Bytes): $rawHex，跳过 mix 结构体解析', name: 'JlAdvData');
+    // 确定 payload 起始偏移量 offset：
+    // 情况 A：包含 2 字节 CompanyID/UID 头部（如 1225... 开头，bytes[2] 为 version，bytes[3] 为 connApp）
+    // 情况 B：纯 payload（bytes[0] 为 version，bytes[1] 为 connApp）
+    int offset = 0;
+    if (bytes.length >= 12 && bytes[2] >= 1 && (bytes[3] == JlMixManufacture.connFemaleApp || bytes[3] == JlMixManufacture.connMaleApp)) {
+      offset = 2; // 跳过前 2 字节 Company ID
+    } else if (bytes.length >= 10 && bytes[0] >= 1 && (bytes[1] == JlMixManufacture.connFemaleApp || bytes[1] == JlMixManufacture.connMaleApp)) {
+      offset = 0;
+    } else {
+      // 头部校验不符合 mix 协议规范
       return null;
     }
 
-    // 2. 校验协议头部合法性
-    final int version = bytes[0];
-    final int connApp = bytes[1];
+    if (bytes.length - offset < 10) return null;
 
-    if (version < 1 || (connApp != JlMixManufacture.connFemaleApp && connApp != JlMixManufacture.connMaleApp)) {
-      log('[JieLi Adv] 厂商数据头部校验失败 (version: $version, connApp: $connApp, rawHex: $rawHex)', name: 'JlAdvData');
-      return null;
-    }
-
-    // 3. 校验通过：小端序解析 10 字节
-    final int productID = bytes[2] | (bytes[3] << 8);
-    final int variantID = bytes[4] | (bytes[5] << 8);
-    final int groupProductID = bytes[6] | (bytes[7] << 8);
-    final int groupVariantID = bytes[8] | (bytes[9] << 8);
+    final int version = bytes[offset];
+    final int connApp = bytes[offset + 1];
+    final int productID = bytes[offset + 2] | (bytes[offset + 3] << 8);
+    final int variantID = bytes[offset + 4] | (bytes[offset + 5] << 8);
+    final int groupProductID = bytes[offset + 6] | (bytes[offset + 7] << 8);
+    final int groupVariantID = bytes[offset + 8] | (bytes[offset + 9] << 8);
 
     return JlMixManufacture(
       protocolVersion: version,

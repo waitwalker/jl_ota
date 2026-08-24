@@ -40,7 +40,7 @@ class MethodChannelHandler: NSObject {
     func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         switch call.method {
         case MethodChannelConstants.METHOD_START_SCAN:
-            startScan(result: result)
+            startScan(call: call, result: result)
         case MethodChannelConstants.METHOD_STOP_SCAN:
             stopScan(result: result)
         case MethodChannelConstants.METHOD_CONNECT_DEVICE:
@@ -96,9 +96,13 @@ class MethodChannelHandler: NSObject {
         }
     }
     
+    private var scanTimer: Timer?
+
     /// Starts scanning for Bluetooth devices
-    /// - Parameter result: Flutter result callback
-    private func startScan(result: @escaping FlutterResult) {
+    /// - Parameters:
+    ///   - call: Flutter method call
+    ///   - result: Flutter result callback
+    private func startScan(call: FlutterMethodCall, result: @escaping FlutterResult) {
         if (!JLBleHandler.share().handleGetBleStatus()) {
             result(FlutterError(code: "BLE_NOT_AVAILABLE", message: "Bluetooth not available", details: nil))
             return
@@ -106,12 +110,35 @@ class MethodChannelHandler: NSObject {
         
         // 开始扫描
         JLBleHandler.share().handleScanDevice()
+
+        // 处理超时定时器
+        scanTimer?.invalidate()
+        scanTimer = nil
+        var timeoutMs: Double?
+        if let arguments = call.arguments as? [String: Any] {
+            if let ms = arguments["timeout"] as? Double {
+                timeoutMs = ms
+            } else if let msInt = arguments["timeout"] as? Int {
+                timeoutMs = Double(msInt)
+            }
+        }
+
+        if let ms = timeoutMs, ms > 0 {
+            let interval = ms / 1000.0
+            DispatchQueue.main.async { [weak self] in
+                self?.scanTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: false) { _ in
+                    JLBleHandler.share().handleStopScanDevice()
+                }
+            }
+        }
         result(true)
     }
     
     /// Stops scanning for Bluetooth devices
     /// - Parameter result: Flutter result callback
     private func stopScan(result: @escaping FlutterResult) {
+        scanTimer?.invalidate()
+        scanTimer = nil
         // 停止扫描
         JLBleHandler.share().handleStopScanDevice()
         result(true)

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/services.dart';
 import 'constant/ble_method_constants.dart';
 
@@ -29,10 +30,22 @@ class BleMethod {
     }
   }
 
+  static Timer? _scanTimeoutTimer;
+
   // 开始扫描
-  static Future<void> startScan() async {
+  /// - [timeout]：扫描超时时长（如 `Duration(seconds: 15)`）。超时后自动调用 [stopScan]。若为 null 则按平台默认行为或持续扫描。
+  /// - [timeoutMs]：可选的毫秒级超时参数，优先级高于 [timeout]。
+  static Future<void> startScan({Duration? timeout, int? timeoutMs}) async {
     try {
-      await _methodChannel.invokeMethod(BleMethodConstants.METHOD_START_SCAN);
+      final int? effectiveTimeoutMs = timeoutMs ?? timeout?.inMilliseconds;
+      await _methodChannel.invokeMethod(BleMethodConstants.METHOD_START_SCAN, effectiveTimeoutMs != null ? {'timeout': effectiveTimeoutMs} : null);
+
+      _scanTimeoutTimer?.cancel();
+      if (effectiveTimeoutMs != null && effectiveTimeoutMs > 0) {
+        _scanTimeoutTimer = Timer(Duration(milliseconds: effectiveTimeoutMs), () {
+          stopScan();
+        });
+      }
     } on PlatformException catch (e) {
       print("Failed to start scan: ${e.message}");
       rethrow;
@@ -41,6 +54,8 @@ class BleMethod {
 
   // 停止扫描
   static Future<void> stopScan() async {
+    _scanTimeoutTimer?.cancel();
+    _scanTimeoutTimer = null;
     try {
       await _methodChannel.invokeMethod(BleMethodConstants.METHOD_STOP_SCAN);
     } on PlatformException catch (e) {

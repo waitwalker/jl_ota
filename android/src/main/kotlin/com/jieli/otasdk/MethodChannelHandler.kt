@@ -53,7 +53,7 @@ class MethodChannelHandler(
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
             MethodChannelConstants.METHOD_IS_SCANNING -> result.success(connectVM.isScanning())
-            MethodChannelConstants.METHOD_START_SCAN -> startScan(result)
+            MethodChannelConstants.METHOD_START_SCAN -> startScan(call, result)
             MethodChannelConstants.METHOD_STOP_SCAN -> stopScan(result)
             MethodChannelConstants.METHOD_GET_SCAN_FILTER -> result.success(connectVM.getScanFilter())
             MethodChannelConstants.METHOD_SET_SCAN_FILTER -> setScanFilter(call, result)
@@ -91,7 +91,7 @@ class MethodChannelHandler(
         }
     }
 
-    private fun startScan(result: MethodChannel.Result) {
+    private fun startScan(call: MethodCall, result: MethodChannel.Result) {
         val checkResult = BluetoothEnvironmentChecker.checkBluetoothEnvironment(activity)
 
         if (!checkResult.hasBluetoothPermission || !checkResult.hasLocationPermission) {
@@ -112,7 +112,8 @@ class MethodChannelHandler(
             return
         }
 
-        connectVM.startScan()
+        val timeout = (call.argument<Number>("timeout")?.toLong()) ?: OtaConstant.SCAN_TIMEOUT
+        connectVM.startScan(timeout)
         result.success(true)
     }
 

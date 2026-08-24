@@ -218,12 +218,40 @@ class _DevicesPageState extends State<DevicesPage> with WidgetsBindingObserver {
     }).toList();
   }
 
+  /// 判断设备是否满足当前的过滤条件（快捷按钮或搜索框输入）
+  bool _matchesFilter(ScanDevice device) {
+    final devName = device.name.toLowerCase();
+    final bleName = device.advData?.bleName?.toLowerCase() ?? '';
+
+    // 1. 应用快捷按钮过滤（如果选中了快捷过滤标签）
+    if (_selectedQuickFilters.isNotEmpty) {
+      final matchesQuick = _selectedQuickFilters.any((filter) {
+        final target = filter.toLowerCase();
+        return devName.contains(target) || bleName.contains(target);
+      });
+      if (!matchesQuick) return false;
+    }
+
+    // 2. 应用搜索输入框文本过滤
+    if (_filterContent.isNotEmpty) {
+      final query = _filterContent.toLowerCase();
+      if (!devName.contains(query) && !bleName.contains(query)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   /// Subscribe to scan list changes
   void _subscribeToScanListStream() {
     _scanSubscription =
         BleEventStream.scanDeviceListStream.listen((devices) {
               final deviceList = convertToScanDeviceList(devices);
               for (final dev in deviceList) {
+                // 仅打印满足当前过滤条件的设备日志，避免被周围无关设备刷屏
+                if (!_matchesFilter(dev)) continue;
+
                 final adv = dev.advData;
                 log(
                   '【1. 扫描设备】Name: ${dev.name} | Desc: ${dev.description} | '
@@ -280,10 +308,10 @@ class _DevicesPageState extends State<DevicesPage> with WidgetsBindingObserver {
     }
   }
 
-  /// Start scanning for Bluetooth devices
+  /// Start scanning for Bluetooth devices with a 15-second timeout
   void _startScan() async {
     if (!mounted) return;
-    await BleMethod.startScan();
+    await BleMethod.startScan(timeout: const Duration(seconds: 15));
   }
 
   /// Init data
@@ -351,32 +379,8 @@ class _DevicesPageState extends State<DevicesPage> with WidgetsBindingObserver {
       }
     }
 
-    // Convert back to list
-    var filtered = uniqueDevices.values.toList();
-
-    // 1. 应用快捷按钮过滤（如果选中了快捷过滤标签）
-    if (_selectedQuickFilters.isNotEmpty) {
-      filtered = filtered.where((device) {
-        final devName = device.name.toLowerCase();
-        final bleName = device.advData?.bleName?.toLowerCase() ?? '';
-        return _selectedQuickFilters.any((filter) {
-          final target = filter.toLowerCase();
-          return devName.contains(target) || bleName.contains(target);
-        });
-      }).toList();
-    }
-
-    // 2. 应用搜索输入框文本过滤
-    if (_filterContent.isNotEmpty) {
-      filtered = filtered.where((device) {
-        final devName = device.name.toLowerCase();
-        final bleName = device.advData?.bleName?.toLowerCase() ?? '';
-        final query = _filterContent.toLowerCase();
-        return devName.contains(query) || bleName.contains(query);
-      }).toList();
-    }
-
-    return filtered;
+    // Convert back to list and apply filter criteria
+    return uniqueDevices.values.where(_matchesFilter).toList();
   }
 
   /// Handle filter content changes

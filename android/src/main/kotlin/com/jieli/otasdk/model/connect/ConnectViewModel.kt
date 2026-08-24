@@ -104,13 +104,13 @@ class ConnectViewModel private constructor() : BluetoothViewModel() {
 
     fun isScanning(): Boolean = bluetoothHelper.isScanning()
 
-    fun startScan() {
+    fun startScan(timeout: Long = OtaConstant.SCAN_TIMEOUT) {
         if (!BluetoothUtil.isBluetoothEnable()) {
             AppUtil.enableBluetooth(getContext())
             return
         }
         if (isScanning()) return
-        bluetoothHelper.startScan(OtaConstant.SCAN_TIMEOUT)
+        bluetoothHelper.startScan(timeout)
     }
 
     fun stopScan() {
