@@ -21,6 +21,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property (assign, nonatomic) uint8_t mType;
 @property (assign, nonatomic) uint16_t pid;
 @property (assign, nonatomic) uint16_t uid;
+@property (strong, nonatomic, nullable) NSDictionary *advInfo;
 
 @end
 

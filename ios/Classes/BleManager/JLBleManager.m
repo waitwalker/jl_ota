@@ -238,6 +238,9 @@
         NSString *ble_uuid  = peripheral.identifier.UUIDString;
         if ([info_uuid isEqualToString:ble_uuid]) {
             bleEntity.mRSSI = rssi;
+            if (info != nil) {
+                bleEntity.advInfo = info;
+            }
             flag = 1;
             break;
         }
@@ -248,6 +251,7 @@
         bleEntity.mRSSI = rssi;
         bleEntity.mType = [info[@"TYPE"] intValue];
         bleEntity.edrMacAddress = info[@"EDR"];
+        bleEntity.advInfo = info;
         kJLLog(JLLOG_DEBUG, @"type:%d,name:%@",[info[@"TYPE"] intValue],name);
         bleEntity.mPeripheral = peripheral;
         [_blePeripheralArr addObject:bleEntity];

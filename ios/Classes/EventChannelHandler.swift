@@ -297,16 +297,42 @@ class EventChannelHandler: NSObject, FlutterStreamHandler {
         return false
     }
     
+    /// Gets device broadcast advertisement data dictionary
+    private func getDeviceAdvData(_ device: Any) -> [String: Any]? {
+        var rawInfo: [String: Any]?
+        if let entity = device as? JLBleEntity {
+            rawInfo = entity.advInfo as? [String: Any]
+        }
+        guard let info = rawInfo else { return nil }
+
+        var advData: [String: Any] = [:]
+        advData["manufacturer_data"] = info["ADVDATA"] ?? ""
+        advData["ble_name"] = info["BLE_NAME"] ?? ""
+        advData["edr"] = info["EDR"] ?? ""
+        advData["is_bound"] = (info["ISBOUND"] as? NSNumber)?.boolValue ?? (info["ISBOUND"] as? Int == 1)
+        advData["is_charging"] = (info["ISCHARGING"] as? NSNumber)?.boolValue ?? (info["ISCHARGING"] as? Int == 1)
+        advData["is_linked"] = (info["ISLINKED"] as? NSNumber)?.boolValue ?? (info["ISLINKED"] as? Int == 1)
+        advData["is_ok"] = (info["ISOK"] as? NSNumber)?.boolValue ?? (info["ISOK"] as? Int == 1)
+        advData["pid"] = info["PID"] != nil ? "\(info["PID"]!)" : ""
+        advData["power"] = (info["POWER"] as? NSNumber)?.intValue ?? 0
+        advData["type"] = (info["TYPE"] as? NSNumber)?.intValue ?? Int("\(info["TYPE"] ?? "-1")") ?? -1
+        advData["uid"] = (info["UID"] as? NSNumber)?.intValue ?? Int("\(info["UID"] ?? "0")") ?? 0
+        return advData
+    }
+
     /// Converts device list to dictionary format for Flutter consumption
     private func convertDeviceListToDictionary() -> [[String: Any]] {
         var deviceList: [[String: Any]] = []
         
         for item in btEnityList {
-            let deviceInfo: [String: Any] = [
+            var deviceInfo: [String: Any] = [
                 EventChannelConstants.KEY_NAME: getDeviceName(item),
                 EventChannelConstants.KEY_DESC: getDeviceDesc(item),
                 EventChannelConstants.KEY_STATUS: getDeviceStatus(item)
             ]
+            if let advData = getDeviceAdvData(item) {
+                deviceInfo["adv_data"] = advData
+            }
             
             deviceList.append(deviceInfo)
         }

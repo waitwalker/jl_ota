@@ -162,7 +162,11 @@ class _DevicesPageState extends State<DevicesPage> with WidgetsBindingObserver {
   void _subscribeToScanListStream() {
     _scanSubscription =
         BleEventStream.scanDeviceListStream.listen((devices) {
-              setState(() => _devices = convertToScanDeviceList(devices));
+              final deviceList = convertToScanDeviceList(devices);
+              for (final dev in deviceList) {
+                log('Device: ${dev.name}, AdvData: ${dev.advData}');
+              }
+              setState(() => _devices = deviceList);
             })
             as StreamSubscription<List<ScanDevice>>?;
   }

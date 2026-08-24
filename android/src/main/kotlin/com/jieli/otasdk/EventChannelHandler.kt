@@ -23,6 +23,7 @@ import com.jieli.otasdk.util.FileUtil
 import com.jieli.jl_bt_ota.constant.ErrorCode
 import com.jieli.jl_bt_ota.constant.JL_Constant
 import com.jieli.jl_bt_ota.util.BluetoothUtil
+import com.jieli.jl_bt_ota.util.CHexConver
 import com.jieli.jl_bt_ota.util.JL_Log
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.plugin.common.EventChannel
@@ -203,12 +204,23 @@ class EventChannelHandler(private val activity: Activity) : EventChannel.StreamH
         sendEvent(EventChannelConstants.TYPE_DOWNLOAD_STATUS, eventMap)
     }
 
-    private fun deviceToMap(item: ScanDevice) =
-        mapOf(
+    private fun deviceToMap(item: ScanDevice): Map<String, Any?> {
+        val rawHex = if (item.data != null && item.data!!.isNotEmpty()) {
+            CHexConver.byte2HexStr(item.data)
+        } else {
+            ""
+        }
+        val advData = mutableMapOf<String, Any?>()
+        advData["manufacturer_data"] = rawHex
+        advData["ble_name"] = item.device.name ?: ""
+
+        return mapOf(
             EventChannelConstants.KEY_NAME to DeviceUtil.getDeviceName(activity, item.device),
             EventChannelConstants.KEY_DESC to DeviceUtil.getDeviceDesc(item),
-            EventChannelConstants.KEY_STATUS to item.isDevConnected()
+            EventChannelConstants.KEY_STATUS to item.isDevConnected(),
+            "adv_data" to advData
         )
+    }
 
     @SuppressLint("MissingPermission")
     private fun isValidDevice(scanDevice: ScanDevice, filterStr: String): Boolean {
