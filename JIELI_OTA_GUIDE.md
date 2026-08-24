@@ -25,6 +25,11 @@
   - [5.1 断点续传机制](#51-断点续传机制)
   - [5.2 强制升级（Force OTA / 救砖）](#52-强制升级force-ota--救砖)
   - [5.3 常见错误码及排查方向](#53-常见错误码及排查方向)
+  - [5.4 典型实战案例：绳师升级失败与 Bootloader 恢复模式广播异常](#54-典型实战案例绳师funf升级失败与-bootloader-恢复模式广播异常)
+  - [5.5 跨品类固件误刷漏洞：男用设备可刷入女用固件问题剖析与防护对策](#55-跨品类固件误刷漏洞男用设备可刷入女用固件问题剖析与防护对策)
+- [六、OTA 阶段拆解：「校验文件」到底在校验什么？](#六ota-阶段拆解校验文件到底在校验什么)
+  - [6.1 「校验文件」的 5 大核心校验维度](#61-校验文件的-5-大核心校验维度)
+- [七、源码与底层证据链索引（Code Evidence）](#七源码与底层证据链索引code-evidence)
 
 ---
 
@@ -292,3 +297,171 @@ sequenceDiagram
 | **回连超时（Timeout）** | 单备份重启后未在规定时间内扫描到回连广播 | 检查广播过滤逻辑，确认 `otaBleMacAddress` 对比方法是否正确调用。 |
 | **Hash 认证失败** | 配对密钥不匹配或未经过认证 | 确认 App 端使用的 Pair Key 是否与固件端配置的秘钥一致。 |
 | **广播解析 `ISOK = 0`** | 广播数据不完整 | 检查设备端广播包长度设置，确保未超过 31 字节上限或正确配置分包。 |
+
+---
+
+### 5.4 典型实战案例：绳师（funf）升级失败与 Bootloader 恢复模式广播异常
+
+在实际调试中，绳师（`funf`）产品升级失败后出现了一种典型的“假死/恢复模式”状态，现象与数据如下：
+
+#### 1. 问题现象
+- **硬件表现**：产品指示灯不亮，按键无主程序响应；
+- **蓝牙表现**：手机仍能正常扫描到设备（Name 依然为 `funf`），且**能够成功建立蓝牙连接**；
+- **数据异常**：广播厂商数据发生改变，导致 `mix_device` 的自定义厂商模型解析返回 `null`。
+
+#### 2. 现场证据固定（原始日志）
+
+```log
+[JL_OTA] 【1. 扫描设备】Name: funf | Desc: rssi: -64, address: 55181F07-AD88-247F-C5B2-6E3E9DB6646C | ManufacturerData: afe36a60c859004a4c4f544105d6 | AdvData: JlAdvData(manufacturerData: afe36a60c859004a4c4f544105d6, mixManufacture: null, uid: 0, pid: null, type: -1, isOk: true, isBound: true, isCharging: false, isLinked: false, power: 0, edr: null, bleName: funf)
+```
+
+#### 3. 广播数据深度对比与根因剖析
+
+| 状态 | 厂商数据 Hex | 字段结构拆解 | 解析结果 |
+| :--- | :--- | :--- | :--- |
+| **正常工作模式** | `122502009900ec00a600fc00d60508004a4c414953444b` | `12 25` (UID: 2512) + `02 00` (版本) + `99 00 ec 00 ...` (PID/VID) + `d6 05` (杰理ID) + `JLAISDK` | `mixManufacture` 正常解析，UID: 2512 |
+| **升级失败恢复模式** | `afe36a60c859004a4c4f544105d6` | `af e3 6a 60 c8 59` (6字节MAC/标识) + `00` + **`4a 4c 4f 54 41` ("JLOTA")** + `05 d6` (杰理ID) | `mixManufacture` 为 `null`，UID: 0 |
+
+**根因剖析**：
+1. **芯片退回 Bootloader 恢复区**：单备份固件写入中断后，主程序损坏，芯片自动运行 Bootloader（升级 Loader）代码；
+2. **广播格式被底层接管**：Loader 广播使用的是杰理原生标准 OTA 恢复格式，包含 **`JLOTA`**（`4A 4C 4F 54 41`）签名，而不再携带 mix 业务层的 23 字节自定义 PID/VID 结构；
+3. **因此 `mixManufacture` 解析为 `null` 是符合芯片底层机制的预期现象**。
+
+#### 4. 解决对策与实测验证（救砖与断点续传）
+- **无需硬件返厂**：只要蓝牙能搜到并能连上，说明 Bootloader 完好；
+- **基于失败后继续扫描连接升级**：保持在当前 App 中重新搜索设备并连接，再次选择 `man_02.ufw` 点击升级；
+- **升级阶段机制差异**：
+  - **正常模式升级（两阶段）**：包含【阶段一：校验文件】（比对固件头信息、分配空间、设备重启）与【阶段二：真正升级】（分包写入 Flash）；
+  - **恢复模式救砖（直接进入升级）**：由于设备已在 Loader 模式且前次已完成文件头认证，**直接跳过了「校验文件」阶段，直接进入「真正升级」阶段**，并从中断 Offset 继续写入；
+- **实测验证结果**：
+  - 触发了杰理底层**断点续传**机制，重刷全量 1.22 MB 固件**仅耗时 16 秒**（正常完整包含两阶段需 40s 左右）；
+  - 固件烧录成功重启后，设备指示灯恢复正常点亮，广播数据恢复为正常 mix 协议格式，完美救砖。
+
+---
+
+### 5.5 跨品类固件误刷漏洞：男用设备可刷入女用固件问题剖析与防护对策
+
+在实战测试中（见测试记录 #8），发现了一项重大产品逻辑与升级安全问题：**男用设备（绳师）成功刷入了女用产品固件（`woman_01.ufw`），并在重启后身份彻底变更为女用设备**。
+
+#### 1. 问题现象与现场还原
+- **原始状态**：设备为男用产品 绳师（`funf`，广播中 PID: 153, VID: 236, connApp: 0）；
+- **操作过程**：在 App 固件列表中选中女用固件 `woman_01.ufw` 并发起 OTA 升级；
+- **升级结果**：杰理底层顺利通过文件校验并完成 49 秒烧录，提示**升级成功**；
+- **异常表现**：设备重启后，广播包中的产品型号直接变更为女用（PID 由 153 变更为 152），App 再次连接后完全识别并显示为女用设备。
+
+#### 2. 升级前后现场广播铁证对比
+
+```log
+// 【升级前】男用产品 绳师（PID: 153, 0x0099）
+[JL_OTA] 【1. 扫描设备】Name: funf | ManufacturerData: 122502009900ec00a600fc00d60508004a4c414953444b | AdvData: JlAdvData(mixManufacture: JlMixManufacture(v: 2, app: 0, pid: 153, vid: 236, hid: 0, g_pid: 166, g_vid: 252))
+
+// 【升级后】设备身份彻底变为女用产品（PID: 152, 0x0098）
+[JL_OTA] 【1. 扫描设备】Name: funf | Desc: rssi: -49, address: 5B3CBF98-F618-0D19-C99E-5BE597EAA953 | ManufacturerData: 122502009800ec00a600fc00d60508004a4c414953444b | AdvData: JlAdvData(manufacturerData: 122502009800ec00a600fc00d60508004a4c414953444b, mixManufacture: JlMixManufacture(v: 2, app: 0, pid: 152, vid: 236, hid: 0, g_pid: 166, g_vid: 252), uid: 2512, pid: null, type: -1, isOk: true, isBound: false, isCharging: false, isLinked: false, power: 0, edr: null, bleName: funf)
+```
+
+| 状态 | 厂商数据 Hex | PID 字节与对应数值 | 设备属性 |
+| :--- | :--- | :--- | :--- |
+| **升级前（原机）** | `12250200 9900 ec00 ...` | `99 00` (小端 `0x0099` = **153**) | **男用产品（绳师）** |
+| **升级后（刷入女用固件）** | `12250200 9800 ec00 ...` | `98 00` (小端 `0x0098` = **152**) | **女用产品** |
+
+#### 3. 技术根因深度剖析
+1. **固件底层仅校验了芯片型号与厂商 UID**：
+   - 杰理芯片 Bootloader 在执行阶段一（文件校验）时，主要比对目标芯片（如 AC695N）与客户厂商识别码（`UID: 2512`）；
+   - 由于男用与女用固件均基于相同的硬件芯片平台并使用了相同的客户 UID（2512），底层芯片认为这是“同厂商合法固件”，从而允许写入。
+2. **固件端打包工具未开启 PID 强互锁**：
+   - 在固件打包工具（`isd_tools`）中，未将男用 PID 与女用 PID 设置为互斥签名，未限制跨 PID 升级。
+3. **App 客户端未做品类/型号强拦截**：
+   - App 侧仅依据文件后缀（`.ufw`）展示固件列表，在点击“开始升级”前，未比对「当前已连设备的 PID/品类」与「固件文件对应的目标 PID/品类」。
+
+#### 4. 三道防线：全链路（App + 服务端 + 固件）防护与修复对策
+
+```text
+  ┌─────────────────────────────────┐
+  │ App 客户端校验 (第一道防线)     │
+  │ • 比对设备 PID 与固件目标 PID   │
+  │ • 跨品类/跨性别直接弹窗拦截     │
+  └────────────────┬────────────────┘
+                   │ 通过
+                   ▼
+  ┌─────────────────────────────────┐
+  │ 服务端/云端管控 (第二道防线)    │
+  │ • 固件发布与 product_id 强关联  │
+  │ • 仅下发匹配当前设备的固件 URL   │
+  └────────────────┬────────────────┘
+                   │ 通过
+                   ▼
+  ┌─────────────────────────────────┐
+  │ 固件 Bootloader (第三道防线)    │
+  │ • isd_tools 配置固件 PID 互锁   │
+  │ • 跨 PID 校验返回 0x4002 错误   │
+  └─────────────────────────────────┘
+```
+
+1. **第一道防线：App 客户端拦截（即时生效，重点实施）**：
+   - **广播数据解析与型号识别**：在 [jl_adv_data.dart](file:///Volumes/T9/work/jl_ota/lib/model/jl_adv_data.dart#L152-L298) 中，`JlMixManufacture` 准确解析出广播中的 `productID`、`variantID`、`connApp`，提供给上层业务；
+   - **UI 固件列表过滤与弹窗拦截**：在 [update_page.dart](file:///Volumes/T9/work/jl_ota/example/lib/pages/update_page.dart#L231-L240) 的升级按钮触发处及 [update_page.dart:L296-L311](file:///Volumes/T9/work/jl_ota/example/lib/pages/update_page.dart#L296-L311) 的 `_startOTA` / `_handleStartOta` 入口，比对当前连接设备的 `mixManufacture.productID` / `connApp` 与选中固件包；若男用设备（`man`）选中了女用固件（`woman`），立即弹窗拦截并终止操作。
+2. **第二道防线：云端 / 服务端固件版本与设备型号管控（`server-rs` 架构协同）**：
+   - 结合服务端 [server-rs](file:///Users/waitwalker/Downloads/server-rs) 项目的设备管理与固件分发体系：
+     - **领域模型与通讯协议**：在 [device.rs](file:///Users/waitwalker/Downloads/server-rs/gateway/remote-gateway/src/domain/session/user/device.rs#L7-L17) 及 [model.proto](file:///Users/waitwalker/Downloads/server-rs/gateway/remote-gateway/proto/remote/v1/model.proto#L7-L24) 中严格定义了 `RemoteDevice` 的 `product_id` (PID)、`variant_id` (VID)、`group_product_id` (g_pid)，作为全系统统一的设备型号标识；
+     - **固件管理与灰度分发数据库**：在运营管理表 [op_admin--2026-3-2.sql](file:///Users/waitwalker/Downloads/server-rs/docs/legacy_database/op_admin--2026-3-2.sql#L856-L876) (`os_product_firmware`)、[monsterpub--2026-3-2.sql](file:///Users/waitwalker/Downloads/server-rs/docs/legacy_database/monsterpub--2026-3-2.sql#L1084-L1097) (`firmware_infos`) 及 [monsterpub_base--2026-3-2.sql](file:///Users/waitwalker/Downloads/server-rs/docs/legacy_database/monsterpub_base--2026-3-2.sql#L467-L500) (`common_app_firmware`) 中，固件版本必须与 `product_id` / `hardware_id` 强绑定，云端仅向对应 PID 的设备下发匹配的固件下载 URL 与灰度策略，杜绝跨型号下发。
+3. **第三道防线：固件 Bootloader 校验（底层兜底保障）**：
+   - 在固件打包发布脚本（`isd_tools`）中严格配置固件签名与 Target PID 互斥绑定；
+   - 固件校验阶段当检测到目标 PID 与当前运行 PID 不一致时，直接向 App 返回校验失败错误码（如 `0x4002`），防止任何第三方工具误刷。
+
+---
+
+## 六、OTA 阶段拆解：「校验文件」到底在校验什么？
+
+在杰理官方 OTA 交互协议中，升级过程严格区分为 **阶段一：校验文件（Preparing / Checking File）** 与 **阶段二：真正升级（Upgrading / Data Flashing）**。
+
+### 6.1 「校验文件」的 5 大核心校验维度
+
+```text
+                  App 发送固件头信息 (Header Info)
+  ┌───────────────────────────────────────────────────────────────┐
+  │  1. 固件魔数 (Magic)  │ 2. 芯片型号 (Chip) │ 3. PID & VID     │
+  │  4. 固件大小 (Size)   │ 5. 全局 CRC32      │ 6. 目标版本号     │
+  └───────────────────────────────────────────────────────────────┘
+                                 │
+                                 ▼ 设备底层逐项比对
+```
+
+1. **芯片架构与硬件型号校验（Chip Architecture）**：
+   - 检查固件编译的目标芯片（如 AC695N、AC696N、AC701N、JL7016 等）是否与当前物理芯片一致；
+   - **作用**：防止将不匹配芯片的固件写入，导致硬件彻底烧毁或死砖。
+2. **客户厂商 UID 与产品 PID/VID 匹配（Product & Vendor Matching）**：
+   - 检查固件内的厂商识别码（如 `UID: 2512`）与产品型号 `PID/VID` 是否与当前设备一致；
+   - **作用**：防止同芯片平台下的其他产品固件误刷入。
+3. **固件完整性与全局 CRC32 校验（File Integrity & Global CRC32）**：
+   - App 会发送固件的**文件总长度（File Size）**与**全量 CRC32 校验和**；
+   - **作用**：确保固件在网络下载或手机存储中无任何字节损坏、缺失或篡改。
+4. **Flash 分区空间与单/双备份模式匹配（Flash Space & Bank Mode）**：
+   - 设备比对固件体积是否小于 Flash 中分配的 OTA 写入扇区上限；
+   - **作用**：确认 Flash 空间充足，并在单备份模式下通知芯片重启进入 Update Loader。
+5. **版本号与防降级策略（Firmware Version & Anti-Rollback）**：
+   - 读取目标固件版本号与当前运行版本对比；
+   - **作用**：根据固件端策略决定是否允许同版本覆盖、跨版本升级或拦截非法降级。
+
+---
+
+## 七、源码与底层证据链索引（Code Evidence）
+
+以下为本项目（App 客户端）、杰理官方 SDK 及服务端（`server-rs`）中支持上述机制的源码与数据字典实现位置：
+
+| 平台 / 模块 | 源码文件链接 | 对应行号 | 核心证据与实现内容 |
+| :--- | :--- | :--- | :--- |
+| **App 协议解析** | [jl_adv_data.dart](file:///Volumes/T9/work/jl_ota/lib/model/jl_adv_data.dart#L152-L298) | L152-L298 | mix_device 厂商广播解析：小端序提取 `productID`、`variantID`、`connApp`、`groupProductID`。 |
+| **App 升级控制** | [update_page.dart](file:///Volumes/T9/work/jl_ota/example/lib/pages/update_page.dart#L231-L311) | L231-L311 | OTA 触发入口、固件选择过滤与升级前品类拦截检测（`_handleStartOta`、`_startOTA`）。 |
+| **App 表现层** | [ota_dialog.dart](file:///Volumes/T9/work/jl_ota/example/lib/dialog/ota_dialog.dart#L150-L165) | L150-L165 | 监听 `BleEventConstants.KEY_CHECK_FILE` 显示“校验文件中”，收到升级事件切换为“升级中”与进度条。 |
+| **App 多语言** | [app_zh.arb](file:///Volumes/T9/work/jl_ota/example/lib/l10n/app_zh.arb#L296-L297) | L296-L297 | `otaCheckFile`: "校验文件中", `otaUpgrading`: "升级中"。 |
+| **iOS 原生层** | [OtaManager.swift](file:///Volumes/T9/work/jl_ota/ios/Classes/Ota/OtaManager.swift#L272-L295) | L272-L295 | `JL_OTAResult.preparing` 映射为 `MSG_CHECKING_FILE` ("Checking file")，`JL_OTAResult.upgrading` 映射为 `MSG_UPGRADING`。 |
+| **iOS 蓝牙层** | [JLBleManager.m](file:///Volumes/T9/work/jl_ota/ios/Classes/BleManager/JLBleManager.m#L202-L207) | L202-L207 | 广播回调中从 `kCBAdvDataManufacturerData` 提取 0xFF 厂商数据作为 `ADVDATA`。 |
+| **Android 原生层** | [EventChannelConstants.kt](file:///Volumes/T9/work/jl_ota/android/src/main/kotlin/com/jieli/otasdk/data/constant/EventChannelConstants.kt#L55-L60) | L55-L60 | 定义 `MSG_CHECKING_FILE = "Checking file"` 与 `MSG_UPGRADING = "Upgrading"` 状态常量。 |
+| **服务端领域模型** | [device.rs](file:///Users/waitwalker/Downloads/server-rs/gateway/remote-gateway/src/domain/session/user/device.rs#L7-L17) | L7-L17 | `server-rs` 定义 `Device` 结构体：`product_id`、`variant_id`、`group_product_id` 领域模型。 |
+| **服务端通信协议** | [model.proto](file:///Users/waitwalker/Downloads/server-rs/gateway/remote-gateway/proto/remote/v1/model.proto#L7-L24) | L7-L24 | `server-rs` 定义 `RemoteDevice` Protobuf 协议：`product_id`、`variant_id`、`group_product_id`。 |
+| **服务端固件管理表** | [op_admin--2026-3-2.sql](file:///Users/waitwalker/Downloads/server-rs/docs/legacy_database/op_admin--2026-3-2.sql#L856-L876) | L856-L876 | `os_product_firmware` 运营后台固件分发与灰度策略表（绑定 `product_id` 与固件版本）。 |
+| **服务端固件关系表** | [monsterpub_base--2026-3-2.sql](file:///Users/waitwalker/Downloads/server-rs/docs/legacy_database/monsterpub_base--2026-3-2.sql#L467-L500) | L467-L500 | `common_app_firmware` / `common_app_firmware_relation` 固件与 App 版本关系表。 |
+| **服务端固件信息表** | [monsterpub--2026-3-2.sql](file:///Users/waitwalker/Downloads/server-rs/docs/legacy_database/monsterpub--2026-3-2.sql#L1084-L1097) | L1084-L1097 | `firmware_infos` 硬件型号与固件下载链接关联表。 |
+| **测试记录文档** | [JIELI_OTA_TEST_LOG.md](file:///Volumes/T9/work/jl_ota/JIELI_OTA_TEST_LOG.md#L83-L96) | L83-L96 | 详细记录第 6 次升级跳过校验文件、仅耗时 16s 完成断点续传救砖的真实测试数据。 |
+
+

@@ -35,7 +35,7 @@ class DevicesPage extends StatefulWidget {
 
 class _DevicesPageState extends State<DevicesPage> with WidgetsBindingObserver {
   String _filterContent = "";
-  final Set<String> _selectedQuickFilters = {};
+  final Set<String> _selectedQuickFilters = {'funf', 'MonsterPub'};
   static const List<String> _quickFilterOptions = ['funf', 'MonsterPub'];
 
   List<ScanDevice> _devices = [];
