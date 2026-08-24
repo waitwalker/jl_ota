@@ -35,6 +35,9 @@ class DevicesPage extends StatefulWidget {
 
 class _DevicesPageState extends State<DevicesPage> with WidgetsBindingObserver {
   String _filterContent = "";
+  final Set<String> _selectedQuickFilters = {};
+  static const List<String> _quickFilterOptions = ['funf', 'MonsterPub'];
+
   List<ScanDevice> _devices = [];
   bool _isLoading = true;
   static const int delayMilliseconds = 500; // 定义延迟时间为500毫秒
@@ -78,11 +81,68 @@ class _DevicesPageState extends State<DevicesPage> with WidgetsBindingObserver {
           children: [
             const SizedBox(height: 10),
             DeviceFilterWidget(filterContent: _filterContent, onFilterChanged: _handleFilterChanged),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
+            _buildQuickFilterChips(),
+            const SizedBox(height: 8),
             Expanded(
               child: ConnectListView(devices: _filteredDevices, isShowLoading: _isLoading, onTap: _handleDeviceTapped),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// 构建快捷过滤标签按钮组件
+  Widget _buildQuickFilterChips() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      alignment: Alignment.centerLeft,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: _quickFilterOptions.map((name) {
+            final isSelected = _selectedQuickFilters.contains(name);
+            return Padding(
+              padding: const EdgeInsets.only(right: 10.0),
+              child: InkWell(
+                onTap: () {
+                  setState(() {
+                    if (isSelected) {
+                      _selectedQuickFilters.remove(name);
+                    } else {
+                      _selectedQuickFilters.add(name);
+                    }
+                  });
+                  _restartScan();
+                },
+                borderRadius: BorderRadius.circular(16),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: isSelected ? const Color(0xFFEBF3FF) : const Color(0xFFF5F6F8),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: isSelected ? const Color(0xFF398BFF) : const Color(0xFFE5E7EB), width: 1),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (isSelected) ...[const Icon(Icons.check_circle_rounded, size: 14, color: Color(0xFF398BFF)), const SizedBox(width: 4)],
+                      Text(
+                        name,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                          color: isSelected ? const Color(0xFF398BFF) : const Color(0xFF555555),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
         ),
       ),
     );
@@ -164,7 +224,13 @@ class _DevicesPageState extends State<DevicesPage> with WidgetsBindingObserver {
         BleEventStream.scanDeviceListStream.listen((devices) {
               final deviceList = convertToScanDeviceList(devices);
               for (final dev in deviceList) {
-                log('Device: ${dev.name}, AdvData: ${dev.advData}');
+                final adv = dev.advData;
+                log(
+                  '【1. 扫描设备】Name: ${dev.name} | Desc: ${dev.description} | '
+                  'ManufacturerData: ${adv?.manufacturerData ?? "无"} | '
+                  'AdvData: $adv',
+                  name: 'JL_OTA',
+                );
               }
               setState(() => _devices = deviceList);
             })
@@ -186,7 +252,7 @@ class _DevicesPageState extends State<DevicesPage> with WidgetsBindingObserver {
         });
       },
       onError: (error) {
-        log("Scan state stream error: $error");
+        log("Scan state stream error: $error", name: 'JL_OTA');
       },
     );
   }
@@ -232,16 +298,16 @@ class _DevicesPageState extends State<DevicesPage> with WidgetsBindingObserver {
               (connection) async {
                 switch (connection.state) {
                   case AppConstants.connectionDisconnect:
-                    log("[device page] device connection state: ${connection.state}, disconnect");
+                    log("[JL_OTA] [设备连接] 断开连接 (state: ${connection.state})", name: 'JL_OTA');
                     break;
                   case AppConstants.connectionOK:
-                    log("[device page] device connection state: ${connection.state}, connected");
+                    log('【2. 连接成功】设备连接成功 (state: ${connection.state})', name: 'JL_OTA');
                     break;
                   case AppConstants.connectionFailed:
-                    log("[device page] device connection state: ${connection.state}, connect failed");
+                    log("[JL_OTA] [设备连接] 连接失败 (state: ${connection.state})", name: 'JL_OTA');
                     break;
                   case AppConstants.connectionConnecting:
-                    log("[device page] device connection state: ${connection.state}, connecting");
+                    log("[JL_OTA] [设备连接] 正在连接...", name: 'JL_OTA');
                     break;
                   default:
                 }
@@ -286,14 +352,31 @@ class _DevicesPageState extends State<DevicesPage> with WidgetsBindingObserver {
     }
 
     // Convert back to list
-    final distinctDevices = uniqueDevices.values.toList();
+    var filtered = uniqueDevices.values.toList();
 
-    // Apply filter if needed
-    if (_filterContent.isEmpty) return distinctDevices;
+    // 1. 应用快捷按钮过滤（如果选中了快捷过滤标签）
+    if (_selectedQuickFilters.isNotEmpty) {
+      filtered = filtered.where((device) {
+        final devName = device.name.toLowerCase();
+        final bleName = device.advData?.bleName?.toLowerCase() ?? '';
+        return _selectedQuickFilters.any((filter) {
+          final target = filter.toLowerCase();
+          return devName.contains(target) || bleName.contains(target);
+        });
+      }).toList();
+    }
 
-    return distinctDevices.where((device) {
-      return device.name.toLowerCase().contains(_filterContent.toLowerCase());
-    }).toList();
+    // 2. 应用搜索输入框文本过滤
+    if (_filterContent.isNotEmpty) {
+      filtered = filtered.where((device) {
+        final devName = device.name.toLowerCase();
+        final bleName = device.advData?.bleName?.toLowerCase() ?? '';
+        final query = _filterContent.toLowerCase();
+        return devName.contains(query) || bleName.contains(query);
+      }).toList();
+    }
+
+    return filtered;
   }
 
   /// Handle filter content changes

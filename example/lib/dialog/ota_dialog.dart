@@ -61,10 +61,19 @@ class _OtaDialogState extends State<OtaDialog> {
   bool _isSuccess = false;
   StreamSubscription? _otaStateSubscription;
   bool _isLoadingDialogShowing = false;
+  DateTime? _otaStartTime;
+  DateTime? _otaEndTime;
+
+  String _formatDateTime(DateTime dt) {
+    return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} '
+        '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}:${dt.second.toString().padLeft(2, '0')}';
+  }
 
   @override
   void initState() {
     super.initState();
+    _otaStartTime = DateTime.now();
+    log('【3. 开始OTA】时间: ${_formatDateTime(_otaStartTime!)}', name: 'JL_OTA');
     _startListeningToOtaState();
   }
 
@@ -397,6 +406,28 @@ class _OtaDialogState extends State<OtaDialog> {
         case BleEventConstants.KEY_STATE_IDLE:
           _isSuccess = otaData[BleEventConstants.KEY_SUCCESS] as bool? ?? false;
           _currentMessage = otaData[BleEventConstants.KEY_MESSAGE] as String? ?? '';
+          if (_otaEndTime == null) {
+            _otaEndTime = DateTime.now();
+            final endStr = _formatDateTime(_otaEndTime!);
+            final startStr = _otaStartTime != null ? _formatDateTime(_otaStartTime!) : '未知';
+            final totalSec = _otaStartTime != null ? _otaEndTime!.difference(_otaStartTime!).inSeconds : 0;
+            final resultText = _isSuccess ? '升级成功' : '升级失败';
+            log('【4. 结束OTA】状态: $resultText | 结束时间: $endStr', name: 'JL_OTA');
+            log('【5. OTA总时间】$startStr ~ $endStr | 总耗时: $totalSec 秒', name: 'JL_OTA');
+          }
+          break;
+
+        case BleEventConstants.ERROR:
+          _isSuccess = false;
+          _currentMessage = otaData[BleEventConstants.KEY_MESSAGE] as String? ?? '';
+          if (_otaEndTime == null) {
+            _otaEndTime = DateTime.now();
+            final endStr = _formatDateTime(_otaEndTime!);
+            final startStr = _otaStartTime != null ? _formatDateTime(_otaStartTime!) : '未知';
+            final totalSec = _otaStartTime != null ? _otaEndTime!.difference(_otaStartTime!).inSeconds : 0;
+            log('【4. 结束OTA】状态: 升级异常中止 | 结束时间: $endStr', name: 'JL_OTA');
+            log('【5. OTA总时间】$startStr ~ $endStr | 总耗时: $totalSec 秒', name: 'JL_OTA');
+          }
           break;
       }
     });
