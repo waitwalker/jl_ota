@@ -69,6 +69,7 @@ let package = Package(
         "Classes/Constant/EventChannelConstants.swift",
         "Classes/Constant/LogConstants.swift",
         "Classes/Constant/MethodChannelConstants.swift",
+        "Classes/CustomCmd/CustomCmdManager.swift",
         "Classes/EventChannelHandler.swift",
         "Classes/JlOtaPlugin.swift",
         "Classes/MethodChannelHandler.swift",

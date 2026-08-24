@@ -137,8 +137,16 @@ typedef void(^JLTranslationManagerSetBlock)(JLTranslateSetResultType status,NSEr
 ///   - audioData: 处理完的音频数据
 - (void)trWriteAudio:(JLTranslateAudio *)audio TranslateData:(NSData *)audioData;
 
+
+/// 写入翻译音频，翻译完/操作完后的音频需要携带原音频的音频类型 JLTranslateAudio 进行回复
+/// 此方案是采取无交互式的下发方法，根据数据对应可能需要的播放时长来进行直接下发，可能存在风险
+/// 当前默认的时长是 20ms 42 byte 的 jlv2 压缩数据，不支持修改
+/// - Parameters:
+///   - audio: JLTranslateAudio 原返回音频类型
+///   - audioData: 处理完的音频数据
 -(void)trWriteAudioV2:(JLTranslateAudio *)audio TranslateData:(NSData *)audioData;
 
+/// 已准备好发送队列
 -(void)trSendIsRelay;
 
 /// 销毁

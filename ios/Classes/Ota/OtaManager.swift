@@ -219,76 +219,47 @@ private enum OtaConstants {
     /// Perform the file download action
     private func downloadAction(url: String) {
         // 1. Validate URL
-        guard let url = URL(string: url) else {
-            sendDownloadStatusEvent(status: EventChannelConstants.STATUS_ON_ERROR,
-                                   errorMsg: "Invalid URL")
+        guard let downloadUrl = URL(string: url) else {
+            sendDownloadStatusEvent(
+                status: EventChannelConstants.STATUS_ON_ERROR,
+                errorMsg: "Invalid URL"
+            )
             return
         }
-        
-        // 2. Create download task
-        let downloadTask = createDownloadTask(for: url)
-        
-        // 3. Start download
-        downloadTask.resume()
-    }
 
-    // MARK: - Private Download Helpers
-    private func createDownloadTask(for url: URL) -> URLSessionDownloadTask {
-        let manager = createSessionManager()
-        let request = URLRequest(url: url)
-        let fileName = extractFileName(from: url)
-        
-        return manager.downloadTask(
-            with: request,
-            progress: createProgressHandler(),
-            destination: createDestinationHandler(fileName: fileName),
-            completionHandler: createCompletionHandler()
-        )
-    }
+        let fileName = downloadUrl.lastPathComponent
+        let targetPath = ToolsHelper.targetSavePath(fileName)
 
-    /// Create the URLSession manager for handling downloads
-    private func createSessionManager() -> AFURLSessionManager {
-        let configuration = URLSessionConfiguration.default
-        return AFURLSessionManager(sessionConfiguration: configuration)
-    }
-
-    /// Extract the file name from a URL
-    private func extractFileName(from url: URL) -> String {
-        return url.lastPathComponent
-    }
-
-    /// Create the progress handler closure for tracking download progress
-    private func createProgressHandler() -> (Progress) -> Void {
-        return { [weak self] downloadProgress in
+        // 2. Create native URLSession download task
+        let session = URLSession(configuration: .default)
+        let downloadTask = session.downloadTask(with: downloadUrl) { [weak self] tempUrl, response, error in
             guard let self = self, !self.isCleanedUp else { return }
-            
-            let progress = Int(downloadProgress.fractionCompleted * Double(OtaConstants.PROGRESS_MAX_PERCENT))
-            self.sendDownloadStatusEvent(
-                status: EventChannelConstants.STATUS_ON_PROGRESS,
-                progress: progress
-            )
-        }
-    }
 
-    /// Create the destination handler closure for determining where to save the file
-    private func createDestinationHandler(fileName: String) -> (URL, URLResponse) -> URL {
-        return { targetPath, response in
-            let suggestedFilename = response.suggestedFilename ?? fileName
-            return ToolsHelper.targetSavePath(suggestedFilename)
-        }
-    }
-
-    /// Create the completion handler closure for handling download results
-    private func createCompletionHandler() -> (URLResponse, URL?, Error?) -> Void {
-        return { [weak self] response, filePath, error in
-            guard let self = self, !self.isCleanedUp else { return }
-            
             if let error = error {
                 self.handleDownloadError(error)
-            } else if filePath != nil {
+                return
+            }
+
+            guard let tempUrl = tempUrl else {
+                self.handleDownloadError(
+                    NSError(domain: "OtaManager", code: -1, userInfo: [NSLocalizedDescriptionKey: "Downloaded file is null"])
+                )
+                return
+            }
+
+            do {
+                if FileManager.default.fileExists(atPath: targetPath.path) {
+                    try FileManager.default.removeItem(at: targetPath)
+                }
+                try FileManager.default.moveItem(at: tempUrl, to: targetPath)
                 self.handleDownloadSuccess()
+            } catch {
+                self.handleDownloadError(error)
             }
         }
+
+        // 3. Start download
+        downloadTask.resume()
     }
 
     /// Handle successful download completion
