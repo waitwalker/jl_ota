@@ -176,16 +176,10 @@ class JlOtaPlugin : FlutterPlugin, ActivityAware, PluginRegistry.ActivityResultL
         permissions: Array<out String>,
         grantResults: IntArray
     ): Boolean {
-        when (requestCode) {
-            PERMISSION_REQUEST_CODE -> {
-                permissionCallback?.invoke(isPermissionRequestSatisfied(permissions, grantResults))
-                permissionCallback = null
-                return true
-            }
-            StoragePermissionHelper.REQUEST_CODE_READ_EXTERNAL_STORAGE -> {
-                storagePermissionHelper.onRequestPermissionsResult(requestCode, grantResults)
-                return true
-            }
+        if (requestCode == PERMISSION_REQUEST_CODE) {
+            permissionCallback?.invoke(isPermissionRequestSatisfied(permissions, grantResults))
+            permissionCallback = null
+            return true
         }
         return false
     }

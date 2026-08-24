@@ -329,7 +329,7 @@ class _UpdatePageState extends State<UpdatePage> {
       _openQrScanner();
     } else {
       _initializePermissions().then((_) {
-        if (_hasCameraPermission && _hasGalleryPermission) {
+        if (_hasCameraPermission) {
           if (mounted) {
             _enterQrcodePage();
           }
@@ -373,20 +373,9 @@ class _UpdatePageState extends State<UpdatePage> {
   Future<void> _initializePermissions() async {
     try {
       final cameraStatus = await Permission.camera.request();
-
-      // 根据 Android 版本请求不同的存储权限
-      PermissionStatus storageStatus;
-      if (await AppUtil.isAndroid13OrHigher()) {
-        // Android 13+ 使用新的媒体权限
-        storageStatus = await Permission.photos.request();
-      } else {
-        // Android 12及以下使用存储权限
-        storageStatus = await Permission.storage.request();
-      }
-
       setState(() {
         _hasCameraPermission = cameraStatus.isGranted;
-        _hasGalleryPermission = storageStatus.isGranted;
+        _hasGalleryPermission = true;
       });
     } catch (e) {
       log("Permission error: $e");

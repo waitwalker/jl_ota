@@ -107,15 +107,7 @@ class _QrCodePageState extends State<QrCodePage> with SingleTickerProviderStateM
           actions: [
             TextButton(
               onPressed: () async {
-                if (isAndroid) {
-                  if (_hasGalleryPermission && !_isProcessingGallery) {
-                    _openGallery(isAndroid);
-                  } else {
-                    await _requestGalleryPermission(isAndroid);
-                  }
-                } else {
-                  _openGallery(isAndroid);
-                }
+                _openGallery(isAndroid);
               },
               child: Text(
                 loc.photos,

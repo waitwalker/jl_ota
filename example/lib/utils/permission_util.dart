@@ -15,10 +15,9 @@ class PermissionUtil {
   }
 
   static Future<PermissionStatus> requestGalleryPermission() async {
-    if (await isAndroid13OrHigher() || AppUtil.isIOS) {
+    if (AppUtil.isIOS) {
       return await Permission.photos.request();
-    } else {
-      return await Permission.storage.request();
     }
+    return PermissionStatus.granted;
   }
 }

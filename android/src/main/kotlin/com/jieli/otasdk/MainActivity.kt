@@ -75,17 +75,12 @@ class MainActivity : FlutterActivity() {
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
 
-        when (requestCode) {
-            PERMISSION_REQUEST_CODE -> {
-                val allGranted = grantResults.isNotEmpty() &&
-                        grantResults.all { it == PackageManager.PERMISSION_GRANTED }
-                permissionCallback?.invoke(allGranted)
-                permissionCallback = null
-                pendingPermissions = null
-            }
-            else -> {
-                storagePermissionHelper.onRequestPermissionsResult(requestCode, grantResults)
-            }
+        if (requestCode == PERMISSION_REQUEST_CODE) {
+            val allGranted = grantResults.isNotEmpty() &&
+                    grantResults.all { it == PackageManager.PERMISSION_GRANTED }
+            permissionCallback?.invoke(allGranted)
+            permissionCallback = null
+            pendingPermissions = null
         }
     }
 
