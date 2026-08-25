@@ -56,11 +56,15 @@ public class AppUtil {
 
     /**
      * Checks if the app has location permissions.
+     * Android 12+ BLE scan uses BLUETOOTH_SCAN (with neverForLocation) instead of location.
      *
      * @param context The application context.
-     * @return True if either coarse or fine location permission is granted.
+     * @return True if location is not required, or either coarse or fine location permission is granted.
      */
     public static boolean isHasLocationPermission(Context context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            return true;
+        }
         return isHasPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION)
                 || isHasPermission(context, Manifest.permission.ACCESS_FINE_LOCATION);
     }

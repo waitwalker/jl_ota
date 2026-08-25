@@ -11,9 +11,13 @@
 
     <!-- Dangerous Permissions -->
 
-    <!--位置权限：Android 11 及以下 BLE 扫描需要定位权限与定位服务；Android 12+ 已通过 BLUETOOTH_SCAN 的 neverForLocation 声明解除定位依赖 -->
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!--位置权限：仅 Android 11 及以下 BLE 扫描需要；Android 12+ 用 BLUETOOTH_SCAN + neverForLocation，不再声明定位以免首次扫描弹出位置权限 -->
+    <uses-permission
+        android:name="android.permission.ACCESS_FINE_LOCATION"
+        android:maxSdkVersion="30" />
+    <uses-permission
+        android:name="android.permission.ACCESS_COARSE_LOCATION"
+        android:maxSdkVersion="30" />
 
     <!--蓝牙权限-->
     <!-- neverForLocation：向系统声明"不会通过蓝牙扫描结果推导物理位置"。
