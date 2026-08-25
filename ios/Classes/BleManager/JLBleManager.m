@@ -522,7 +522,11 @@
     //TODO: OTA upgrade cancellation callback
 }
 -(void)otaUpgradeResult:(JL_OTAResult)result Progress:(float)progress{
-    //TODO: Device upgrade process callback, including progress status
+    for (id<JLBleManagerOtaDelegate> delegate in self.delegates) {
+        if ([delegate respondsToSelector:@selector(otaProgressWithOtaResult:withProgress:)]) {
+            [delegate otaProgressWithOtaResult:result withProgress:progress];
+        }
+    }
 }
 
 -(void)otaDataSend:(NSData *)data{
@@ -585,7 +589,6 @@
             self->_getCallback = nil;
         }
     });
-
 }
 
 //MARK: - Hash Pair Delegate Callback

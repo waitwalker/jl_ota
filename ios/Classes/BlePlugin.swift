@@ -39,15 +39,9 @@ public class BlePlugin: NSObject, FlutterPlugin {
             binaryMessenger: registrar.messenger()
         )
 
-        guard UIApplication.shared.delegate?.window != nil else {
-            JLLogManager.logLevel(.ERROR, content: "Failed to obtain FlutterViewController for BLE Plugin")
-            return
-        }
-
-        // Setup handlers
+        // Unconditionally register channels. Hosts using UIScene may have a nil
+        // AppDelegate.window; skipping setup here would drop Method/EventChannel.
         instance.setupHandlers()
-
-        // Register this instance as the plugin
         registrar.addMethodCallDelegate(instance, channel: instance.methodChannel!)
     }
 

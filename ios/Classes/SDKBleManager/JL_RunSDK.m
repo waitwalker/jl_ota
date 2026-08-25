@@ -156,6 +156,7 @@
             }];
         } else {
             kJLLog(JLLOG_DEBUG, @"---> ERROR: Device information retrieval error!");
+            callback(false);
         }
     }];
 }

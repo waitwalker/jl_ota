@@ -192,6 +192,8 @@ class EventChannelHandler: NSObject, FlutterStreamHandler {
                         EventChannelConstants.KEY_IS_REQUIRED: true
                     ])
                 }
+                // GATT 连接时 deviceType 仍是 unKnow；查询完成后再发一次，供宿主决定何时 startOTA。
+                self.checkDeviceConnectState()
             }
         }
         addPendingWorkItem(workItem)
@@ -274,6 +276,7 @@ class EventChannelHandler: NSObject, FlutterStreamHandler {
                         EventChannelConstants.KEY_IS_REQUIRED: true
                     ])
                 }
+                self.checkDeviceConnectState()
             }
         }
         addPendingWorkItem(workItem)
@@ -485,11 +488,13 @@ class EventChannelHandler: NSObject, FlutterStreamHandler {
         
     func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
         eventSink = events
+        OtaManager.shared.setEventSink(sink: events)
         return nil
     }
     
     func onCancel(withArguments arguments: Any?) -> FlutterError? {
         eventSink = nil
+        OtaManager.shared.setEventSink(sink: nil)
         return nil
     }
     

@@ -96,8 +96,11 @@ class MethodChannelHandler: NSObject {
         case MethodChannelConstants.METHOD_GET_WIFI_IP_ADDRESS:
             OtaManager.shared.getWifiIpAddress(result: result)
         case MethodChannelConstants.METHOD_DOWNLOAD_FILE:
+            bindOtaEventSink()
             handleDownloadFile(call: call, result: result)
         case MethodChannelConstants.METHOD_START_OTA:
+            // Hosts may skip readFileList; bind sink here so OTA state is not dropped.
+            bindOtaEventSink()
             OtaManager.shared.startOTA(call: call, result: result)
         case MethodChannelConstants.METHOD_SEND_CUSTOM_COMMAND:
             sendCustomCmd(call:call,result:result)
@@ -365,14 +368,19 @@ class MethodChannelHandler: NSObject {
     }
         
     private func handleReadFileList(result: @escaping FlutterResult) {
-        let otaManager = OtaManager.shared
+        bindOtaEventSink()
+        OtaManager.shared.scanForUpdateFiles()
+        result(nil)
+    }
+
+    /// Bind EventChannel sink to OtaManager so OTA state can reach Flutter
+    /// even when the host never calls readFileList.
+    private func bindOtaEventSink() {
         if let sink = eventChannelHandler?.eventSink {
-            otaManager.setEventSink(sink: sink)
+            OtaManager.shared.setEventSink(sink: sink)
         } else {
             JLLogManager.logLevel(.DEBUG, content: "Cannot set event sink for OtaManager - eventChannelHandler is nil")
         }
-        otaManager.scanForUpdateFiles()
-        result(nil)
     }
     
     private func handleDownloadFile(call: FlutterMethodCall, result: @escaping FlutterResult) {

@@ -22,6 +22,7 @@ private enum OtaConstants {
     private(set) var itemArray: [String] = []
     private var ipAddress: String?
     private var isCleanedUp = false
+    private var isOtaFinished = false
     
     // MARK: - Initialization
     override init() {
@@ -37,6 +38,12 @@ private enum OtaConstants {
     /// Set the event channel sink
     @objc func setEventSink(sink: FlutterEventSink?) {
         eventSink = sink
+        if sink != nil {
+            isCleanedUp = false
+            if JLBleHandler.share().delegate == nil {
+                JLBleHandler.share().delegate = self
+            }
+        }
     }
     
     /// Delete OTA file by index
@@ -96,6 +103,11 @@ private enum OtaConstants {
             return
         }
         
+        isCleanedUp = false
+        isOtaFinished = false
+        if JLBleHandler.share().delegate == nil {
+            JLBleHandler.share().delegate = self
+        }
         JLBleHandler.share().handleOtaFunc(withFilePath: filePath)
         result(true)
     }
@@ -143,8 +155,9 @@ private enum OtaConstants {
         // Don't send events if cleaned up
         guard !isCleanedUp else { return }
         
-        let eventData = handleOtaResult(result, progress: progress)
-        sendEvent(type: EventChannelConstants.TYPE_OTA_STATE, data: eventData)
+        if let eventData = handleOtaResult(result, progress: progress) {
+            sendEvent(type: EventChannelConstants.TYPE_OTA_STATE, data: eventData)
+        }
     }
     
     // MARK: - Private Methods
@@ -300,7 +313,7 @@ private enum OtaConstants {
     }
     
     /// Handle OTA result and return appropriate event data
-    private func handleOtaResult(_ result: JL_OTAResult, progress: Float) -> [String: Any] {
+    private func handleOtaResult(_ result: JL_OTAResult, progress: Float) -> [String: Any]? {
         switch result {
         case .preparing:
             return handlePreparing(progress)
@@ -359,7 +372,11 @@ private enum OtaConstants {
         ]
     }
 
-    private func handleSuccess() -> [String: Any] {
+    private func handleSuccess() -> [String: Any]? {
+        if isOtaFinished {
+            return nil
+        }
+        isOtaFinished = true
         setKeepScreenOn(false)
         return [
             EventChannelConstants.KEY_STATE: EventChannelConstants.STATE_IDLE,
@@ -369,7 +386,11 @@ private enum OtaConstants {
         ]
     }
 
-    private func handleFailure(_ result: JL_OTAResult) -> [String: Any] {
+    private func handleFailure(_ result: JL_OTAResult) -> [String: Any]? {
+        if isOtaFinished {
+            return nil
+        }
+        isOtaFinished = true
         setKeepScreenOn(false)
         let errorReason = ToolsHelper.errorReason(result)
         return [
