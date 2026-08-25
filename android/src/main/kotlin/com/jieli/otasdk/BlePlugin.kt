@@ -1,8 +1,8 @@
 package com.jieli.otasdk
 
+import android.app.Activity
 import androidx.lifecycle.LifecycleOwner
 import com.jieli.jl_bt_ota.util.JL_Log
-import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
@@ -18,8 +18,9 @@ import java.lang.ref.WeakReference
  */
 class BlePlugin(
     binaryMessenger: BinaryMessenger,
-    activity: MainActivity,
-    private val lifecycleOwner: LifecycleOwner
+    activity: Activity,
+    private val plugin: JlOtaPlugin,
+    private val lifecycleOwner: LifecycleOwner?
 ) {
     companion object {
         private const val METHOD_CHANNEL = "com.jieli.ble_plugin/methods"
@@ -89,10 +90,10 @@ class BlePlugin(
     /**
      * Initialize MethodChannel
      */
-    private fun initializeMethodChannel(messenger: BinaryMessenger, activity: MainActivity) {
+    private fun initializeMethodChannel(messenger: BinaryMessenger, activity: Activity) {
         try {
             val channel = MethodChannel(messenger, METHOD_CHANNEL)
-            val handler = MethodChannelHandler(activity, lifecycleOwner)
+            val handler = MethodChannelHandler(activity, plugin, lifecycleOwner)
 
             channel.setMethodCallHandler(handler)
 
@@ -109,7 +110,7 @@ class BlePlugin(
     /**
      * Initialize EventChannel
      */
-    private fun initializeEventChannel(messenger: BinaryMessenger, activity: MainActivity) {
+    private fun initializeEventChannel(messenger: BinaryMessenger, activity: Activity) {
         try {
             val channel = EventChannel(messenger, EVENT_CHANNEL)
             val handler = EventChannelHandler(activity)

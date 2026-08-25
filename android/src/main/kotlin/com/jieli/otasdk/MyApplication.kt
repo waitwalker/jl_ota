@@ -2,8 +2,7 @@ package com.jieli.otasdk
 
 import android.annotation.SuppressLint
 import android.app.Application
-import android.os.Handler
-import android.os.Looper
+import android.content.Context
 import com.jieli.component.ActivityManager
 import com.jieli.component.utils.ToastUtil
 import com.jieli.jl_bt_ota.util.CommonUtil
@@ -25,7 +24,22 @@ open class MyApplication : Application() {
         private var instance: MyApplication? = null
 
         fun getInstance(): MyApplication {
-            return instance ?: throw IllegalStateException("MyApplication not initialized!")
+            return instance ?: throw IllegalStateException("MyApplication not initialized! Call MyApplication.initWith(context) first.")
+        }
+
+        /**
+         * Initialize from a host application context so third-party apps
+         * do not need to inherit MyApplication.
+         */
+        fun initWith(context: Context) {
+            if (instance != null) return
+            synchronized(this) {
+                if (instance == null) {
+                    val wrapper = MyApplication()
+                    instance = wrapper
+                    wrapper.initFromContext(context.applicationContext)
+                }
+            }
         }
     }
 
@@ -64,6 +78,21 @@ open class MyApplication : Application() {
         otaFileDir = FileUtil.createFilePath(this, FileUtil.DIR_UPGRADE)
         logFileDir = JL_Log.getSaveLogPath(instance)
         handleLog(isDebug)
+    }
+
+    private fun initFromContext(appContext: Context) {
+        try {
+            attachBaseContext(appContext)
+        } catch (_: Exception) {
+            // attachBaseContext can only be called once
+        }
+        otaFileDir = FileUtil.createFilePath(appContext, FileUtil.DIR_UPGRADE)
+        logFileDir = JL_Log.getSaveLogPath(appContext)
+        handleLog(isDebug)
+        val application = appContext as? Application ?: return
+        ActivityManager.init(application)
+        ToastUtil.init(application)
+        CommonUtil.setMainContext(appContext)
     }
 
     private fun handleLog(isDebug: Boolean) {

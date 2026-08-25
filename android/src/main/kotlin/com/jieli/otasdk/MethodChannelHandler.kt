@@ -1,6 +1,7 @@
 package com.jieli.otasdk
 
 import android.Manifest
+import android.app.Activity
 import android.bluetooth.BluetoothDevice
 import android.os.Build
 import android.os.Handler
@@ -44,8 +45,9 @@ import kotlin.system.exitProcess
  * Modified by:
  */
 class MethodChannelHandler(
-    activity: MainActivity,
-    private val lifecycleOwner: LifecycleOwner
+    activity: Activity,
+    private val plugin: JlOtaPlugin,
+    private val lifecycleOwner: LifecycleOwner?
 ) : MethodChannel.MethodCallHandler, DefaultLifecycleObserver {
 
     private val activityRef = WeakReference(activity)
@@ -65,7 +67,7 @@ class MethodChannelHandler(
     private var storageCallback: IActionCallback<Boolean>? = null
 
     init {
-        lifecycleOwner.lifecycle.addObserver(this)
+        lifecycleOwner?.lifecycle?.addObserver(this)
     }
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
@@ -118,7 +120,7 @@ class MethodChannelHandler(
 
     override fun onDestroy(owner: LifecycleOwner) {
         cleanup()
-        lifecycleOwner.lifecycle.removeObserver(this)
+        lifecycleOwner?.lifecycle?.removeObserver(this)
     }
 
     fun cleanup() {
@@ -150,12 +152,8 @@ class MethodChannelHandler(
         // Clean up ConnectVM
         connectVM.cleanUp()
 
-        // Clean up storage permission helper callback
-        val activity = activityRef.get()
-        activity?.storagePermissionHelper?.callback = null
-
-        // Clear static Uri
-        MainActivity.clearSelectedUri()
+        plugin.storagePermissionHelper.callback = null
+        JlOtaPlugin.selectedUri = null
     }
 
     private fun startScan(result: MethodChannel.Result) {
@@ -225,7 +223,7 @@ class MethodChannelHandler(
                 permissionCallback = null
             }
 
-            activity.requestMissingPermissions(permissionsToRequest.toTypedArray()) { granted ->
+            plugin.requestMissingPermissions(permissionsToRequest.toTypedArray()) { granted ->
                 permissionCallback?.invoke(granted)
             }
         } else {
@@ -356,14 +354,18 @@ class MethodChannelHandler(
     }
 
     private fun isOTa(result: MethodChannel.Result) {
-        otaViewModel = OTAViewModel.getInstance()
-        result.success(otaViewModel?.isOTA() ?: false)
+        result.success(requireOtaViewModel().isOTA())
     }
 
     private fun readFileList(result: MethodChannel.Result) {
-        otaViewModel = OTAViewModel.getInstance()
-        otaViewModel?.readFileList()
+        requireOtaViewModel().readFileList()
         result.success(null)
+    }
+
+    private fun requireOtaViewModel(): OTAViewModel {
+        val vm = otaViewModel ?: OTAViewModel.getInstance()
+        otaViewModel = vm
+        return vm
     }
 
     private fun setSelectedIndex(call: MethodCall, result: MethodChannel.Result) {
@@ -397,8 +399,8 @@ class MethodChannelHandler(
         timeoutRunnable?.let { mainHandler.removeCallbacks(it) }
 
         timeoutRunnable = Runnable {
-            if (activity.storagePermissionHelper.callback != null) {
-                activity.storagePermissionHelper.callback = null
+            if (plugin.storagePermissionHelper.callback != null) {
+                plugin.storagePermissionHelper.callback = null
                 result.error("PERMISSION_TIMEOUT", "Permission request timeout", null)
             }
             timeoutRunnable = null
@@ -423,13 +425,13 @@ class MethodChannelHandler(
             }
         }
 
-        activity.storagePermissionHelper.tryToCheckStorageEnvironment(storageCallback!!)
+        plugin.storagePermissionHelper.tryToCheckStorageEnvironment(storageCallback!!)
     }
 
     private fun startOTA(call: MethodCall, result: MethodChannel.Result) {
         val path = call.argument<String>(MethodChannelConstants.ARG_PATH)
         if (path != null) {
-            otaViewModel?.startOTA(path)
+            requireOtaViewModel().startOTA(path)
             result.success(true)
         } else {
             result.error("INVALID_ARGUMENT", "path must not be null", null)
@@ -486,13 +488,13 @@ class MethodChannelHandler(
             return
         }
 
-        val selectedUri = MainActivity.getSelectedUri()
+        val selectedUri = JlOtaPlugin.selectedUri
         if (selectedUri == null) {
             result.error("NO_SELECTED_URI", "No file selected", null)
             return
         }
 
-        MainActivity.clearSelectedUri()
+        JlOtaPlugin.selectedUri = null
 
         // Wrap result with WeakReference to prevent callbacks after Activity is destroyed
         val resultRef = WeakReference(result)
@@ -572,7 +574,7 @@ class MethodChannelHandler(
     }
 
     private fun setSelectedOtaIndex(pos: Int) {
-        val viewModel = otaViewModel ?: return
+        val viewModel = requireOtaViewModel()
         val files = viewModel.getFiles()
         if (pos !in files.indices) return
 
@@ -589,7 +591,7 @@ class MethodChannelHandler(
     }
 
     private fun deleteOtaFileIndex(pos: Int) {
-        val viewModel = otaViewModel ?: return
+        val viewModel = requireOtaViewModel()
         val files = viewModel.getFiles()
         if (pos !in files.indices) return
 
@@ -629,7 +631,7 @@ class MethodChannelHandler(
             result.error("ACTIVITY_NULL", "Activity is destroyed", null)
             return
         }
-        activity.pickFile()
+        plugin.pickFile()
         result.success(null)
     }
 }

@@ -24,6 +24,13 @@ class StoragePermissionHelper(private val context: Context) {
         callback.onSuccess(true)
     }
 
+    fun onRequestPermissionsResult(requestCode: Int, grantResults: IntArray) {
+        if (requestCode != REQUEST_CODE_READ_EXTERNAL_STORAGE) return
+        val granted = grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }
+        callback?.onSuccess(granted)
+        callback = null
+    }
+
     companion object {
         const val REQUEST_CODE_READ_EXTERNAL_STORAGE = 1001
     }
