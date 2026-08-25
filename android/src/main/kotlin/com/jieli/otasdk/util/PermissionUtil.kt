@@ -22,7 +22,11 @@ object PermissionUtil {
      * @return Boolean 结果
      */
     fun hasLocationPermission(context: Context): Boolean {
-        return PermissionUtils.hasSelfPermissions(context, Manifest.permission.ACCESS_FINE_LOCATION)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            return true
+        }
+        return PermissionUtils.hasSelfPermissions(context, Manifest.permission.ACCESS_FINE_LOCATION) ||
+                PermissionUtils.hasSelfPermissions(context, Manifest.permission.ACCESS_COARSE_LOCATION)
     }
 
     /**

@@ -203,8 +203,9 @@ class MethodChannelHandler(
             permissionsToRequest.add(Manifest.permission.BLUETOOTH_CONNECT)
         }
 
-        if (!checkResult.hasLocationPermission) {
+        if (!checkResult.hasLocationPermission && Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
             permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
+            permissionsToRequest.add(Manifest.permission.ACCESS_COARSE_LOCATION)
         }
 
         if (permissionsToRequest.isNotEmpty()) {

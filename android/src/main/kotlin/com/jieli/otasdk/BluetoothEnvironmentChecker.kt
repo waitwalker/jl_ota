@@ -2,6 +2,7 @@ package com.jieli.otasdk
 
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.provider.Settings
 import com.jieli.jl_bt_ota.interfaces.IActionCallback
 import com.jieli.jl_bt_ota.util.BluetoothUtil
@@ -28,11 +29,12 @@ object BluetoothEnvironmentChecker {
      * @param callback 回调接口
      */
     fun checkBluetoothEnvironment(context: Context): CheckResult {
+        val isAndroid12OrAbove = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
         return CheckResult(
             hasBluetoothPermission = PermissionUtil.hasBluetoothPermission(context),
-            hasLocationPermission = PermissionUtil.hasLocationPermission(context),
+            hasLocationPermission = if (isAndroid12OrAbove) true else PermissionUtil.hasLocationPermission(context),
             isBluetoothEnabled = BluetoothUtil.isBluetoothEnable(),
-            isLocationServiceEnabled = PermissionUtil.isLocationServiceEnabled(context)
+            isLocationServiceEnabled = if (isAndroid12OrAbove) true else PermissionUtil.isLocationServiceEnabled(context)
         )
     }
 
