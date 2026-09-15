@@ -25,16 +25,18 @@
   - [5.1 断点续传机制](#51-断点续传机制)
   - [5.2 强制升级（Force OTA / 救砖）](#52-强制升级force-ota--救砖)
   - [5.3 常见错误码及排查方向](#53-常见错误码及排查方向)
-  - [5.4 典型实战案例：绳师升级失败与 Bootloader 恢复模式广播异常](#54-典型实战案例绳师funf升级失败与-bootloader-恢复模式广播异常)
+  - [5.4 典型实战案例：绳师（funf）升级失败与 Bootloader 恢复模式广播异常](#54-典型实战案例绳师funf升级失败与-bootloader-恢复模式广播异常)
   - [5.5 跨品类固件误刷漏洞：男用设备可刷入女用固件问题](#55-跨品类固件误刷漏洞男用设备可刷入女用固件问题)
 - [六、OTA 阶段拆解：「校验文件」到底在校验什么？](#六ota-阶段拆解校验文件到底在校验什么)
   - [6.1 「校验文件」的 5 大核心校验维度](#61-校验文件的-5-大核心校验维度)
-- [七、源码与底层证据链索引（Code Evidence）](#七源码与底层证据链索引code-evidence)
-- [八、杰理 OTA 实测记录与基准总表（Test Logs & Benchmark）](#八杰理-ota-实测记录与基准总表test-logs--benchmark)
-  - [8.1 产品「绳师 (funf)」- 男用单备份 实测记录（#1 ~ #11）](#81-产品绳师-funf---男用单备份-实测记录1--11)
-  - [8.2 绳师产品 OTA 升级问题汇总](#82-绳师产品-ota-升级问题汇总)
-  - [8.3 产品「G1 (MonsterHub)」- 男用双备份 实测记录（#1 ~ #5）](#83-产品g1-monsterhub---男用双备份-实测记录1--5)
-  - [8.4 单备份 vs 双备份 耗时与容灾对比矩阵](#84-单备份-vs-双备份-耗时与容灾对比矩阵)
+- [七、杰理 OTA 实测记录与基准总表（Test Logs & Benchmark）](#七杰理-ota-实测记录与基准总表test-logs--benchmark)
+  - [7.1 产品「绳师 (funf)」- 男用单备份 实测记录（#1 ~ #11）](#71-产品绳师-funf---男用单备份-实测记录1--11)
+  - [7.2 绳师产品 OTA 升级问题汇总](#72-绳师产品-ota-升级问题汇总)
+  - [7.3 产品「G1 (MonsterHub)」- 男用双备份 实测记录（#1 ~ #5）](#73-产品g1-monsterhub---男用双备份-实测记录1--5)
+  - [7.4 单备份 vs 双备份 耗时与容灾对比矩阵](#74-单备份-vs-双备份-耗时与容灾对比矩阵)
+- [八、单备份变砖现象与固件/硬件识别 App 要求](#八单备份变砖现象与固件硬件识别-app-要求)
+  - [8.1 异常变砖现象描述](#81-异常变砖现象描述)
+  - [8.2 变砖后若继续被 App 识别的硬件/固件要求](#82-变砖后若继续被-app-识别的硬件固件要求)
 
 ---
 
@@ -126,7 +128,7 @@
     "PID": "",
     "POWER": 0,
     "TYPE": "-1",
-    "UID": 2512
+    "COMPANY_ID": 2512
 }
 ```
 
@@ -138,28 +140,51 @@
 | **`ISBOUND`** | `Int/Bool` | `0 / 1` | **绑定配对状态**：`0` 未绑定，`1` 已绑定。配合杰理防蹭听/私有绑定认证协议。 |
 | **`ISCHARGING`** | `Int/Bool` | `0 / 1` | **充电状态**：`0` 未充电，`1` 充电中。主要在耳机/充电仓/手环产品中指示电量状态。 |
 | **`ISLINKED`** | `Int/Bool` | `0 / 1` | **经典蓝牙连接状态**：`0` 经典蓝牙未连，`1` 经典蓝牙已与手机建立 A2DP/HFP 链路。 |
-| **`ISOK`** | `Int/Bool` | `0 / 1` | **数据合法与完整性校验**：<br>• `0`: 广播数据分包未全或未通过杰理私有协议校验；<br>• `1`: 广播数据完整且符合杰理协议规范。 |
+| **`ISOK`** | `Int/Bool` | `0 / 1` | **数据合法与完整性校验**：<br>• `0`: 广播数据分包未全或未通过私有协议校验；<br>• `1`: 广播数据完整且符合协议规范。 |
 | **`PID`** | `String/Int` | `""` 或 `1001` | **产品 ID（Product ID）**：标识具体产品型号，App 据此匹配对应的 UI 资源和固件文件。 |
 | **`POWER`** | `Int` | `0 ~ 100` | **电池电量百分比**：当前设备剩余电量（0 表示未上报或使用外接电源）。 |
 | **`TYPE`** | `String/Int` | `"-1"` | **设备形态类型**：对应 `JL_DeviceType` 枚举，`"-1"` 表示传统/通用透传/通用 OTA 设备。 |
-| **`UID`** | `Int` | `2512` | **客户厂商唯一标识（User ID / Vendor ID）**：杰理分配给客户的专属厂商代码，用于防止误刷其他厂商设备。 |
+| **`COMPANY_ID`** | `Int` | `2512` | **厂商识别码（Company Identifier）**：BLE 0xFF 广播段头部的 2 字节厂商代码 `0x2512`（小端 `12 25`），用于设备过滤和防止误刷其他厂商设备。 |
 
 ### 3.3 原始广播十六进制数据拆解实战
 
-以扫描到的广播数据 `122502009900ec00a600fc00d60508004a4c414953444b` 为例：
+以扫描到的广播数据 `122502009900ec00a600fc00d60508004a4c414953444b` 为例，其完整字节结构拆解如下：
 
 ```
- 12 25 │ 02 00 │ 99 00 ec 00 a6 00 fc 00 │ d6 05 │ 08 00 │ 4a 4c 41 49 53 44 4b
-───────┼───────┼─────────────────────────┼───────┼───────┼───────────────────────
-  UID  │ 版本/ │     设备自定义业务数据     │ 厂商ID │ 长度  │   ASCII: "JLAISDK"
- (2512)│  PID  │                         │(0x05D6)│       │   (杰理协议专属标识)
+ 12 25 │  02   │  00   │ 99 00 │ ec 00 │ a6 00 │ fc 00 │ d6 05 │ 08 00 │ 4a 4c 41 49 53 44 4b
+───────┼───────┼───────┼───────┼───────┼───────┼───────┼───────┼───────┼───────────────────────
+Company│ 协议  │ 连接  │ 产品  │ 变体  │ 组合  │ 组合  │ 厂商ID│ 协议  │   ASCII: "JLAISDK"
+  ID   │ 版本  │  App  │  PID  │  VID  │  PID  │  VID  │(0x05D6│ 长度  │   (协议专属标记)
+(0x2512│ (v2)  │ (0:女)│ (153) │ (236) │ (166) │ (252) │ 杰理) │       │
+/厂商码│       │ (1:男)│       │       │       │       │       │       │
 ```
 
-1. **`12 25`**：即 UID = 2512（0x2512 编码），用于识别品牌厂商。
-2. **`d6 05`**：SIG 分配的杰理厂商代码 `0x05D6`。
-3. **`4a 4c 41 49 53 44 4b`**：转换为 ASCII 字符串为 **`JLAISDK`**。
-   - **为何数据 1 `ISOK = 0`？** 因为广播分包或只有前半段 `122502009900ec00a600fc00`，缺少了末尾的 `0x05D6` 和 `JLAISDK` 校验标记。
-   - **为何数据 2 `ISOK = 1`？** 接收到了完整的带厂商信息和 `JLAISDK` 的完整包，解析库校验通过。
+#### 1. 业务自定义厂商数据字段定义（10 字节 Payload）
+
+在通用业务协议中，厂商数据 Payload 紧跟在 2 字节 Company ID 之后，按小端序（Little-Endian）组织：
+
+| 字段名 | 字节长度 | 数据类型 | 示例取值 | 业务含义与说明 |
+| :--- | :---: | :---: | :---: | :--- |
+| **`protocolVersion`** | 1 Byte | `uint8` | `0x02` (2) | 协议版本号（如 v2、v3） |
+| **`connApp`** | 1 Byte | `uint8` | `0x00` (0) | 连接目标 App 类型：`0` 为女性版（派对），`1` 为男性版（X），`-1` 为未知 |
+| **`productID` (PID)** | 2 Bytes | `uint16` | `0x0099` (153) | 设备产品型号 ID（如绳师为 153，女用设备为 152，G1 为 157） |
+| **`variantID` (VID)** | 2 Bytes | `uint16` | `0x00EC` (236) | 设备变体/子型号 ID |
+| **`groupProductID` (g_pid)** | 2 Bytes | `uint16` | `0x00A6` (166) | 组合/群组产品 ID |
+| **`groupVariantID` (g_vid)** | 2 Bytes | `uint16` | `0x00FC` (252) | 组合/群组变体 ID |
+
+#### 2. Company ID 与业务字段的映射机制
+
+*   **Company ID（0x2512）与业务字段的本质关系**：
+    - **业务协议自身并不包含冗余的厂商编码字段**，协议只定义了版本、App类型、PID、VID 等 6 个核心字段；
+    - 广播头部的 `12 25` 实质为标准 BLE 广播 `0xFF` 规范头部的 **2 字节 Company Identifier（厂商标识码 `0x2512`，小端 `12 25`）**。
+*   **底层解析视角**：
+    - 底层广播解析器在解析 `0xFF` 广播段时，将开头的 2 字节提取为厂商代码（`0x2512`）；同时校验尾部的 `0x05D6` 与 `JLAISDK`（校验成功则置 `ISOK = 1`）。
+*   **App 业务层解析视角**：
+    - 通用蓝牙框架（如 `flutter_blue_plus`）将前 2 字节 `0x2512` 作为 `manufacturerData` 的 **Map Key**；
+    - 业务层提取 Map 的 **Value 字节数组（Payload）**，逐字段解析为 `version`、`connApp`、`productID`、`variantID` 等模型。
+*   **校验标记与完整包**：
+    - **为何分包时 `ISOK = 0`？** 若广播只有前半段 `122502009900ec00a600fc00`，缺少末尾的 `0x05D6` 与 `JLAISDK`，判定未完成协议校验；
+    - **为何完整包 `ISOK = 1`？** 接收到包含前置 Company ID、业务 Payload 及末尾 `JLAISDK` 签名的完整包，双重校验通过。
 
 ### 3.4 设备类型枚举（JL_DeviceType）
 
@@ -186,7 +211,7 @@
 ### 4.1 阶段一：设备发现与广播过滤（Discovery & Filtering）
 1. 手机端开启 BLE 扫描；
 2. 捕获广播包并调用 `[JLAdvParse bluetoothAdvParse:AdvData:]` 解析；
-3. 检查 `ISOK == 1` 且 `UID`（或设备名 `BLE_NAME`）与目标一致；
+3. 检查 `ISOK == 1` 且厂商代码 `Company ID: 0x2512`（或设备名 `BLE_NAME`）与目标一致；
 4. 确认设备后停止扫描，准备发起连接。
 
 ### 4.2 阶段二：建立连接与 Hash 配对认证（Connect & Auth）
@@ -237,8 +262,8 @@ sequenceDiagram
     participant Dev as 杰理蓝牙设备 (Firmware)
 
     Note over App,Dev: 阶段一：扫描与发现
-    Dev->>App: 发送 BLE 广播 (带 UID/PID/JLAISDK/ISOK=1)
-    App->>App: 解析广播 (JLAdvParse)，匹配 UID 与设备名
+    Dev->>App: 发送 BLE 广播 (带 Company ID/PID/JLAISDK/ISOK=1)
+    App->>App: 解析广播 (JLAdvParse)，匹配 Company ID 与设备名
 
     Note over App,Dev: 阶段二：连接与 Hash 认证
     App->>Dev: 建立 BLE GATT 连接
@@ -312,25 +337,25 @@ sequenceDiagram
 #### 1. 问题现象
 - **硬件表现**：产品指示灯不亮，按键无主程序响应；
 - **蓝牙表现**：手机仍能正常扫描到设备（Name 依然为 `funf`），且**能够成功建立蓝牙连接**；
-- **数据异常**：广播厂商数据发生改变，导致 `mix_device` 的自定义厂商模型解析返回 `null`。
+- **数据异常**：广播厂商数据发生改变，导致 App 的自定义厂商数据模型解析返回 `null`。
 
 #### 2. 现场证据固定（原始日志）
 
 ```log
-[JL_OTA] 【1. 扫描设备】Name: funf | Desc: rssi: -64, address: 55181F07-AD88-247F-C5B2-6E3E9DB6646C | ManufacturerData: afe36a60c859004a4c4f544105d6 | AdvData: JlAdvData(manufacturerData: afe36a60c859004a4c4f544105d6, mixManufacture: null, uid: 0, pid: null, type: -1, isOk: true, isBound: true, isCharging: false, isLinked: false, power: 0, edr: null, bleName: funf)
+[JL_OTA] 【1. 扫描设备】Name: funf | Desc: rssi: -64, address: 55181F07-AD88-247F-C5B2-6E3E9DB6646C | ManufacturerData: afe36a60c859004a4c4f544105d6 | AdvData: JlAdvData(manufacturerData: afe36a60c859004a4c4f544105d6, customManufacture: null, pid: null, type: -1, isOk: true, isBound: true, isCharging: false, isLinked: false, power: 0, edr: null, bleName: funf)
 ```
 
 #### 3. 广播数据深度对比与根因剖析
 
 | 状态 | 厂商数据 Hex | 字段结构拆解 | 解析结果 |
 | :--- | :--- | :--- | :--- |
-| **正常工作模式** | `122502009900ec00a600fc00d60508004a4c414953444b` | `12 25` (UID: 2512) + `02 00` (版本) + `99 00 ec 00 ...` (PID/VID) + `d6 05` (杰理ID) + `JLAISDK` | `mixManufacture` 正常解析，UID: 2512 |
-| **升级失败恢复模式** | `afe36a60c859004a4c4f544105d6` | `af e3 6a 60 c8 59` (6字节MAC/标识) + `00` + **`4a 4c 4f 54 41` ("JLOTA")** + `05 d6` (杰理ID) | `mixManufacture` 为 `null`，UID: 0 |
+| **正常工作模式** | `122502009900ec00a600fc00d60508004a4c414953444b` | `12 25` (Company ID: 0x2512) + `02 00` (版本) + `99 00 ec 00 ...` (PID/VID) + `d6 05` (杰理ID) + `JLAISDK` | 业务 App 厂商数据正常解析，Company ID: 0x2512 |
+| **升级失败恢复模式** | `afe36a60c859004a4c4f544105d6` | `af e3 6a 60 c8 59` (6字节MAC/标识) + `00` + **`4a 4c 4f 54 41` ("JLOTA")** + `05 d6` (杰理ID) | 业务 App 厂商数据为 `null`，Company ID 丢失 |
 
 **根因剖析**：
 1. **芯片退回 Bootloader 恢复区**：单备份固件写入中断后，主程序损坏，芯片自动运行 Bootloader（升级 Loader）代码；
-2. **广播格式被底层接管**：Loader 广播使用的是杰理原生标准 OTA 恢复格式，包含 **`JLOTA`**（`4A 4C 4F 54 41`）签名，而不再携带 mix 业务层的 23 字节自定义 PID/VID 结构；
-3. **因此 `mixManufacture` 解析为 `null` 是符合芯片底层机制的预期现象**。
+2. **广播格式被底层接管**：Loader 广播使用的是杰理原生标准 OTA 恢复格式，包含 **`JLOTA`**（`4A 4C 4F 54 41`）签名，而不再携带业务 App 的自定义 PID/VID 厂商数据结构；
+3. **因此业务 App 厂商自定义数据解析为 `null` 是符合芯片底层机制的预期现象**。
 
 #### 4. 解决对策与实测验证（救砖与断点续传）
 - **无需硬件返厂**：只要蓝牙能搜到并能连上，说明 Bootloader 完好；
@@ -340,7 +365,7 @@ sequenceDiagram
   - **恢复模式救砖（直接进入升级）**：由于设备已在 Loader 模式且前次已完成文件头认证，**直接跳过了「校验文件」阶段，直接进入「真正升级」阶段**，并从中断 Offset 继续写入；
 - **实测验证结果**：
   - 触发了杰理底层**断点续传**机制，重刷全量 1.22 MB 固件**仅耗时 16 秒**（正常完整包含两阶段需 40s 左右）；
-  - 固件烧录成功重启后，设备指示灯恢复正常点亮，广播数据恢复为正常 mix 协议格式，完美救砖。
+  - 固件烧录成功重启后，设备指示灯恢复正常点亮，广播数据恢复为正常业务协议格式，完美救砖。
 
 ---
 
@@ -358,10 +383,10 @@ sequenceDiagram
 
 ```log
 // 【升级前】男用产品 绳师（PID: 153, 0x0099）
-[JL_OTA] 【1. 扫描设备】Name: funf | ManufacturerData: 122502009900ec00a600fc00d60508004a4c414953444b | AdvData: JlAdvData(mixManufacture: JlMixManufacture(v: 2, app: 0, pid: 153, vid: 236, hid: 0, g_pid: 166, g_vid: 252))
+[JL_OTA] 【1. 扫描设备】Name: funf | ManufacturerData: 122502009900ec00a600fc00d60508004a4c414953444b | AdvData: JlAdvData(customManufacture: JlCustomManufacture(v: 2, app: 0, pid: 153, vid: 236, hid: 0, g_pid: 166, g_vid: 252))
 
 // 【升级后】设备身份彻底变为女用产品（PID: 152, 0x0098）
-[JL_OTA] 【1. 扫描设备】Name: funf | Desc: rssi: -49, address: 5B3CBF98-F618-0D19-C99E-5BE597EAA953 | ManufacturerData: 122502009800ec00a600fc00d60508004a4c414953444b | AdvData: JlAdvData(manufacturerData: 122502009800ec00a600fc00d60508004a4c414953444b, mixManufacture: JlMixManufacture(v: 2, app: 0, pid: 152, vid: 236, hid: 0, g_pid: 166, g_vid: 252), uid: 2512, pid: null, type: -1, isOk: true, isBound: false, isCharging: false, isLinked: false, power: 0, edr: null, bleName: funf)
+[JL_OTA] 【1. 扫描设备】Name: funf | Desc: rssi: -49, address: 5B3CBF98-F618-0D19-C99E-5BE597EAA953 | ManufacturerData: 122502009800ec00a600fc00d60508004a4c414953444b | AdvData: JlAdvData(manufacturerData: 122502009800ec00a600fc00d60508004a4c414953444b, customManufacture: JlCustomManufacture(v: 2, app: 0, pid: 152, vid: 236, hid: 0, g_pid: 166, g_vid: 252), pid: null, type: -1, isOk: true, isBound: false, isCharging: false, isLinked: false, power: 0, edr: null, bleName: funf)
 ```
 
 | 状态 | 厂商数据 Hex | PID 字节与对应数值 | 设备属性 |
@@ -390,8 +415,8 @@ sequenceDiagram
 1. **芯片架构与硬件型号校验（Chip Architecture）**：
    - 检查固件编译的目标芯片（如 AC695N、AC696N、AC701N、JL7016 等）是否与当前物理芯片一致；
    - **作用**：防止将不匹配芯片的固件写入，导致硬件彻底烧毁或死砖。
-2. **客户厂商 UID 与产品 PID/VID 匹配（Product & Vendor Matching）**：
-   - 检查固件内的厂商识别码（如 `UID: 2512`）与产品型号 `PID/VID` 是否与当前设备一致；
+2. **客户厂商识别码（Company ID）与产品 PID/VID 匹配（Product & Vendor Matching）**：
+   - 检查固件内的厂商识别码（如 `Company ID: 0x2512`）与产品型号 `PID/VID` 是否与当前设备一致；
    - **作用**：防止同芯片平台下的其他产品固件误刷入。
 3. **固件完整性与全局 CRC32 校验（File Integrity & Global CRC32）**：
    - App 会发送固件的**文件总长度（File Size）**与**全量 CRC32 校验和**；
@@ -405,35 +430,13 @@ sequenceDiagram
 
 ---
 
-## 七、源码与底层证据链索引（Code Evidence）
-
-以下为本项目（App 客户端）、杰理官方 SDK 及服务端（`server-rs`）中支持上述机制的源码与数据字典实现位置：
-
-| 平台 / 模块 | 源码文件链接 | 对应行号 | 核心证据与实现内容 |
-| :--- | :--- | :--- | :--- |
-| **App 协议解析** | [jl_adv_data.dart](file:///Volumes/T9/work/jl_ota/lib/model/jl_adv_data.dart#L152-L298) | L152-L298 | mix_device 厂商广播解析：小端序提取 `productID`、`variantID`、`connApp`、`groupProductID`。 |
-| **App 升级控制** | [update_page.dart](file:///Volumes/T9/work/jl_ota/example/lib/pages/update_page.dart#L231-L311) | L231-L311 | OTA 触发入口、固件选择过滤与升级前品类拦截检测（`_handleStartOta`、`_startOTA`）。 |
-| **App 表现层** | [ota_dialog.dart](file:///Volumes/T9/work/jl_ota/example/lib/dialog/ota_dialog.dart#L150-L165) | L150-L165 | 监听 `BleEventConstants.KEY_CHECK_FILE` 显示“校验文件中”，收到升级事件切换为“升级中”与进度条。 |
-| **App 多语言** | [app_zh.arb](file:///Volumes/T9/work/jl_ota/example/lib/l10n/app_zh.arb#L296-L297) | L296-L297 | `otaCheckFile`: "校验文件中", `otaUpgrading`: "升级中"。 |
-| **iOS 原生层** | [OtaManager.swift](file:///Volumes/T9/work/jl_ota/ios/Classes/Ota/OtaManager.swift#L272-L295) | L272-L295 | `JL_OTAResult.preparing` 映射为 `MSG_CHECKING_FILE` ("Checking file")，`JL_OTAResult.upgrading` 映射为 `MSG_UPGRADING`。 |
-| **iOS 蓝牙层** | [JLBleManager.m](file:///Volumes/T9/work/jl_ota/ios/Classes/BleManager/JLBleManager.m#L202-L207) | L202-L207 | 广播回调中从 `kCBAdvDataManufacturerData` 提取 0xFF 厂商数据作为 `ADVDATA`。 |
-| **Android 原生层** | [EventChannelConstants.kt](file:///Volumes/T9/work/jl_ota/android/src/main/kotlin/com/jieli/otasdk/data/constant/EventChannelConstants.kt#L55-L60) | L55-L60 | 定义 `MSG_CHECKING_FILE = "Checking file"` 与 `MSG_UPGRADING = "Upgrading"` 状态常量。 |
-| **服务端领域模型** | [device.rs](file:///Users/waitwalker/Downloads/server-rs/gateway/remote-gateway/src/domain/session/user/device.rs#L7-L17) | L7-L17 | `server-rs` 定义 `Device` 结构体：`product_id`、`variant_id`、`group_product_id` 领域模型。 |
-| **服务端通信协议** | [model.proto](file:///Users/waitwalker/Downloads/server-rs/gateway/remote-gateway/proto/remote/v1/model.proto#L7-L24) | L7-L24 | `server-rs` 定义 `RemoteDevice` Protobuf 协议：`product_id`、`variant_id`、`group_product_id`。 |
-| **服务端固件管理表** | [op_admin--2026-3-2.sql](file:///Users/waitwalker/Downloads/server-rs/docs/legacy_database/op_admin--2026-3-2.sql#L856-L876) | L856-L876 | `os_product_firmware` 运营后台固件分发与灰度策略表（绑定 `product_id` 与固件版本）。 |
-| **服务端固件关系表** | [monsterpub_base--2026-3-2.sql](file:///Users/waitwalker/Downloads/server-rs/docs/legacy_database/monsterpub_base--2026-3-2.sql#L467-L500) | L467-L500 | `common_app_firmware` / `common_app_firmware_relation` 固件与 App 版本关系表。 |
-| **服务端固件信息表** | [monsterpub--2026-3-2.sql](file:///Users/waitwalker/Downloads/server-rs/docs/legacy_database/monsterpub--2026-3-2.sql#L1084-L1097) | L1084-L1097 | `firmware_infos` 硬件型号与固件下载链接关联表。 |
-| **测试记录文档** | [JIELI_OTA_TEST_LOG.md](file:///Volumes/T9/work/jl_ota/JIELI_OTA_TEST_LOG.md#L83-L96) | L83-L96 | 详细记录第 6 次升级跳过校验文件、仅耗时 16s 完成断点续传救砖的真实测试数据。 |
-
----
-
-## 八、杰理 OTA 实测记录与基准总表（Test Logs & Benchmark）
+## 七、杰理 OTA 实测记录与基准总表（Test Logs & Benchmark）
 
 本文档收录了在真实真机环境下（iOS 与 Android 双端）对杰理不同固件架构（单备份 vs 双备份）、不同硬件产品（绳师 vs G1）进行的全部联调与压测数据。
 
 ---
 
-### 8.1 产品「绳师 (funf)」- 男用单备份 实测记录（#1 ~ #11）
+### 7.1 产品「绳师 (funf)」- 男用单备份 实测记录（#1 ~ #11）
 
 > **架构特点**：采用**单备份（Single Bank）**升级方案。升级开始后设备重启至 Bootloader/Loader 擦写 Flash；若中途断电或中断，设备进入 Bootloader 恢复广播（灯灭，`JLOTA` 签名），重连后可断点续传救砖。
 
@@ -450,23 +453,23 @@ sequenceDiagram
 | **7** | 绳师 (funf) | 男用 | 单备份 | `man_01.ufw` | 1247.3 KB (1.22 MB) | **iOS** | 2026-08-24 12:33:03 | 2026-08-24 12:33:45 | **41s** | ✅ 升级成功 | 正常模式覆盖升级（含文件校验 + 真正升级两阶段） |
 | **8** | 绳师 (funf) | **男用 ➔ 女用** | 单备份 | `woman_01.ufw` | 1234.3 KB (1.21 MB) | **iOS** | 2026-08-24 12:38:33 | 2026-08-24 12:39:22 | **49s** | ⚠️ **跨品类刷新成功** | **重大发现：男用产品成功刷入女用固件**，重启后广播 PID 变为 152（女用），App 连接后识别显示为女用 |
 | **9** | 绳师 (已变女用) | **女用 ➔ 男用** | 单备份 | `man_02.ufw` | 1247.8 KB (1.22 MB) | **iOS** | 2026-08-24 12:47:23 | 2026-08-24 12:48:06 | **43s** | ✅ **逆向刷回成功** | **将女用状态设备成功刷回男用固件**，耗时 43s，成功恢复男用产品身份 |
-| **10** | 绳师 (funf) | 男用 | 单备份 | `man_02.ufw` | 1247.8 KB (1.22 MB) | **Android** | 2026-08-24 14:29:36 | 2026-08-24 14:30:17 | **41s** | ✅ **升级成功** | **Android 平台首测成功**：TLV 厂商数据提取修复后，广播与 `mixManufacture (PID: 153)` 完美解析，耗时 41s 顺利完成升级 |
+| **10** | 绳师 (funf) | 男用 | 单备份 | `man_02.ufw` | 1247.8 KB (1.22 MB) | **Android** | 2026-08-24 14:29:36 | 2026-08-24 14:30:17 | **41s** | ✅ **升级成功** | **Android 平台首测成功**：TLV 厂商数据提取修复后，广播与业务厂商自定义数据 (PID: 153) 完美解析，耗时 41s 顺利完成升级 |
 | **11** | 绳师 (funf) | 男用 | 单备份 | `man_01.ufw` | 1247.3 KB (1.22 MB) | **Android** | 2026-08-24 14:31:41 | 2026-08-24 14:32:21 | **39s** | ✅ **升级成功** | **Android 平台覆盖升级**：`man_01.ufw` 完整两阶段升级，耗时 39s 顺利完成 |
 
 ---
 
-### 8.2 绳师产品 OTA 升级问题汇总
+### 7.2 绳师产品 OTA 升级问题汇总
 
 1. **升级中途异常中断导致设备变砖（进入 Bootloader 恢复模式）**：
    - 固件烧录过程中断（如第 5 次升级写入 27s 时人为/意外断开），设备指示灯完全熄灭，按键无主程序响应；
-   - 芯片回退至 Bootloader 模式广播，广播丢失 mix 自定义协议字段（`mixManufacture` 解析为空），无法获取原有产品 PID/VID。
+   - 芯片回退至 Bootloader 模式广播，广播丢失业务自定义厂商数据，无法获取原有产品 PID/VID。
 2. **跨品类固件误刷漏洞（男用设备可成功刷入女用固件）**：
    - 男用产品（PID: 153）在 App 中选择女用固件（`woman_01.ufw`）发起升级，固件底层直接通过校验并完成烧录；
    - 升级完成后设备重启，广播 PID 直接变为 152（女用），App 识别并显示为女用设备。
 
 ---
 
-### 8.3 产品「G1 (MonsterHub)」- 男用双备份 实测记录（#1 ~ #5）
+### 7.3 产品「G1 (MonsterHub)」- 男用双备份 实测记录（#1 ~ #5）
 
 > **架构特点**：采用**双备份（Dual Bank / A-B 分区）**升级方案。Flash 划分两个对称镜像区（Run 区与 Update 区）。升级过程中设备无需重启至 Loader，在主固件正常运行状态下直接后台接收固件写入 Update 区；即使升级异常中断，原 Run 区固件完好无损，设备指示灯正常，重连即可无感重试。升级全部接收且校验 CRC 成功后，仅需瞬间切换 Boot 分区重启即可生效。
 
@@ -482,7 +485,7 @@ sequenceDiagram
 
 ---
 
-### 8.4 单备份 vs 双备份 耗时与容灾对比矩阵
+### 7.4 单备份 vs 双备份 耗时与容灾对比矩阵
 
 | 评估维度 | 单备份架构（绳师 / funf） | 双备份架构（G1 / MonsterHub） |
 | :--- | :--- | :--- |
@@ -494,3 +497,24 @@ sequenceDiagram
 | **中断后广播表现** | 变为杰理原生 `JLOTA` 签名临时广播 | 保持原产品 `MonsterHub` 广播不变 |
 | **中断恢复机制** | 需在 Loader 广播下重新连接并断点续传 | **零修复成本**，直接重新点击升级即可 |
 | **Flash 硬件开销** | 仅需 1 份主固件空间，Flash 占用小 | 需划分 Run/Update 两个对称分区，Flash 开销大 |
+
+---
+
+## 八、单备份变砖现象与固件/硬件识别 App 要求
+
+### 8.1 异常变砖现象描述
+
+单备份（Single Bank）产品在 OTA 升级写入中途若发生异常中断（如断电、蓝牙断开、退出 App），主程序损坏后芯片退回 **Bootloader 模式**：
+
+1. **指示灯全灭**：没有任何物理状态指示，用户无法获知设备当前状态；
+2. **广播丢失厂商数据**：广播被杰理底层接管，丢失了业务 App 的厂商自定义数据，导致 App 扫描无法识别设备型号。
+
+---
+
+### 8.2 变砖后若继续被 App 识别的硬件/固件要求
+
+1. **广播必须携带业务自定义厂商数据（0xFF）**：
+   - **Company ID（前置 2 字节）**：必须保留 `0x2512`（小端 `12 25`），确保 BLE 扫描框架能正确提取厂商数据 Map Key；
+   - **业务数据 Payload（后续 10 字节）**：必须包含完整的业务厂商数据字段结构（`protocolVersion` 协议版本、`connApp` 目标App类型、`productID` 产品PID、`variantID` 变体VID、`groupProductID`、`groupVariantID`），确保设备进入变砖恢复模式后，App 依然能够依据 PID/VID 等字段准确识别产品型号并匹配固件。
+2. **必须有用户可见指示**：
+   - 设备处于 Bootloader/变砖恢复状态时，不能没有物理指示（严禁指示灯全灭），必须有明确的指示灯状态（如 LED 慢闪或呼吸灯）提示设备处于等待恢复/升级状态。
