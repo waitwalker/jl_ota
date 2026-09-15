@@ -22,17 +22,25 @@ buildscript {
     }
 }
 
+// 本地 AAR 会作为 runtime 依赖漏到 :app，必须让所有模块都能解析；Maven 仓仍只给杰理自己用。
+val jlOtaLibsDir = file("libs")
 rootProject.allprojects {
     repositories {
-        google()
-        mavenCentral()
-        maven { url = uri("https://maven.aliyun.com/repository/google") }
-        maven { url = uri("https://maven.aliyun.com/repository/central") }
-        maven { url = uri("https://maven.aliyun.com/repository/public") }
-        maven { url = uri("https://jitpack.io") }
         flatDir {
-            dirs(project(":jl_ota").file("libs"))
+            dirs(jlOtaLibsDir)
         }
+    }
+}
+
+repositories {
+    google()
+    mavenCentral()
+    maven { url = uri("https://maven.aliyun.com/repository/google") }
+    maven { url = uri("https://maven.aliyun.com/repository/central") }
+    maven { url = uri("https://maven.aliyun.com/repository/public") }
+    maven { url = uri("https://jitpack.io") }
+    flatDir {
+        dirs(jlOtaLibsDir)
     }
 }
 
