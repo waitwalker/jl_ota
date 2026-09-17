@@ -1,7 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Jieli OTA</string>
-
     <!--Device Type-->
     <string name="classic_device_type">Classic device</string>
     <string name="ble_device_type">Ble device</string>

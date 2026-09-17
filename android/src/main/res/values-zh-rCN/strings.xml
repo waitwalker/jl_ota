@@ -1,8 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!--Global-->
-    <string name="app_name">杰理OTA升级</string>
-
     <!--Device Type-->
     <string name="classic_device_type">经典蓝牙</string>
     <string name="ble_device_type">BLE设备</string>
