@@ -6,7 +6,6 @@ import android.bluetooth.BluetoothDevice
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
-import android.os.Process
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import com.jieli.otasdk.data.constant.MethodChannelConstants
@@ -18,7 +17,6 @@ import com.jieli.otasdk.util.FileTransferUtil
 import com.jieli.otasdk.util.FileUtil
 import com.jieli.otasdk.util.NetworkUtil
 import com.jieli.otasdk.util.ViewUtil
-import com.jieli.component.ActivityManager
 import com.jieli.jlFileTransfer.Constants
 import com.jieli.jl_bt_ota.constant.BluetoothConstant
 import com.jieli.jl_bt_ota.constant.Command
@@ -34,7 +32,6 @@ import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
 import java.lang.ref.WeakReference
-import kotlin.system.exitProcess
 
 /**
  * Des:
@@ -470,16 +467,11 @@ class MethodChannelHandler(
     }
 
     private fun popAllActivity(result: MethodChannel.Result) {
-        try {
-            ActivityManager.getInstance().popAllActivity()
-            mainHandler.postDelayed({
-                Process.killProcess(Process.myPid())
-                exitProcess(0)
-            }, 500)
-            result.success(true)
-        } catch (e: Exception) {
-            result.error("POP_ALL_ACTIVITY_FAILED", "Failed to pop all activities", e.message)
-        }
+        // Embedded hosts (e.g. mp-app) must not finish foreign Activities or killProcess.
+        // Example-app "restart" previously used ActivityManager + Process.killProcess;
+        // that is unsafe for third-party Applications. No-op success for embedders.
+        JL_Log.w("MethodChannelHandler", "popAllActivity ignored in embedded mode (no ActivityManager / killProcess)")
+        result.success(true)
     }
 
     private fun handleFilePicked(call: MethodCall, result: MethodChannel.Result) {

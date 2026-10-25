@@ -3,7 +3,6 @@ package com.jieli.otasdk
 import android.annotation.SuppressLint
 import android.app.Application
 import android.content.Context
-import com.jieli.component.ActivityManager
 import com.jieli.component.utils.ToastUtil
 import com.jieli.jl_bt_ota.util.CommonUtil
 import com.jieli.jl_bt_ota.util.JL_Log
@@ -69,7 +68,7 @@ open class MyApplication : Application() {
         super.onCreate()
         instance = this
         init()
-        ActivityManager.init(this)
+        // ActivityManager.init skipped: jl-component-lib NPE on late lifecycle attach (onActivityDestroyed).
         ToastUtil.init(this)
         CommonUtil.setMainContext(this)
     }
@@ -90,7 +89,10 @@ open class MyApplication : Application() {
         logFileDir = JL_Log.getSaveLogPath(appContext)
         handleLog(isDebug)
         val application = appContext as? Application ?: return
-        ActivityManager.init(application)
+        // Do not call ActivityManager.init here. Host Activities are often already created
+        // when the Flutter plugin attaches, so activityStack stays null and any later
+        // onActivityDestroyed NPEs in jl-component-lib (Crashlytics hot crash).
+        // OTA scan/connect/start paths do not need the Activity stack.
         ToastUtil.init(application)
         CommonUtil.setMainContext(appContext)
     }
