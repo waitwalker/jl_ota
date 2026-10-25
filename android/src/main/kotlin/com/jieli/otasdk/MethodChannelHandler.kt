@@ -6,6 +6,7 @@ import android.bluetooth.BluetoothDevice
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.Process
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import com.jieli.otasdk.data.constant.MethodChannelConstants
@@ -62,6 +63,7 @@ class MethodChannelHandler(
     private var permissionCallback: ((Boolean) -> Unit)? = null
     private var filePickCallback: IActionCallback<Boolean>? = null
     private var storageCallback: IActionCallback<Boolean>? = null
+    private var exitRequested = false
 
     init {
         lifecycleOwner?.lifecycle?.addObserver(this)
@@ -467,10 +469,53 @@ class MethodChannelHandler(
     }
 
     private fun popAllActivity(result: MethodChannel.Result) {
-        // Embedded hosts (e.g. mp-app) must not finish foreign Activities or killProcess.
-        // Example-app "restart" previously used ActivityManager + Process.killProcess;
-        // that is unsafe for third-party Applications. No-op success for embedders.
-        JL_Log.w("MethodChannelHandler", "popAllActivity ignored in embedded mode (no ActivityManager / killProcess)")
+        val activity = activityRef.get()
+        if (activity == null || activity.isDestroyed) {
+            result.error("ACTIVITY_NULL", "Activity is destroyed", null)
+            return
+        }
+        // Only the standalone Application opts in; wrappers and host subclasses do not.
+        if (activity.application?.javaClass != MyApplication::class.java) {
+            result.error(
+                "UNSUPPORTED_OPERATION",
+                "Embedded applications must handle their own exit",
+                null,
+            )
+            return
+        }
+        if (exitRequested) {
+            result.success(true)
+            return
+        }
+        if (activity.isFinishing) {
+            result.error("ACTIVITY_NULL", "Activity is finishing", null)
+            return
+        }
+
+        // This Handler must survive cleanup(), which cancels the page's mainHandler.
+        val exitHandler = Handler(Looper.getMainLooper())
+        val exitTask = Runnable { Process.killProcess(Process.myPid()) }
+        try {
+            if (!exitHandler.postDelayed(exitTask, 500L)) {
+                result.error("POP_ALL_ACTIVITY_FAILED", "Failed to schedule application exit", null)
+                return
+            }
+            if (activity.isTaskRoot) {
+                activity.finishAndRemoveTask()
+            } else {
+                // A shared task may belong to the app that opened the example.
+                activity.finish()
+            }
+            exitRequested = true
+        } catch (e: Exception) {
+            exitHandler.removeCallbacks(exitTask)
+            result.error(
+                "POP_ALL_ACTIVITY_FAILED",
+                "Failed to close application activities",
+                e.message,
+            )
+            return
+        }
         result.success(true)
     }
 

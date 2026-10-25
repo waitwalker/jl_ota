@@ -114,8 +114,10 @@ tasks.withType<KotlinCompile>().configureEach {
 }
 
 dependencies {
-    add("testImplementation", "org.jetbrains.kotlin:kotlin-test")
+    add("testImplementation", "org.jetbrains.kotlin:kotlin-test-junit5:$kotlinVersion")
     add("testImplementation", "org.mockito:mockito-core:5.0.0")
+    add("testRuntimeOnly", "org.junit.jupiter:junit-jupiter-engine:5.10.1")
+    add("testRuntimeOnly", "org.junit.platform:junit-platform-launcher:1.10.1")
 
     add("implementation", "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion")
     add("implementation", mapOf("name" to "jl-component-lib_V1.4.0_10400-release", "ext" to "aar"))

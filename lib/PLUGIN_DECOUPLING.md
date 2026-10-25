@@ -105,7 +105,9 @@ companion object {
 `initFromContext` 内部完成：
 - `attachBaseContext` 赋予 wrapper 完整的 Context 能力
 - 初始化 OTA 文件目录、日志目录
-- 初始化 `ActivityManager`、`ToastUtil`、`CommonUtil` 等第三方组件
+- 初始化 `ToastUtil`、`CommonUtil` 等第三方组件。不要注册 `ActivityManager`：宿主创建后再注册会错过创建回调，并在销毁时因空活动栈崩溃。
+
+`popAllActivity` 仅支持 Application 类型恰好为插件 `MyApplication` 的 Android 独立应用：根页面退出时移除自身任务，非根页面仅关闭当前 Activity，随后结束独立应用进程，使重新启动时读取新配置。退出计时独立于页面 Handler，避免页面清理取消退出任务。集成宿主（包括继承 `MyApplication` 的宿主）返回 `UNSUPPORTED_OPERATION`，由宿主自行实现退出；不会静默返回成功或终止宿主进程。iOS 不涉及本次 Android 退出逻辑。
 
 ### 1.4 涉及文件
 
