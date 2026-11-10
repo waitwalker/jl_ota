@@ -9,12 +9,15 @@ import io.flutter.plugin.common.MethodChannel
 import java.lang.ref.WeakReference
 
 /**
- * Des:
- * author: lifang
- * date: 2025/07/18
- * Copyright: Jieli Technology
- * Modify date: 2025/07/22
- * Modified by: lifang
+ * BLE 插件核心实现类
+ *
+ * 负责管理与 Flutter 通信的 MethodChannel 和 EventChannel，
+ * 封装通道的初始化、事件流注册、以及插件资源的销毁与释放。
+ *
+ * @param binaryMessenger Flutter 消息信使，用于建立通道连接
+ * @param activity 当前宿主 Activity 实例
+ * @param plugin JlOtaPlugin 宿主插件引用
+ * @param lifecycleOwner 生命周期拥有者，用于监听宿主生命周期变化
  */
 class BlePlugin(
     binaryMessenger: BinaryMessenger,
@@ -23,26 +26,39 @@ class BlePlugin(
     private val lifecycleOwner: LifecycleOwner?
 ) {
     companion object {
+        /** MethodChannel 通道标识名称，用于 Flutter 与原生方法交互 */
         private const val METHOD_CHANNEL = "com.jieli.ble_plugin/methods"
+
+        /** EventChannel 通道标识名称，用于原生向 Flutter 持续派发事件流 */
         private const val EVENT_CHANNEL = "com.jieli.ble_plugin/events"
+
+        /** 日志标签 TAG */
         private const val TAG = "BlePlugin"
     }
 
-    // Use WeakReference to avoid memory leaks
+    /** 宿主 Activity 的弱引用，避免引起内存泄漏 */
     private val activityRef = WeakReference(activity)
+
+    /** Flutter BinaryMessenger 的弱引用，避免内存泄漏 */
     private val binaryMessengerRef = WeakReference(binaryMessenger)
 
+    /** MethodChannel 请求分发处理器 */
     private var methodChannelHandler: MethodChannelHandler? = null
+
+    /** EventChannel 事件流分发处理器 */
     private var eventChannelHandler: EventChannelHandler? = null
 
+    /** MethodChannel 实例句柄 */
     private var methodChannel: MethodChannel? = null
+
+    /** EventChannel 实例句柄 */
     private var eventChannel: EventChannel? = null
 
-    // Flag to track if plugin has been disposed
+    /** 插件是否已被销毁释放的标志位 */
     @Volatile
     private var isDisposed = false
 
-    // Synchronization lock for thread safety
+    /** 保证多线程初始化与销毁安全的互斥同步锁 */
     private val lock = Any()
 
     init {
@@ -50,7 +66,9 @@ class BlePlugin(
     }
 
     /**
-     * Initialize method and event channels
+     * 初始化 MethodChannel 与 EventChannel 通道
+     *
+     * 校验 Activity 和 BinaryMessenger 有效性，若宿主正处于销毁流程则跳过初始化。
      */
     private fun initializeChannels() {
         synchronized(lock) {
@@ -88,7 +106,12 @@ class BlePlugin(
     }
 
     /**
-     * Initialize MethodChannel
+     * 初始化 Flutter MethodChannel
+     *
+     * 创建通道实例并设置 [MethodChannelHandler] 为方法调用接收器。
+     *
+     * @param messenger 用于创建通道的消息信使
+     * @param activity 宿主 Activity
      */
     private fun initializeMethodChannel(messenger: BinaryMessenger, activity: Activity) {
         try {
@@ -108,7 +131,12 @@ class BlePlugin(
     }
 
     /**
-     * Initialize EventChannel
+     * 初始化 Flutter EventChannel
+     *
+     * 创建通道实例并设置 [EventChannelHandler] 为事件流数据源。
+     *
+     * @param messenger 用于创建通道的消息信使
+     * @param activity 宿主 Activity
      */
     private fun initializeEventChannel(messenger: BinaryMessenger, activity: Activity) {
         try {
@@ -128,8 +156,10 @@ class BlePlugin(
     }
 
     /**
-     * Cleans up plugin resources
-     * Should be called when the plugin is detached or no longer needed
+     * 释放与清理插件全部通道及相关资源
+     *
+     * 注销 MethodChannel 与 EventChannel 回调、重置处理器并清空弱引用。
+     * 应当在宿主引擎解绑或 Activity 销毁时调用。
      */
     fun dispose() {
         synchronized(lock) {
@@ -140,7 +170,7 @@ class BlePlugin(
 
             JL_Log.d(TAG, "Starting dispose")
 
-            // 1. Dispose MethodChannelHandler
+            // 1. 释放并注销 MethodChannelHandler
             try {
                 methodChannel?.setMethodCallHandler(null)
                 methodChannelHandler?.cleanup()
@@ -151,7 +181,7 @@ class BlePlugin(
                 JL_Log.e(TAG, "Error disposing MethodChannel", e.message)
             }
 
-            // 2. Dispose EventChannelHandler
+            // 2. 释放并注销 EventChannelHandler
             try {
                 eventChannel?.setStreamHandler(null)
                 eventChannelHandler = null
@@ -161,7 +191,7 @@ class BlePlugin(
                 JL_Log.e(TAG, "Error disposing EventChannel", e.message)
             }
 
-            // 3. Clear references
+            // 3. 清除弱引用缓存
             activityRef.clear()
             binaryMessengerRef.clear()
 
@@ -172,7 +202,9 @@ class BlePlugin(
     }
 
     /**
-     * Check if plugin has been disposed
+     * 查询插件当前是否已被销毁释放
+     *
+     * @return true 表示已被释放，false 表示正常可用
      */
     fun isDisposed(): Boolean {
         return isDisposed
