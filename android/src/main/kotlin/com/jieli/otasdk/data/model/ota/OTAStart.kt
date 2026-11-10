@@ -3,9 +3,10 @@ package com.jieli.otasdk.data.model.ota
 import android.bluetooth.BluetoothDevice
 
 /**
- * @author zqjasonZhong
- * @since 2022/9/9
- * @email zhongzhuocheng@zh-jieli.com
- * @desc OTA开始状态
+ * OTA 启动状态实体类
+ *
+ * 表示底层 SDK 已正式开始执行固件升级流程。
+ *
+ * @param device 正在启动升级的目标蓝牙设备
  */
 class OTAStart(device: BluetoothDevice?) : OTAState(OTA_STATE_START, device)
