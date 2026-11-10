@@ -35,16 +35,6 @@ public class JlOtaPlugin: NSObject, FlutterPlugin {
         JLLogManager.clearLog()
     }
     
-    /// Scans for available OTA update files in the system
-    public func scanOtaList() {
-        OtaManager.shared.scanForUpdateFiles()
-    }
-    
-    /// Sets the WiFi IP address for OTA update connections
-    /// - Parameter ipAddress: The IP address to use for WiFi connections
-    public func setWifiIpAddress(_ ipAddress: String) {
-        OtaManager.shared.setWifiIpAddress(ipAddress)
-    }
 }
 
 #endif

@@ -37,9 +37,7 @@ class MethodChannelHandler: NSObject {
     
     /// Cleans up resources to prevent memory leaks
     func dispose() {
-        LogManager.shared.cleanUp()
         OtaManager.shared.cleanUp()
-        CustomCmdManager.shared.cleanUp()
         SettingsManager.cleanUp()
         
         // Clear references
@@ -60,8 +58,6 @@ class MethodChannelHandler: NSObject {
             connectDevice(call: call, result: result)
         case MethodChannelConstants.METHOD_DISCONNECT_BT_DEVICE:
             disconnectDevice(call: call, result: result)
-        case MethodChannelConstants.METHOD_GET_LOG_FILE_DIR_PATH:
-            SettingsManager.getLogFileDirPath(result: result)
         case MethodChannelConstants.METHOD_IS_USE_DEVICE_AUTH:
             SettingsManager.getUseDeviceAuth(result: result)
         case MethodChannelConstants.METHOD_SET_USE_DEVICE_AUTH:
@@ -80,31 +76,10 @@ class MethodChannelHandler: NSObject {
             SettingsManager.setGattServiceUuids(call: call, result: result)
         case MethodChannelConstants.METHOD_GET_SDK_VERSION:
             SettingsManager.getSDKVersion(result: result)
-        case MethodChannelConstants.METHOD_GET_APP_VERSION:
-            SettingsManager.getAppVersion(result: result)
-        case MethodChannelConstants.METHOD_GET_LOG_FILES:
-            handleGetLogFiles(result: result)
-        case MethodChannelConstants.METHOD_DELETE_ALL_LOG_FILE:
-            handleDeleteAllLogFiles(result: result)
-        case MethodChannelConstants.METHOD_LOG_FILE_INDEX:
-            setLogFileIndex(call: call, result: result)
-        case MethodChannelConstants.METHOD_SHARE_LOG_FILE:
-            shareLogFile(call: call, result: result)
-        case MethodChannelConstants.METHOD_READ_FILE_LIST:
-            handleReadFileList(result: result)
-        case MethodChannelConstants.METHOD_DELETE_OTA_FILE_INDEX:
-            OtaManager.shared.deleteOtaFileIndex(call: call, result: result)
-        case MethodChannelConstants.METHOD_GET_WIFI_IP_ADDRESS:
-            OtaManager.shared.getWifiIpAddress(result: result)
-        case MethodChannelConstants.METHOD_DOWNLOAD_FILE:
-            bindOtaEventSink()
-            handleDownloadFile(call: call, result: result)
         case MethodChannelConstants.METHOD_START_OTA:
             // Hosts may skip readFileList; bind sink here so OTA state is not dropped.
             bindOtaEventSink()
             OtaManager.shared.startOTA(call: call, result: result)
-        case MethodChannelConstants.METHOD_SEND_CUSTOM_COMMAND:
-            sendCustomCmd(call:call,result:result)
         default:
             result(FlutterMethodNotImplemented)
         }
@@ -298,105 +273,13 @@ class MethodChannelHandler: NSObject {
         }
     }
         
-    private func handleGetLogFiles(result: @escaping FlutterResult) {
-        let logManager = LogManager.shared
-        if let sink = eventChannelHandler?.eventSink {
-            logManager.setEventSink(sink: sink)
-        } else {
-            JLLogManager.logLevel(.DEBUG, content: "Cannot set event sink for LogManager - eventChannelHandler is nil")
-        }
-        logManager.loadLogFiles()
-        result(true)
-    }
-    
-    private func handleDeleteAllLogFiles(result: @escaping FlutterResult) {
-        let logManager = LogManager.shared
-        logManager.deleteAllLogs()
-        result(true)
-    }
-    
-    /// Handles the Flutter method call for setting the log file index.
-    private func setLogFileIndex(call: FlutterMethodCall, result: @escaping FlutterResult) {
-        let arguments = call.arguments as? [String: Any]
-        let logFileIndex = arguments?[MethodChannelConstants.ARG_LOG_FILE_INDEX] as? Int ?? -1
-        let logManager = LogManager.shared
-        
-        if let sink = eventChannelHandler?.eventSink {
-            logManager.setEventSink(sink: sink)
-        } else {
-            JLLogManager.logLevel(.DEBUG, content: "Cannot set event sink for LogManager - eventChannelHandler is nil")
-        }
-        
-        logManager.handleLogFileIndex(logFileIndex)
-        result(true)
-    }
-    
-    private func shareLogFile(call: FlutterMethodCall, result: @escaping FlutterResult) {
-        let arguments = call.arguments as? [String: Any]
-        let logFileIndex = arguments?[MethodChannelConstants.ARG_LOG_FILE_INDEX] as? Int ?? -1
-        
-        // Safely get the current view controller with backward compatibility
-        let viewController: UIViewController? = {
-            if #available(iOS 15.0, *) {
-                return UIApplication.shared.connectedScenes
-                    .compactMap { $0 as? UIWindowScene }
-                    .flatMap { $0.windows }
-                    .first { $0.isKeyWindow }?
-                    .rootViewController
-            } else if #available(iOS 13.0, *) {
-                return UIApplication.shared.connectedScenes
-                    .compactMap { $0 as? UIWindowScene }
-                    .first?
-                    .windows
-                    .first { $0.isKeyWindow }?
-                    .rootViewController
-            } else {
-                return UIApplication.shared.keyWindow?.rootViewController
-            }
-        }()
-        
-        guard let topViewController = viewController else {
-            result(FlutterError(
-                code: "NO_VIEW_CONTROLLER",
-                message: "No view controller available to present share sheet",
-                details: nil
-            ))
-            return
-        }
-        
-        LogManager.shared.shareLogFile(index: logFileIndex, from: topViewController)
-        result(true)
-    }
-        
-    private func handleReadFileList(result: @escaping FlutterResult) {
-        bindOtaEventSink()
-        OtaManager.shared.scanForUpdateFiles()
-        result(nil)
-    }
-
-    /// Bind EventChannel sink to OtaManager so OTA state can reach Flutter
-    /// even when the host never calls readFileList.
+    /// Bind EventChannel sink to OtaManager so OTA state can reach Flutter.
     private func bindOtaEventSink() {
         if let sink = eventChannelHandler?.eventSink {
             OtaManager.shared.setEventSink(sink: sink)
         } else {
             JLLogManager.logLevel(.DEBUG, content: "Cannot set event sink for OtaManager - eventChannelHandler is nil")
         }
-    }
-    
-    private func handleDownloadFile(call: FlutterMethodCall, result: @escaping FlutterResult) {
-        OtaManager.shared.downloadFile(call: call, result: result)
-        result(nil)
-    }
-    
-    private func sendCustomCmd(call: FlutterMethodCall, result: @escaping FlutterResult){
-        let customCmdManager = CustomCmdManager.shared
-        if let sink = eventChannelHandler?.eventSink {
-            customCmdManager.setEventSink(sink: sink)
-        } else {
-            JLLogManager.logLevel(.DEBUG, content: "Cannot set event sink for CustomCmdManager - eventChannelHandler is nil")
-        }
-        customCmdManager.handleCustomCmd(call: call, result: result)
     }
 }
 

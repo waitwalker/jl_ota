@@ -11,7 +11,6 @@ import Flutter
 private enum OtaConstants {
     static let PROGRESS_MAX_PERCENT = 100
     static let OTA_UPGRADE_SUCCESS_CODE = 0
-    static let FILE_SIZE_CONVERSION_FACTOR = 1024.0
 }
 
 /// A manager class for handling OTA (Over-The-Air) update related operations.
@@ -20,8 +19,6 @@ private enum OtaConstants {
     // MARK: - Properties
     @objc static let shared = OtaManager()
     private var eventSink: FlutterEventSink?
-    private(set) var itemArray: [String] = []
-    private var ipAddress: String?
     private var isCleanedUp = false
     private var isOtaFinished = false
     
@@ -47,55 +44,6 @@ private enum OtaConstants {
         }
     }
     
-    /// Delete OTA file by index
-    func deleteOtaFileIndex(call: FlutterMethodCall, result: FlutterResult) {
-        guard let args = call.arguments as? [String: Any],
-              let pos = args[MethodChannelConstants.ARG_POS] as? Int else {
-            result(FlutterError(code: "INVALID_ARGUMENT", message: "Invalid arguments", details: nil))
-            return
-        }
-        
-        guard pos >= 0 && pos < itemArray.count else {
-            result(FlutterError(code: "INVALID_INDEX", message: "Index must be non-negative and within bounds", details: nil))
-            return
-        }
-        
-        deleteOtaFile(at: pos)
-        result(nil)
-    }
-    
-    /// Scan for OTA update files in the documents directory
-    @discardableResult
-    @objc func scanForUpdateFiles() -> [String] {
-        let fileManager = FileManager.default
-        guard let documentDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
-            JLLogManager.logLevel(.DEBUG, content: "Document directory not found")
-            return itemArray
-        }
-        
-        let upgradeDirectory = documentDirectory.appendingPathComponent(OTA_UPGRADE)
-        
-        do {
-            try fileManager.createDirectory(at: upgradeDirectory, withIntermediateDirectories: true, attributes: nil)
-            let subPaths = try fileManager.contentsOfDirectory(atPath: upgradeDirectory.path)
-            itemArray = subPaths.map { upgradeDirectory.appendingPathComponent($0).path }
-            sendFileListToFlutter()
-        } catch {
-            JLLogManager.logLevel(.DEBUG, content: "Get ota upgrade file fail: \(error.localizedDescription)")
-        }
-        
-        return itemArray
-    }
-
-    func setWifiIpAddress(_ ipAddress: String) {
-        self.ipAddress = ipAddress
-    }
-
-    /// Get the WiFi IP address
-    func getWifiIpAddress(result: @escaping FlutterResult) {
-        result(self.ipAddress)
-    }
-    
     /// Start the OTA update process with the specified file
     func startOTA(call: FlutterMethodCall, result: @escaping FlutterResult) {
         guard let path = call.arguments as? [String: Any],
@@ -113,19 +61,6 @@ private enum OtaConstants {
         result(true)
     }
     
-    /// Download a file from the specified HTTP URL
-    func downloadFile(call: FlutterMethodCall, result: @escaping FlutterResult) {
-        guard let args = call.arguments as? [String: Any],
-              let httpUrl = args[MethodChannelConstants.ARG_HTTP_URL] as? String else {
-            result(FlutterError(code: "INVALID_ARGUMENT", message: "httpUrl must not be null", details: nil))
-            return
-        }
-        
-        sendDownloadStatusEvent(status: EventChannelConstants.STATUS_ON_START)
-        downloadAction(url: httpUrl)
-        result(nil)
-    }
-    
     @objc func cleanUp() {
         guard !isCleanedUp else {
             return
@@ -135,12 +70,6 @@ private enum OtaConstants {
         
         // Clear event sink to prevent further callbacks
         eventSink = nil
-        
-        // Clear file array
-        itemArray.removeAll()
-        
-        // Clear IP address
-        ipAddress = nil
         
         // Reset screen keep-on setting
         setKeepScreenOn(false)
@@ -162,24 +91,6 @@ private enum OtaConstants {
     }
     
     // MARK: - Private Methods
-    /// Delete OTA file at the specified index
-    private func deleteOtaFile(at pos: Int) {
-        let filePath = itemArray[pos]
-        let fileManager = FileManager.default
-        
-        if fileManager.fileExists(atPath: filePath) {
-            do {
-                try fileManager.removeItem(atPath: filePath)
-                JLLogManager.logLevel(.DEBUG, content: "Successfully deleted file at path: \(filePath)")
-            } catch {
-                JLLogManager.logLevel(.DEBUG, content: "Failed to delete file at path: \(filePath): \(error.localizedDescription)")
-            }
-        }
-        
-        itemArray.remove(at: pos)
-        sendFileListToFlutter()
-    }
-    
     /// Send an event to the Flutter side
     private func sendEvent(type: String, data: [String: Any]) {
         // Don't send events if cleaned up
@@ -192,120 +103,6 @@ private enum OtaConstants {
                 EventChannelConstants.KEY_VALUE: data
             ])
         }
-    }
-    
-    /// Send the list of OTA files to Flutter with their sizes
-    private func sendFileListToFlutter() {
-        // Don't send events if cleaned up
-        guard !isCleanedUp else { return }
-        
-        let filesWithSize = itemArray.map { filePath -> (path: String, size: Double, name: String) in
-            var fileSize: Double = 0.0
-            do {
-                let attributes = try FileManager.default.attributesOfItem(atPath: filePath)
-                if let size = attributes[.size] as? NSNumber {
-                    fileSize = size.doubleValue
-                }
-            } catch {
-                JLLogManager.logLevel(.DEBUG, content: "Failed to get file size for \(filePath): \(error.localizedDescription)")
-            }
-            
-            let fileName = (filePath as NSString).lastPathComponent
-            return (path: filePath, size: fileSize, name: fileName)
-        }
-        
-        let sortedFiles = filesWithSize.sorted { $0.size > $1.size }
-        let fileList = sortedFiles.map { fileInfo -> [String: Any] in
-            let fileSizeMB = fileInfo.size / OtaConstants.FILE_SIZE_CONVERSION_FACTOR / OtaConstants.FILE_SIZE_CONVERSION_FACTOR
-            let formattedSize = String(format: "%.2fMb", fileSizeMB)
-            let fileNameWithSize = "\(fileInfo.name)\t\t\(formattedSize)"
-            
-            return [
-                EventChannelConstants.KEY_NAME: fileNameWithSize,
-                EventChannelConstants.KEY_PATH: fileInfo.path
-            ]
-        }
-        
-        let data: [String: Any] = [EventChannelConstants.KEY_LIST: fileList]
-        sendEvent(type: EventChannelConstants.TYPE_OTA_FILE_LIST, data: data)
-    }
-    
-    /// Perform the file download action
-    private func downloadAction(url: String) {
-        // 1. Validate URL
-        guard let downloadUrl = URL(string: url) else {
-            sendDownloadStatusEvent(
-                status: EventChannelConstants.STATUS_ON_ERROR,
-                errorMsg: "Invalid URL"
-            )
-            return
-        }
-
-        let fileName = downloadUrl.lastPathComponent
-        let targetPath = ToolsHelper.targetSavePath(fileName)
-
-        // 2. Create native URLSession download task
-        let session = URLSession(configuration: .default)
-        let downloadTask = session.downloadTask(with: downloadUrl) { [weak self] tempUrl, response, error in
-            guard let self = self, !self.isCleanedUp else { return }
-
-            if let error = error {
-                self.handleDownloadError(error)
-                return
-            }
-
-            guard let tempUrl = tempUrl else {
-                self.handleDownloadError(
-                    NSError(domain: "OtaManager", code: -1, userInfo: [NSLocalizedDescriptionKey: "Downloaded file is null"])
-                )
-                return
-            }
-
-            do {
-                if FileManager.default.fileExists(atPath: targetPath.path) {
-                    try FileManager.default.removeItem(at: targetPath)
-                }
-                try FileManager.default.moveItem(at: tempUrl, to: targetPath)
-                self.handleDownloadSuccess()
-            } catch {
-                self.handleDownloadError(error)
-            }
-        }
-
-        // 3. Start download
-        downloadTask.resume()
-    }
-
-    /// Handle successful download completion
-    private func handleDownloadSuccess() {
-        scanForUpdateFiles()
-        sendDownloadStatusEvent(status: EventChannelConstants.STATUS_ON_STOP)
-    }
-
-    /// Handle download error
-    private func handleDownloadError(_ error: Error) {
-        sendDownloadStatusEvent(
-            status: EventChannelConstants.STATUS_ON_ERROR,
-            errorMsg: error.localizedDescription
-        )
-    }
-    
-    /// Send download status event to Flutter
-    private func sendDownloadStatusEvent(status: String, progress: Int? = nil, errorMsg: String? = nil) {
-        // Don't send events if cleaned up
-        guard !isCleanedUp else { return }
-        
-        var eventMap: [String: Any] = [EventChannelConstants.KEY_STATUS: status]
-        
-        if let progress = progress, status == EventChannelConstants.STATUS_ON_PROGRESS {
-            eventMap[EventChannelConstants.KEY_PROGRESS] = progress
-        }
-        
-        if let errorMsg = errorMsg, status == EventChannelConstants.STATUS_ON_ERROR {
-            eventMap[EventChannelConstants.KEY_MESSAGE] = errorMsg
-        }
-        
-        sendEvent(type: EventChannelConstants.TYPE_DOWNLOAD_STATUS, data: eventMap)
     }
     
     /// Set the screen keep-on state to prevent auto-lock during OTA

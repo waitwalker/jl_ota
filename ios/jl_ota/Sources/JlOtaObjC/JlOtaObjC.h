@@ -2,7 +2,6 @@
 
 // The vendor SDK is distributed for physical iOS devices only.
 #if !TARGET_OS_SIMULATOR
-#import "DeviceManager.h"
 #import "DeviceTypeConstants.h"
 #import "HandleBroadcastPtl.h"
 #import "JLBleAssistManager.h"

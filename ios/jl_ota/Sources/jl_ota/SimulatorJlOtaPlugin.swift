@@ -29,8 +29,6 @@ public class JlOtaPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
         case MethodChannelConstants.METHOD_STOP_SCAN,
             MethodChannelConstants.METHOD_DISCONNECT_BT_DEVICE:
             result(true)
-        case MethodChannelConstants.METHOD_GET_APP_VERSION:
-            result(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "")
         default:
             result(
                 FlutterError(

@@ -12,19 +12,10 @@ struct EventChannelConstants {
     static let TYPE_DEVICE_CONNECTION = "deviceConnection" // 设备连接事件类型
     static let TYPE_SCAN_DEVICE_LIST = "scanDeviceList" // 扫描设备列表事件类型
     static let TYPE_OTA_CONNECTION = "otaConnection" // OTA连接事件类型
-    static let TYPE_DOWNLOAD_STATUS = "downloadStatus" // 下载状态事件类型
-    static let TYPE_OTA_FILE_LIST = "otaFileList" // OTA文件列表事件类型
-    static let TYPE_SELECTED_FILE_PATHS = "selectedFilePaths" // 选中文件路径列表事件类型
     static let TYPE_MANDATORY_UPGRADE = "mandatoryUpgrade" // 强制升级事件类型
     static let TYPE_OTA_STATE = "otaState" // OTA状态事件类型
-    static let TYPE_CUSTOM_DATA_UPDATE = "customDataUpdate" // 自定义数据更新
 
     // 状态值
-    static let STATUS_ON_PROGRESS = "onProgress" // 正在进行中状态
-    static let STATUS_ON_STOP = "onStop" // 已停止状态
-    static let STATUS_ON_ERROR = "onError" // 错误状态
-    static let STATUS_ON_START = "onStart" // 已开始状态
-    static let STATUS_UNKNOWN = "unknown" // 未知状态
     static let STATE_IDLE = "idle" // 空闲状态
     static let STATE_START = "start" // 开始状态
     static let STATE_RECONNECT = "reconnect" // 重新连接状态
@@ -51,7 +42,6 @@ struct EventChannelConstants {
     static let KEY_IS_REQUIRED = "isRequired" // 是否必需键
     static let KEY_SUCCESS = "success" // 成功键
     static let KEY_CODE = "code" // 代码键
-    static let KEY_CUSTOM_DATA = "customData" // 自定义数据的值
 
     // 消息文本
     static let MSG_CHECKING_FILE = "Checking file" // 正在检查文件消息

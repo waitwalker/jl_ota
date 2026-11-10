@@ -31,25 +31,8 @@ struct MethodChannelConstants {
     static let METHOD_GET_BLE_REQUEST_MTU = "getBleRequestMtu" // 获取BLE请求MTU的方法名
     static let METHOD_SET_BLE_REQUEST_MTU = "setBleRequestMtu" // 设置BLE请求MTU的方法名
     static let METHOD_GET_SDK_VERSION = "getSdkVersion" // 获取SDK版本的方法名
-    static let METHOD_GET_APP_VERSION = "getAppVersion" // 获取应用版本的方法名
-    static let METHOD_GET_LOG_FILES = "getLogFiles" // 获取日志文件列表的方法名
-    static let METHOD_LOG_FILE_INDEX = "logFileIndex" // 处理日志文件索引的方法名
-    static let METHOD_SHARE_LOG_FILE = "shareLogFile" // 分享日志文件的方法名
-    static let METHOD_DOWNLOAD_FILE = "downloadFile" // 下载文件的方法名
     static let METHOD_TYPE_IS_OTA = "isOta" // 当时是否正在OTA升级
-    static let METHOD_READ_FILE_LIST = "readFileList" // 读取文件列表的方法名
-    static let METHOD_SET_SELECTED_INDEX = "setSelectedIndex" // 设置选中索引的方法名
-    static let METHOD_DELETE_OTA_FILE_INDEX = "deleteOtaFileIndex" // 删除OTA文件索引的方法名
-    static let METHOD_TRY_TO_CHECK_STORAGE_ENVIRONMENT = "tryToCheckStorageEnvironment" // 检查存储环境的方法名
-    static let METHOD_PICK_FILE = "pickFile" // 选择文件的方法名
     static let METHOD_START_OTA = "startOTA" // 开始OTA更新的方法名
-    static let METHOD_DELETE_ALL_LOG_FILE = "deleteAllLogFile" // 删除所有日志文件的方法名
-    static let METHOD_GET_WIFI_IP_ADDRESS = "getWifiIpAddress" // 获取WiFi IP地址的方法名
-    static let METHOD_GET_LOG_FILE_DIR_PATH = "getLogFileDirPath" // 获取打印日志位置
-    static let METHOD_POP_ALL_ACTIVITY = "popAllActivity" // 退出所有的Activity
-    static let METHOD_ON_FILE_PICKED = "onFilePicked" // 当前从文本系统中选择的升级文件
-    static let METHOD_HANDLE_FILE_PICKED = "handleFilePicked" // 处理修改的升级文件名称
-    static let METHOD_SEND_CUSTOM_COMMAND = "sendCustomCommand" // 发送自定义命令
 
     // 参数键
     static let ARG_FILTER = "filter" // 扫描过滤条件参数名
@@ -58,13 +41,8 @@ struct MethodChannelConstants {
     static let ARG_IS_HID = "isHid" // 是否为HID设备参数名
     static let ARG_IS_CUSTOM = "isCustom" // 是否使用自定义重连方式参数名
     static let ARG_MTU = "mtu" // MTU参数名
-    static let ARG_LOG_FILE_INDEX = "logFileIndex" // 日志文件索引参数名
-    static let ARG_HTTP_URL = "httpUrl" // HTTP URL参数名
-    static let ARG_POS = "pos" // 位置参数名
     static let ARG_PATH = "path" // 升级的path
     static let ARG_INDEX = "index" // 索引参数名
-    static let ARG_FILE_NAME = "fileName" // 升级文件名称
     static let ARG_IS_USING_GATT_OVER_EDR = "isUsingGattOVerEdr" // 是否使用Gatt Over Edr
     static let ARG_GATT_SERVICE_UUIDS = "gattServiceUuids" // Gatt Service uuids
-    static let ARG_CUSTOM_DATA = "customData" // 发送自定义命令的键
 }

@@ -27,8 +27,8 @@ private enum CustomCmdConstants {
     static let ackResponse = "ACK"
 }
 
-@objc class CustomCmdManager: NSObject, JLCustomCmdPtl{
-    @objc static let shared = CustomCmdManager()
+@objc public class CustomCmdManager: NSObject, JLCustomCmdPtl{
+    @objc public static let shared = CustomCmdManager()
     private var eventSink: FlutterEventSink?
 
     private lazy var customMgr: JL_CustomManager? = {
@@ -45,52 +45,24 @@ private enum CustomCmdConstants {
         customMgr?.delegate = self
     }
     
-    @objc func setEventSink(sink: FlutterEventSink?) {
+    @objc public func setEventSink(sink: FlutterEventSink?) {
         self.eventSink = sink
-    }
-    
-    func handleCustomCmd(call: FlutterMethodCall, result: @escaping FlutterResult){
-        switch call.method {
-        case MethodChannelConstants.METHOD_SEND_CUSTOM_COMMAND:
-            sendCustomCmd(call: call, result: result)
-        default:
-            result(FlutterMethodNotImplemented)
+        if customMgr?.delegate == nil {
+            customMgr?.delegate = self
         }
     }
-    
-    private func sendCustomCmd(call: FlutterMethodCall, result: @escaping FlutterResult){
-        
-        guard let arguments = call.arguments as? [String: Any] else {
-            result(FlutterError(code: CustomCmdConstants.invalidArguments,
-                                message: CustomCmdConstants.invalidArgumentsMessage,
-                                details: nil))
-            return
-        }
-        
-        guard let flutterData = arguments[MethodChannelConstants.ARG_CUSTOM_DATA] as? FlutterStandardTypedData else {
-            result(FlutterError(code: CustomCmdConstants.invalidDataType,
-                                message: CustomCmdConstants.invalidDataTypeMessage,
-                                details: nil))
-            return
-        }
-        
-        let data = flutterData.data
-        
+
+    public func send(data: Data, result: @escaping FlutterResult) {
         if data.isEmpty {
             result(FlutterError(code: CustomCmdConstants.emptyData,
                                 message: CustomCmdConstants.emptyDataMessage,
                                 details: nil))
             return
         }
-        
-
-        customMgr?.cmdCustomData(data,
-                                   isNeedResponse: true,
-                                   result: { [weak self] status, sn, responseData in
+        customMgr?.cmdCustomData(data, isNeedResponse: true, result: { [weak self] status, _, responseData in
             guard self != nil else { return }
-            
             if status == JL_CMDStatus.success {
-                if let responseData = responseData {
+                if let responseData {
                     JLLogManager.logLevel(.DEBUG, content: "response data: \(responseData.count) bytes")
                 }
                 result(nil)
@@ -102,7 +74,6 @@ private enum CustomCmdConstants {
         })
     }
     
-    /// 发送事件到Flutter
     private func sendEventToFlutter(type: String, data: [String: Any]) {
         DispatchQueue.main.async {
             self.eventSink?([
@@ -111,21 +82,21 @@ private enum CustomCmdConstants {
             ])
         }
     }
-    
+
     private func sendCustomDataUpdate(data: Data) {
         let byteArray = [UInt8](data)
         let customData: [String: Any] = [
-            EventChannelConstants.KEY_CUSTOM_DATA: byteArray
+            "customData": byteArray
         ]
-        sendEventToFlutter(type:EventChannelConstants.TYPE_CUSTOM_DATA_UPDATE, data: customData)
+        sendEventToFlutter(type: "customDataUpdate", data: customData)
     }
     
     // MARK: - JLCustomCmdPtl Protocol Methods
-    func customCmdResponse(_ manager: JL_ManagerM, status: UInt8, with data: Data) {
+    public func customCmdResponse(_ manager: JL_ManagerM, status: UInt8, with data: Data) {
         sendCustomDataUpdate(data: data)
     }
 
-    func customCmdRequire(_ manager: JL_ManagerM, with data: Data, isNeedResponse: Bool, sn: UInt8) {
+    public func customCmdRequire(_ manager: JL_ManagerM, with data: Data, isNeedResponse: Bool, sn: UInt8) {
         if isNeedResponse {
             if let responseData = CustomCmdConstants.ackResponse.data(using: .utf8) {
                 manager.mCustomManager.cmdCustomResponse(sn, data: responseData)
@@ -133,7 +104,7 @@ private enum CustomCmdConstants {
         }
     }
     
-    func cleanUp() {
+    public func cleanUp() {
         customMgr?.delegate = nil
         eventSink = nil
     }

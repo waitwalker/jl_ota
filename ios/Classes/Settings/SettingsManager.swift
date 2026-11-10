@@ -10,26 +10,11 @@ import Flutter
 
 /// A manager class for handling application settings and related operations.
 class SettingsManager {
-    // MARK: - Constants
-    private static let LOG_FILE_DIR_PATH = ".../Document/JL_LOG.txt"
-    private static let DELAY_EXIT_TIME: Double = 0.5 // Exit delay of 500 milliseconds
-    
     // MARK: - Properties
     private static var isCleanedUp = false
     private static var pendingAsyncOperations: [DispatchWorkItem] = []
     
     // MARK: - Public Methods
-    /// Get the log file directory path
-    public static func getLogFileDirPath(result: @escaping FlutterResult) {
-        guard !isCleanedUp else {
-            result(FlutterError(code: "MANAGER_CLEANED_UP",
-                               message: "SettingsManager has been cleaned up",
-                               details: nil))
-            return
-        }
-        result(LOG_FILE_DIR_PATH)
-    }
-    
     /// Get the device authentication usage status
     public static func getUseDeviceAuth(result: @escaping FlutterResult) {
         guard !isCleanedUp else {
@@ -176,25 +161,6 @@ class SettingsManager {
         result(sdkVersion)
     }
     
-    /// Get the application version information
-    public static func getAppVersion(result: @escaping FlutterResult) {
-        guard !isCleanedUp else {
-            result(FlutterError(code: "MANAGER_CLEANED_UP",
-                               message: "SettingsManager has been cleaned up",
-                               details: nil))
-            return
-        }
-        
-        guard let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String else {
-            result(FlutterError(code: "VERSION_NOT_FOUND",
-                               message: "Could not retrieve app version",
-                               details: nil))
-            return
-        }
-        
-        result(appVersion)
-    }
-    
     /// Clean up resources to prevent memory leaks and unwanted behavior
     public static func cleanUp() {
         guard !isCleanedUp else {
@@ -224,27 +190,6 @@ class SettingsManager {
         }
         
         result(true)
-        
-        // Create and store the delayed operation for potential cancellation
-        let workItem = DispatchWorkItem {
-            guard !isCleanedUp else { return }
-            exitApplication()
-        }
-        
-        pendingAsyncOperations.append(workItem)
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + DELAY_EXIT_TIME, execute: workItem)
-    }
-    
-    /// Exit the application safely
-    private static func exitApplication() {
-        guard !isCleanedUp else {
-            JLLogManager.logLevel(.DEBUG, content: "Exit prevented - SettingsManager cleaned up")
-            return
-        }
-        
-        JLLogManager.logLevel(.DEBUG, content: "Exiting application due to settings change")
-        exit(0)
     }
     
     /// Reset the manager state (useful for testing or reinitialization)
