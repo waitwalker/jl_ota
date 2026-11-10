@@ -53,14 +53,8 @@ class OtaConstant {
         // 容错次数
         const val AUTO_FAULT_TOLERANT_COUNT = 1
 
-        // 根目录名称
-        const val DIR_ROOT = "JieLiOTA"
-
         // 升级文件目录名称
         const val DIR_UPGRADE = "upgrade"
-
-        // 日志目录名称
-        const val DIR_LOGCAT = "logcat"
 
         // 扫描超时时间（毫秒）
         const val SCAN_TIMEOUT = 30 * 1000L

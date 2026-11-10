@@ -46,7 +46,6 @@ repositories {
 
 apply(plugin = "com.android.library")
 apply(plugin = "kotlin-android")
-apply(plugin = "kotlin-kapt")
 
 extensions.configure<LibraryExtension>("android") {
     namespace = "com.jieli.otasdk"
@@ -122,26 +121,8 @@ dependencies {
     add("implementation", "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion")
     add("implementation", mapOf("name" to "jl-component-lib_V1.4.0_10400-release", "ext" to "aar"))
     add("implementation", mapOf("name" to "jl_bt_ota_V1.11.0_11015-release", "ext" to "aar"))
-    add("implementation", mapOf("name" to "jl_file_transfer_V1.0.0-release", "ext" to "aar"))
-
-    add("implementation", "com.github.permissions-dispatcher:permissionsdispatcher:4.9.2")
-    add("kapt", "com.github.permissions-dispatcher:permissionsdispatcher-processor:4.9.2")
-
-    add("implementation", platform("com.squareup.okhttp3:okhttp-bom:4.12.0"))
-    add("implementation", "com.squareup.okhttp3:logging-interceptor:4.10.0")
-    add("implementation", "com.squareup.okhttp3:mockwebserver:4.10.0")
 
     add("implementation", "androidx.lifecycle:lifecycle-viewmodel-ktx:2.4.0")
-    add("implementation", "androidx.activity:activity-ktx:1.2.3")
     add("implementation", "androidx.fragment:fragment:1.3.6")
-    add("implementation", "com.koushikdutta.async:androidasync:3.1.0")
-    add("implementation", "com.jakewharton.timber:timber:4.1.2")
-
-    add("implementation", "com.hwangjr.rxbus:rxbus:1.0.5") {
-        exclude(group = "com.jakewharton.timber", module = "timber")
-    }
-
-    add("implementation", "androidx.appcompat:appcompat:1.7.1")
     add("implementation", "androidx.annotation:annotation:1.3.0")
-    add("implementation", "org.conscrypt:conscrypt-android:2.5.3")
 }

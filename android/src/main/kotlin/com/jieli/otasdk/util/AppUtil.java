@@ -12,19 +12,17 @@ import android.bluetooth.BluetoothProfile;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.os.Build;
-import android.os.Environment;
 import android.os.ParcelUuid;
 import android.text.TextUtils;
 
 import androidx.core.app.ActivityCompat;
 
-import com.jieli.otasdk.MyApplication;
+import com.jieli.otasdk.OtaRuntime;
 import com.jieli.jl_bt_ota.constant.StateCode;
 import com.jieli.jl_bt_ota.util.BluetoothUtil;
 import com.jieli.jl_bt_ota.util.CHexConver;
 import com.jieli.jl_bt_ota.util.JL_Log;
 
-import java.io.File;
 import java.lang.reflect.Method;
 import java.util.Date;
 import java.util.List;
@@ -269,7 +267,7 @@ public class AppUtil {
      * @return The device information string.
      */
     public static String printBtDeviceInfo(BluetoothDevice device) {
-        return BluetoothUtil.printBtDeviceInfo(MyApplication.Companion.getInstance(), device);
+        return BluetoothUtil.printBtDeviceInfo(OtaRuntime.INSTANCE.getContext(), device);
     }
 
     /**
@@ -335,60 +333,5 @@ public class AppUtil {
             default:
                 return StateCode.CONNECTION_DISCONNECT;
         }
-    }
-
-    /**
-     * Creates a file path.
-     *
-     * @param context  The application context.
-     * @param dirNames The directory names.
-     * @return The file path.
-     */
-    public static String createFilePath(Context context, String... dirNames) {
-        if (context == null || dirNames == null || dirNames.length == 0) return null;
-        File file = context.getExternalFilesDir(null);
-        if (file == null || !file.exists()) return null;
-        StringBuilder filePath = new StringBuilder(file.getAbsolutePath());
-        for (String dirName : dirNames) {
-            filePath.append(File.separator).append(dirName);
-            file = new File(filePath.toString());
-            if (!file.exists() || file.isFile()) {
-                if (!file.mkdirs()) {
-                    JL_Log.w("jieli", "create dir failed. filePath = " + filePath);
-                    return null;
-                }
-            }
-        }
-        return filePath.toString();
-    }
-
-    /**
-     * Creates a download folder file path.
-     *
-     * @param context The application context.
-     * @return The download folder path.
-     */
-    public static String createDownloadFolderFilePath(Context context) {
-        File downloadFile = Environment.getExternalStorageDirectory();
-        String filePath = downloadFile.getAbsolutePath() + File.separator + Environment.DIRECTORY_DOWNLOADS + File.separator + "JieLiOTA" + File.separator + "upgrade";
-        File file = new File(filePath);
-        if (!file.exists()) {
-            if (!file.mkdirs()) {
-                JL_Log.w("jieli", "create dir failed. filePath = " + filePath);
-            }
-        }
-        return filePath;
-    }
-
-    /**
-     * Extracts the file name from a file path.
-     *
-     * @param filePath The file path.
-     * @return The file name.
-     */
-    public static String getFileNameByPath(String filePath) {
-        if (TextUtils.isEmpty(filePath)) return filePath;
-        if (!filePath.contains(File.separator)) return filePath;
-        return filePath.substring(filePath.lastIndexOf(File.separator) + 1);
     }
 }

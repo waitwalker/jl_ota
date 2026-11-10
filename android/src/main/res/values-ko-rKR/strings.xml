@@ -11,9 +11,6 @@
     <string name="ota_upgrade_cancel">업그레이드 취소됨</string>
 
     <!--局域网文件传输/Snapdrop-->
-    <string name="update_file">업그레이드 파일</string>
-    <string name="log_file">로그 인쇄</string>
-    <string name="connect_wifi_tips">사용 가능한 와이파이에 연결하십시오.</string>
 
     <!--Permissions-->
     <string name="open_gpg_tip">근처 Bluetooth 기기를 작동하려면 GPS 기능이 필요합니다. 계속하려면 위치 서비스를 켜주세요.</string>

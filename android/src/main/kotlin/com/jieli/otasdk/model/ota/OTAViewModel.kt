@@ -23,9 +23,7 @@ import com.jieli.otasdk.data.model.ota.OTAStart
 import com.jieli.otasdk.data.model.ota.OTAState
 import com.jieli.otasdk.data.model.ota.OTAWorking
 import com.jieli.otasdk.model.connect.base.BluetoothViewModel
-import com.jieli.otasdk.tool.file.FileManager
 import com.jieli.otasdk.tool.ota.OTAManager
-import java.io.File
 
 /**
  * @author zqjasonZhong
@@ -35,8 +33,6 @@ import java.io.File
  */
 class OTAViewModel : BluetoothViewModel() {
     companion object {
-        private const val MSG_UPDATE_OTA_FILE_LIST = 0x123
-
         // Error Code
         private const val ERR_SUCCESS = 0
         private const val ERR_FAILED = 1
@@ -66,20 +62,9 @@ class OTAViewModel : BluetoothViewModel() {
     }
 
     val otaManager = OTAManager(getContext())
-    val fileListMLD = MutableLiveData<MutableList<File>>()
     val otaConnectionMLD = MutableLiveData<DeviceConnection>()
     val mandatoryUpgradeMLD = MutableLiveData<BluetoothDevice>()
     val otaStateMLD = MutableLiveData<OTAState>()
-    val selectedFilePaths = mutableListOf<String>()
-    val selectedFilePathsMLD = MutableLiveData<MutableList<String>>()
-    private var files: MutableList<File> = mutableListOf()
-
-    private val mUIHandler: Handler = Handler(Looper.getMainLooper(), Handler.Callback {
-        when (it.what) {
-            MSG_UPDATE_OTA_FILE_LIST -> readFileList()
-        }
-        return@Callback true
-    })
 
     private val bluetoothCallback = object : BtEventCallback() {
         override fun onConnection(device: BluetoothDevice?, status: Int) {
@@ -129,15 +114,6 @@ class OTAViewModel : BluetoothViewModel() {
     }
 
     fun getDeviceInfo(): TargetInfoResponse? = otaManager.getDeviceInfo(getConnectedDevice())
-
-    fun readFileList() {
-        files = FileManager.readUpgradeFile()
-        fileListMLD.postValue(files)
-    }
-
-    fun getFiles(): List<File> {
-        return files
-    }
 
     fun startOTA(filePath: String) {
         JL_Log.i(tag, "startOTA , file path = $filePath")

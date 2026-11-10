@@ -10,11 +10,6 @@
     <string name="ota_complete">Upgrade is complete</string>
     <string name="ota_upgrade_cancel">Upgrade cancelled</string>
 
-    <!--局域网文件传输/Snapdrop-->
-    <string name="update_file">Update file</string>
-    <string name="log_file">Log file</string>
-    <string name="connect_wifi_tips">Please connect to an available WIFI</string>
-
     <!--Permissions-->
     <string name="open_gpg_tip">GPS function is required to operate nearby Bluetooth devices. Please turn on the location service to continue.</string>
     <string name="open_bluetooth_tip">Bluetooth function is required to operate nearby Bluetooth devices. Please turn on Bluetooth to continue.</string>

@@ -7,7 +7,7 @@ import androidx.lifecycle.ViewModel
 import com.jieli.jl_bt_ota.constant.StateCode
 import com.jieli.jl_bt_ota.util.BluetoothUtil
 import com.jieli.jl_bt_ota.util.JL_Log
-import com.jieli.otasdk.MyApplication
+import com.jieli.otasdk.OtaRuntime
 import com.jieli.otasdk.data.model.device.DeviceConnection
 import com.jieli.otasdk.tool.bluetooth.BluetoothHelper
 import com.jieli.otasdk.tool.bluetooth.OnBTEventCallback
@@ -65,7 +65,7 @@ open class BluetoothViewModel : ViewModel() {
      *
      * @return The application context
      */
-    fun getContext(): Context = MyApplication.getInstance()
+    fun getContext(): Context = OtaRuntime.getContext()
 
     /**
      * Get the device connection state

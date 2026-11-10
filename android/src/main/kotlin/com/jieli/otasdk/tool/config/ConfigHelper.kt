@@ -6,7 +6,7 @@ import androidx.annotation.IntRange
 import androidx.core.content.edit
 import com.jieli.component.utils.SystemUtil
 import com.jieli.jl_bt_ota.constant.BluetoothConstant
-import com.jieli.otasdk.MyApplication
+import com.jieli.otasdk.OtaRuntime
 import com.jieli.otasdk.data.constant.OtaConstant
 
 /**
@@ -76,7 +76,7 @@ open class ConfigHelper private constructor(context: Context) {
 
         fun getInstance(): ConfigHelper {
             return instance ?: synchronized(this) {
-                instance ?: ConfigHelper(MyApplication.getInstance()).also { instance = it }
+                instance ?: ConfigHelper(OtaRuntime.getContext()).also { instance = it }
             }
         }
 

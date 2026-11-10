@@ -22,7 +22,7 @@ import com.jieli.jl_bt_ota.util.CommonUtil;
 import com.jieli.jl_bt_ota.util.JL_Log;
 import com.jieli.jl_bt_ota.util.PreferencesHelper;
 import com.jieli.jl_bt_ota.util.UuidUtil;
-import com.jieli.otasdk.MyApplication;
+import com.jieli.otasdk.OtaRuntime;
 import com.jieli.otasdk.tool.config.ConfigHelper;
 import com.jieli.otasdk.tool.ota.spp.interfaces.OnWriteSppDataCallback;
 import com.jieli.otasdk.tool.ota.spp.interfaces.SppEventCallback;
@@ -151,7 +151,7 @@ public class SppManager implements SendSppDataThread.ISppOp {
         if (instance == null) {
             synchronized (SppManager.class) {
                 if (instance == null) {
-                    instance = new SppManager(MyApplication.Companion.getInstance());
+                    instance = new SppManager(OtaRuntime.INSTANCE.getContext());
                 }
             }
         }

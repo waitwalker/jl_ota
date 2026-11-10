@@ -36,7 +36,7 @@ import com.jieli.jl_bt_ota.util.CHexConver;
 import com.jieli.jl_bt_ota.util.CommonUtil;
 import com.jieli.jl_bt_ota.util.JL_Log;
 import com.jieli.jl_bt_ota.util.UuidUtil;
-import com.jieli.otasdk.MyApplication;
+import com.jieli.otasdk.OtaRuntime;
 import com.jieli.otasdk.tool.config.ConfigHelper;
 import com.jieli.otasdk.tool.ota.ble.interfaces.BleEventCallback;
 import com.jieli.otasdk.tool.ota.ble.interfaces.OnWriteDataCallback;
@@ -232,7 +232,7 @@ public class BleManager {
         if (instance == null) {
             synchronized (BleManager.class) {
                 if (instance == null) {
-                    instance = new BleManager(MyApplication.Companion.getInstance());
+                    instance = new BleManager(OtaRuntime.INSTANCE.getContext());
                     JL_Log.w(TAG, "init", "instance : " + instance);
                 }
             }

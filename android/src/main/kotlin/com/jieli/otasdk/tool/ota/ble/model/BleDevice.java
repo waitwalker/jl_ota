@@ -14,7 +14,7 @@ import com.jieli.jl_bt_ota.constant.BluetoothConstant;
 import com.jieli.jl_bt_ota.util.BluetoothUtil;
 import com.jieli.jl_bt_ota.util.CHexConver;
 import com.jieli.jl_bt_ota.util.JL_Log;
-import com.jieli.otasdk.MyApplication;
+import com.jieli.otasdk.OtaRuntime;
 import com.jieli.otasdk.tool.ota.ble.SendBleDataThread;
 import com.jieli.otasdk.tool.ota.ble.interfaces.IBleOp;
 import com.jieli.otasdk.tool.ota.ble.interfaces.OnThreadStateListener;
@@ -257,7 +257,7 @@ public class BleDevice {
     @SuppressLint("MissingPermission")
     private boolean writeDataToDeviceByBle(BluetoothGatt gatt, UUID serviceUUID, UUID characteristicUUID, byte[] data) {
         if (gatt == null || null == serviceUUID || null == characteristicUUID || null == data || data.length == 0
-                || !AppUtil.checkHasConnectPermission(MyApplication.Companion.getInstance())) {
+                || !AppUtil.checkHasConnectPermission(OtaRuntime.INSTANCE.getContext())) {
             JL_Log.d(TAG, "writeDataByBle", "param is invalid.");
             return false;
         }
