@@ -2,4 +2,7 @@
 <resources>
     <!--Global-->
     <string name="app_name">杰理OTA β</string>
+    <string name="update_file">升级文件</string>
+    <string name="log_file">打印日志</string>
+    <string name="connect_wifi_tips">请连接到可用的WIFI上</string>
 </resources>

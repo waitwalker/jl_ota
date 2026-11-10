@@ -2,7 +2,7 @@ import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:jl_ota/constant/ble_event_constants.dart';
+import 'package:jl_ota_example/channel/example_channel_constants.dart';
 import 'package:jl_ota_example/extensions/hex_color.dart';
 import 'package:jl_ota_example/l10n/app_localizations.dart';
 import 'package:jl_ota_example/widgets/toast_utils.dart';
@@ -47,7 +47,9 @@ class _SelectFileSaveDialogState extends State<SelectFileSaveDialog> {
   /// Handle save operation
   Future<void> _handleSave() async {
     try {
-      await widget.methodChannel.invokeMethod(BleEventConstants.TYPE_HANDLE_FILE_PICKED, {BleEventConstants.KEY_FILE_NAME: _controller.text});
+      await widget.methodChannel.invokeMethod(ExampleChannelConstants.methodHandleFilePicked, {
+        ExampleChannelConstants.keyFileName: _controller.text,
+      });
       if (mounted) {
         Navigator.pop(context);
         ToastUtils.show(context, AppLocalizations.of(context)!.pleaseRefreshWeb);

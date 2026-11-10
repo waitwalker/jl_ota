@@ -40,3 +40,15 @@ android {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    compileOnly(mapOf("name" to "jl_bt_ota_V1.11.0_11015-release", "ext" to "aar"))
+    implementation(mapOf("name" to "jl_file_transfer_V1.0.0-release", "ext" to "aar"))
+    implementation("com.koushikdutta.async:androidasync:3.1.0")
+    implementation("com.jakewharton.timber:timber:4.1.2")
+    implementation("com.hwangjr.rxbus:rxbus:1.0.5") {
+        exclude(group = "com.jakewharton.timber", module = "timber")
+    }
+    implementation(platform("com.squareup.okhttp3:okhttp-bom:4.12.0"))
+    implementation("com.squareup.okhttp3:okhttp")
+}

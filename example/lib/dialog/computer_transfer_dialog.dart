@@ -8,7 +8,7 @@ import 'package:jl_ota_example/l10n/app_localizations.dart';
 import 'package:jl_ota_example/utils/app_util.dart';
 import 'package:jl_ota_example/widgets/toast_utils.dart';
 
-import 'package:jl_ota/ble_method.dart';
+import 'package:jl_ota_example/channel/example_method.dart';
 
 /// Computer File Transfer Dialog
 ///
@@ -81,7 +81,7 @@ class _ComputerTransferDialogState extends State<ComputerTransferDialog> {
 
   Future<void> _getWifiIpAddress() async {
     try {
-      final ipAddress = await BleMethod.getWifiIpAddress();
+      final ipAddress = await ExampleMethod.getWifiIpAddress();
       setState(() => _ipAddress = ipAddress);
       log("getWifiIpAddress successfully");
     } catch (e) {

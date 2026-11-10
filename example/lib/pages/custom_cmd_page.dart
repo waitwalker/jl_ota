@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:jl_ota/ble_event_stream.dart';
-import 'package:jl_ota/ble_method.dart';
+import 'package:jl_ota_example/channel/example_event.dart';
+import 'package:jl_ota_example/channel/example_method.dart';
 import 'package:jl_ota/constant/constants.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
@@ -80,7 +80,7 @@ class _CustomCmdPageState extends State<CustomCmdPage> {
   @override
   void initState() {
     super.initState();
-    _dataSubscription = BleEventStream.customCommandData.listen((data) {
+    _dataSubscription = ExampleEvent.customCommandData.listen((data) {
       if (mounted && data.isNotEmpty) {
         setState(() {
           _receivedData = data;
@@ -335,7 +335,7 @@ class _CustomCmdPageState extends State<CustomCmdPage> {
       return;
     }
 
-    BleMethod.sendCustomCommand(Uint8List.fromList(bytes));
+    ExampleMethod.sendCustomCommand(Uint8List.fromList(bytes));
 
     setState(() {
       _isSending = false;

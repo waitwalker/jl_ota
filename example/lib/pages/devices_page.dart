@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:jl_ota/ble_event_stream.dart';
 import 'package:jl_ota/ble_method.dart';
+import 'package:jl_ota_example/channel/example_method.dart';
 import 'package:jl_ota_example/l10n/app_localizations.dart';
 import 'package:jl_ota/model/device_connection.dart';
 import 'package:jl_ota/model/scan_device.dart';
@@ -49,7 +50,7 @@ class _DevicesPageState extends State<DevicesPage> with WidgetsBindingObserver {
 
   late DialogManager _dialogManager;
 
-  static const MethodChannel _methodChannel = MethodChannel('com.jieli.ble_plugin/methods');
+  static const MethodChannel _methodChannel = ExampleMethod.methodChannel;
 
   /// Add a class-level variable to track the dialog state
   bool _isOtaDialogShown = false;

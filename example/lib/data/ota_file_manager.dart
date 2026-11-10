@@ -1,5 +1,5 @@
 import 'package:jl_ota/constant/ble_event_constants.dart';
-import 'package:jl_ota/ble_method.dart';
+import 'package:jl_ota_example/channel/example_method.dart';
 
 /// Manages OTA files, including reading and deleting files.
 class OtaFileManager {
@@ -11,7 +11,7 @@ class OtaFileManager {
 
   Future<void> deleteFile(int index) async {
     try {
-      await BleMethod.deleteOtaIndex(index);
+      await ExampleMethod.deleteOtaIndex(index);
       final filePath = otaFileList[index][BleEventConstants.KEY_PATH];
       onSelectedFileChanged(filePath);
     } catch (e) {

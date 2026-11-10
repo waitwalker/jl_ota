@@ -5,9 +5,11 @@ import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:jl_ota/ble_event_stream.dart';
 import 'package:jl_ota/ble_method.dart';
+import 'package:jl_ota_example/channel/example_event.dart';
+import 'package:jl_ota_example/channel/example_method.dart';
 import 'package:jl_ota/constant/ble_event_constants.dart';
+import 'package:jl_ota_example/channel/example_channel_constants.dart';
 import 'package:jl_ota/constant/constants.dart';
 import 'package:jl_ota_example/extensions/hex_color.dart';
 import 'package:jl_ota_example/pages/file_share_page.dart';
@@ -54,7 +56,7 @@ class _UpdatePageState extends State<UpdatePage> {
   bool _isOtaStarted = false;
   bool _isInitialDataLoaded = false;
 
-  static const MethodChannel _methodChannel = MethodChannel('com.jieli.ble_plugin/methods');
+  static const MethodChannel _methodChannel = ExampleMethod.methodChannel;
   StreamSubscription<List<Map<String, String>>>? _otaFileListSubscription;
 
   late OtaFileManager _otaFileManager;
@@ -284,8 +286,8 @@ class _UpdatePageState extends State<UpdatePage> {
   }
 
   Future<dynamic> _handleMethodCall(MethodCall call) async {
-    if (call.method == BleEventConstants.TYPE_ON_FILE_PICKED) {
-      final fileName = call.arguments[BleEventConstants.KEY_FILE_NAME];
+    if (call.method == ExampleChannelConstants.methodOnFilePicked) {
+      final fileName = call.arguments[ExampleChannelConstants.keyFileName];
 
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         await _dialogManager.showSaveFileDialog(fileName);
@@ -384,7 +386,7 @@ class _UpdatePageState extends State<UpdatePage> {
 
   Future<void> _checkStorageEnvironment() async {
     try {
-      bool result = await BleMethod.tryToCheckStorageEnvironment();
+      bool result = await ExampleMethod.tryToCheckStorageEnvironment();
       setState(() {
         _isStorageEnvironmentChecked = result;
       });
@@ -420,7 +422,7 @@ class _UpdatePageState extends State<UpdatePage> {
 
   void _startListeningToOtaFileList() {
     _otaFileListSubscription?.cancel();
-    _otaFileListSubscription = BleEventStream.otaFileListStream.listen((fileList) {
+    _otaFileListSubscription = ExampleEvent.otaFileListStream.listen((fileList) {
       if (mounted) {
         setState(() {
           _otaFileList = fileList;

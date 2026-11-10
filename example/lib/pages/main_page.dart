@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:jl_ota/ble_event_stream.dart';
-import 'package:jl_ota/ble_method.dart';
+import 'package:jl_ota_example/channel/example_method.dart';
 import 'package:jl_ota_example/pages/setting_page.dart';
 import 'package:jl_ota_example/pages/update_page.dart';
 
@@ -103,7 +103,7 @@ class MainPageState extends State<MainPage> {
       _lastClickTime = now;
       ToastUtils.show(context, AppLocalizations.of(context)!.pressAgainToExit);
     } else {
-      await BleMethod.popAllActivity();
+      await ExampleMethod.popAllActivity();
     }
   }
 

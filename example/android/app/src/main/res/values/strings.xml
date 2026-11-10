@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">JieLi OTA β</string>
+    <string name="update_file">Update file</string>
+    <string name="log_file">Log file</string>
+    <string name="connect_wifi_tips">Please connect to an available WIFI</string>
 </resources>

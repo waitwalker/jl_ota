@@ -3,7 +3,7 @@ import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:jl_ota/constant/constants.dart';
 import 'package:jl_ota_example/pages/webview_page.dart';
-import 'package:jl_ota/ble_method.dart';
+import 'package:jl_ota_example/channel/example_method.dart';
 import '../extensions/hex_color.dart';
 import '../l10n/app_localizations.dart';
 
@@ -196,7 +196,7 @@ class _AboutPageState extends State<AboutPage> {
 
   void _getAppVersion() async {
     try {
-      String appVersion = await BleMethod.getAppVersion();
+      String appVersion = await ExampleMethod.getAppVersion();
       setState(() {
         _appVersion = appVersion.replaceFirst(RegExp(r'\(.*\)'), '');
       });
