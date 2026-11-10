@@ -33,6 +33,7 @@ struct MethodChannelConstants {
     static let METHOD_GET_SDK_VERSION = "getSdkVersion" // 获取SDK版本的方法名
     static let METHOD_TYPE_IS_OTA = "isOta" // 当时是否正在OTA升级
     static let METHOD_START_OTA = "startOTA" // 开始OTA更新的方法名
+    static let METHOD_SET_LOG_ENABLED = "setLogEnabled" // 打开或关闭 SDK 日志，默认关闭
 
     // 参数键
     static let ARG_FILTER = "filter" // 扫描过滤条件参数名
@@ -45,4 +46,5 @@ struct MethodChannelConstants {
     static let ARG_INDEX = "index" // 索引参数名
     static let ARG_IS_USING_GATT_OVER_EDR = "isUsingGattOVerEdr" // 是否使用Gatt Over Edr
     static let ARG_GATT_SERVICE_UUIDS = "gattServiceUuids" // Gatt Service uuids
+    static let ARG_ENABLED = "enabled" // 是否打开 SDK 日志
 }

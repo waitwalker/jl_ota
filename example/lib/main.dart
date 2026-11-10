@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:jl_ota/ble_method.dart';
 import 'package:jl_ota_example/utils/connection_state_manager.dart';
 import 'package:jl_ota_example/utils/data_notifier.dart';
 import 'package:jl_ota_example/pages/welcome_page.dart';
@@ -43,6 +44,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    BleMethod.setLogEnabled(true);
   }
 
   @override

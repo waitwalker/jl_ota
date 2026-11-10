@@ -81,6 +81,9 @@ class BleMethodConstants {
   /// 开始OTA更新的方法名。
   static const String METHOD_START_OTA = 'startOTA';
 
+  /// 打开或关闭 SDK 日志。默认关闭。
+  static const String METHOD_SET_LOG_ENABLED = 'setLogEnabled';
+
   /// 索引参数名。
   static const String ARG_INDEX = 'index';
 
@@ -113,4 +116,7 @@ class BleMethodConstants {
 
   /// 升级的path
   static const String ARG_PATH = 'path';
+
+  /// 是否打开 SDK 日志。
+  static const String ARG_ENABLED = 'enabled';
 }

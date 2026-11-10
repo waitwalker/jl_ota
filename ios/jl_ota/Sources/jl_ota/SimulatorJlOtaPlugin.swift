@@ -27,7 +27,8 @@ public class JlOtaPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
             MethodChannelConstants.METHOD_TYPE_IS_OTA:
             result(false)
         case MethodChannelConstants.METHOD_STOP_SCAN,
-            MethodChannelConstants.METHOD_DISCONNECT_BT_DEVICE:
+            MethodChannelConstants.METHOD_DISCONNECT_BT_DEVICE,
+            MethodChannelConstants.METHOD_SET_LOG_ENABLED:
             result(true)
         default:
             result(

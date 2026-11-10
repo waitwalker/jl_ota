@@ -80,6 +80,10 @@ class MethodChannelHandler: NSObject {
             // Hosts may skip readFileList; bind sink here so OTA state is not dropped.
             bindOtaEventSink()
             OtaManager.shared.startOTA(call: call, result: result)
+        case MethodChannelConstants.METHOD_SET_LOG_ENABLED:
+            let enabled = (call.arguments as? [String: Any])?[MethodChannelConstants.ARG_ENABLED] as? Bool ?? false
+            JlOtaPlugin.setLogEnabled(enabled)
+            result(true)
         default:
             result(FlutterMethodNotImplemented)
         }

@@ -31,6 +31,7 @@ object MethodChannelConstants {
     const val METHOD_GET_SDK_VERSION = "getSdkVersion" // 获取SDK版本的方法名
     const val METHOD_TYPE_IS_OTA = "isOta" // 当时是否正在OTA升级
     const val METHOD_START_OTA = "startOTA" // 开始OTA更新的方法名
+    const val METHOD_SET_LOG_ENABLED = "setLogEnabled" // 打开或关闭 SDK 日志，默认关闭
 
     // 参数键
     const val ARG_FILTER = "filter" // 扫描过滤条件参数名
@@ -41,4 +42,5 @@ object MethodChannelConstants {
     const val ARG_MTU = "mtu" // MTU参数名
     const val ARG_PATH = "path" // 升级的path
     const val ARG_INDEX = "index" // 索引参数名
+    const val ARG_ENABLED = "enabled" // 是否打开 SDK 日志
 }

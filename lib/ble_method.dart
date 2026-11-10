@@ -274,6 +274,16 @@ class BleMethod {
     }
   }
 
+  /// 打开或关闭 SDK 日志。不调用时保持关闭。
+  static Future<void> setLogEnabled(bool enabled) async {
+    try {
+      await _methodChannel.invokeMethod(BleMethodConstants.METHOD_SET_LOG_ENABLED, {BleMethodConstants.ARG_ENABLED: enabled});
+    } on PlatformException catch (e) {
+      print("Failed to set log enabled: ${e.message}");
+      rethrow;
+    }
+  }
+
   // 开始OTA更新
   static Future<void> startOTA(String path) async {
     try {

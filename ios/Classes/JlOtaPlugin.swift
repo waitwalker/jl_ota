@@ -23,16 +23,16 @@ public class JlOtaPlugin: NSObject, FlutterPlugin {
         // Set application language
         LanguageManager.setupAppLanguage()
         
-        initLog()
+        setLogEnabled(false)
     }
-    
-    /// Initializes the logging system for OTA plugin
-    private static func initLog() {
-        // Configure logging system
-        JLLogManager.setLog(true, isMore: false, level: JLLOG_LEVEL(rawValue: 0)!)
-        JLLogManager.saveLog(asFile: true)
-        JLLogManager.log(withTimestamp: true)
-        JLLogManager.clearLog()
+
+    /// SDK 日志默认关闭。宿主通过 setLogEnabled 打开或关闭。
+    static func setLogEnabled(_ enabled: Bool) {
+        JLLogManager.setLog(enabled, isMore: false, level: JLLOG_LEVEL(rawValue: 0)!)
+        JLLogManager.saveLog(asFile: enabled)
+        if enabled {
+            JLLogManager.log(withTimestamp: true)
+        }
     }
     
 }
