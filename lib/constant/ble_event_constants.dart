@@ -17,35 +17,11 @@ class BleEventConstants {
   /// 表示OTA连接状态事件的类型。
   static const String TYPE_OTA_CONNECTION = 'otaConnection';
 
-  /// 表示日志文件列表事件的类型。
-  static const String TYPE_LOG_FILES = 'logFiles';
-
-  /// 表示日志文件详细信息事件的类型。
-  static const String TYPE_LOG_DETAIL_FILES = 'logDetailFiles';
-
-  /// 表示下载状态事件的类型。
-  static const String TYPE_DOWNLOAD_STATUS = 'downloadStatus';
-
-  /// 表示OTA文件列表事件的类型。
-  static const String TYPE_OTA_FILE_LIST = 'otaFileList';
-
-  /// 表示选中的文件路径列表事件的类型。
-  static const String TYPE_SELECTED_FILE_PATHS = 'selectedFilePaths';
-
   /// 表示强制升级状态事件的类型。
   static const String TYPE_MANDATORY_UPGRADE = 'mandatoryUpgrade';
 
   /// 表示OTA状态事件的类型。
   static const String TYPE_OTA_STATE = 'otaState';
-
-  /// 当前从文本系统中选择的升级文件
-  static const String TYPE_ON_FILE_PICKED = 'onFilePicked';
-
-  /// 处理修改的升级文件名称
-  static const String TYPE_HANDLE_FILE_PICKED = 'handleFilePicked';
-
-  /// 处理自定义命令的事件
-  static const String TYPE_CUSTOM_COMMAND_DATA = 'customDataUpdate';
 
   /// 用于在事件数据中标识事件类型的键。
   static const String KEY_TYPE = 'type';
@@ -86,9 +62,6 @@ class BleEventConstants {
   /// 用于在事件数据中标识列表数据的键。
   static const String KEY_LIST = 'list';
 
-  /// 用于在事件数据中标识文件数据的键。
-  static const String KEY_FILES = 'files';
-
   /// 用于在事件数据中标识事件数据的键。
   static const String KEY_EVENT = 'event';
 
@@ -112,27 +85,6 @@ class BleEventConstants {
 
   /// 用于在事件数据中标识错误信息或状态消息的键。
   static const String KEY_MESSAGE = 'message';
-
-  /// 升级文件名称
-  static const String KEY_FILE_NAME = 'fileName';
-
-  /// 自定义命令的键
-  static const String KEY_CUSTOM_DATA = 'customData';
-
-  /// 表示下载文件正在进行中的状态
-  static const String STATUS_ON_PROGRESS = 'onProgress';
-
-  /// 表示下载文件已停止的状态
-  static const String STATUS_ON_STOP = 'onStop';
-
-  /// 表示下载文件错误的状态
-  static const String STATUS_ON_ERROR = 'onError';
-
-  /// 表示下载文件开始的状态
-  static const String STATUS_ON_START = 'onStart';
-
-  /// 表示下载文件未知的状态
-  static const String STATUS_UNKNOWN = 'unknown';
 
   /// 表示错误异常的类型
   static const String ERROR = 'error';

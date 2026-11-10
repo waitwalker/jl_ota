@@ -264,76 +264,6 @@ class BleMethod {
     }
   }
 
-  // 获取APP版本号
-  static Future<String> getAppVersion() async {
-    try {
-      return await _methodChannel.invokeMethod(BleMethodConstants.METHOD_GET_APP_VERSION) ?? 'V?.?.?(?)';
-    } on PlatformException catch (e) {
-      print("Failed to get APP version: ${e.message}");
-      rethrow;
-    }
-  }
-
-  // 读取日志文件目录路径
-  static Future<String> getLogFileDirPath() async {
-    try {
-      return await _methodChannel.invokeMethod(BleMethodConstants.METHOD_GET_LOG_FILE_DIR_PATH) ?? '';
-    } on PlatformException catch (e) {
-      print("Failed to get log file directory path: ${e.message}");
-      rethrow;
-    }
-  }
-
-  // 获取日志文件列表
-  static Future<void> getLogFiles() async {
-    try {
-      await _methodChannel.invokeMethod(BleMethodConstants.METHOD_GET_LOG_FILES);
-    } on PlatformException catch (e) {
-      print("Failed to get log files: ${e.message}");
-      rethrow;
-    }
-  }
-
-  // 点击日志文件列表的索引
-  static Future<void> clickLogFileIndex(int logFileIndex) async {
-    try {
-      await _methodChannel.invokeMethod(BleMethodConstants.METHOD_LOG_FILE_INDEX, {BleMethodConstants.ARG_LOG_FILE_INDEX: logFileIndex});
-    } on PlatformException catch (e) {
-      print("Failed to click log file index $logFileIndex: ${e.message}");
-      rethrow;
-    }
-  }
-
-  // 删除全部的日志文件
-  static Future<bool> deleteAllLogFiles() async {
-    try {
-      return await _methodChannel.invokeMethod(BleMethodConstants.METHOD_DELETE_ALL_LOG_FILE) ?? false;
-    } on PlatformException catch (e) {
-      print("Failed to delete all log files: ${e.message}");
-      rethrow;
-    }
-  }
-
-  // 分享日志文件
-  static Future<void> shareLogFile(int logFileIndex) async {
-    try {
-      await _methodChannel.invokeMethod(BleMethodConstants.METHOD_SHARE_LOG_FILE, {BleMethodConstants.ARG_LOG_FILE_INDEX: logFileIndex});
-    } on PlatformException catch (e) {
-      print("Failed to share log file at index $logFileIndex: ${e.message}");
-      rethrow;
-    }
-  }
-
-  // 下载文件
-  static Future<void> downloadFile(String httpUrl) async {
-    try {
-      await _methodChannel.invokeMethod(BleMethodConstants.METHOD_DOWNLOAD_FILE, {BleMethodConstants.ARG_HTTP_URL: httpUrl});
-    } on PlatformException catch (e) {
-      print("Failed to download file from $httpUrl: ${e.message}");
-      rethrow;
-    }
-  }
-
   // 是否在OTA升级
   static Future<bool> isOTA() async {
     try {
@@ -344,94 +274,12 @@ class BleMethod {
     }
   }
 
-  // 读取OTA文件列表
-  static Future<void> readFileList() async {
-    try {
-      await _methodChannel.invokeMethod(BleMethodConstants.METHOD_READ_FILE_LIST);
-    } on PlatformException catch (e) {
-      print("Failed to read OTA file list: ${e.message}");
-      rethrow;
-    }
-  }
-
-  // 设置OTA文件列表选中的文件索引
-  static Future<void> setSelectedIndex(int pos) async {
-    try {
-      await _methodChannel.invokeMethod(BleMethodConstants.METHOD_SET_SELECTED_INDEX, {BleMethodConstants.ARG_POS: pos});
-    } on PlatformException catch (e) {
-      print("Failed to set selected index $pos: ${e.message}");
-      rethrow;
-    }
-  }
-
-  // 删除OTA文件列表选中的文件索引
-  static Future<void> deleteOtaIndex(int pos) async {
-    try {
-      await _methodChannel.invokeMethod(BleMethodConstants.METHOD_DELETE_OTA_FILE_INDEX, {BleMethodConstants.ARG_POS: pos});
-    } on PlatformException catch (e) {
-      print("Failed to delete OTA file index $pos: ${e.message}");
-      rethrow;
-    }
-  }
-
-  // 检测外部存储权限环境
-  static Future<bool> tryToCheckStorageEnvironment() async {
-    try {
-      return await _methodChannel.invokeMethod(BleMethodConstants.METHOD_TRY_TO_CHECK_STORAGE_ENVIRONMENT) ?? false;
-    } on PlatformException catch (e) {
-      print("Failed to check storage environment: ${e.message}");
-      rethrow;
-    }
-  }
-
-  // 选择文件
-  static Future<void> pickFile() async {
-    try {
-      await _methodChannel.invokeMethod(BleMethodConstants.METHOD_PICK_FILE);
-    } on PlatformException catch (e) {
-      print("Failed to pick file: ${e.message}");
-      rethrow;
-    }
-  }
-
   // 开始OTA更新
   static Future<void> startOTA(String path) async {
     try {
       await _methodChannel.invokeMethod(BleMethodConstants.METHOD_START_OTA, {BleMethodConstants.ARG_PATH: path});
     } on PlatformException catch (e) {
       print("Failed to start OTA: ${e.message}");
-      rethrow;
-    }
-  }
-
-  /// 获取WiFi的IP地址
-  /// 返回格式: "http://[ip]:[port]"
-  static Future<String> getWifiIpAddress() async {
-    try {
-      final String? ipAddress = await _methodChannel.invokeMethod<String>(BleMethodConstants.METHOD_GET_WIFI_IP_ADDRESS);
-      return ipAddress ?? 'Failed to get WiFi IP address';
-    } on PlatformException catch (e) {
-      print("Failed to get WiFi IP address: ${e.message}");
-      rethrow;
-    }
-  }
-
-  /// 退出所有的Activity
-  static Future<void> popAllActivity() async {
-    try {
-      await _methodChannel.invokeMethod(BleMethodConstants.METHOD_POP_ALL_ACTIVITY);
-    } on PlatformException catch (e) {
-      print("Failed to pop all activities: ${e.message}");
-      rethrow;
-    }
-  }
-
-  // 发送自定义命令
-  static Future<void> sendCustomCommand(Uint8List data) async {
-    try {
-      await _methodChannel.invokeMethod(BleMethodConstants.METHOD_SEND_CUSTOM_COMMAND, {BleMethodConstants.ARG_CUSTOM_DATA: data});
-    } on PlatformException catch (e) {
-      print("Failed to send custom command: ${e.message}");
       rethrow;
     }
   }

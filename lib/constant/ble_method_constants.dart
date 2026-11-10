@@ -75,56 +75,11 @@ class BleMethodConstants {
   /// 获取SDK版本的方法名。
   static const String METHOD_GET_SDK_VERSION = 'getSdkVersion';
 
-  /// 获取应用版本的方法名。
-  static const String METHOD_GET_APP_VERSION = 'getAppVersion';
-
-  /// 获取打印日志位置。
-  static const String METHOD_GET_LOG_FILE_DIR_PATH = 'getLogFileDirPath';
-
-  /// 获取日志文件列表的方法名。
-  static const String METHOD_GET_LOG_FILES = 'getLogFiles';
-
-  /// 处理日志文件索引的方法名。
-  static const String METHOD_LOG_FILE_INDEX = 'logFileIndex';
-
-  /// 分享日志文件的方法名。
-  static const String METHOD_SHARE_LOG_FILE = 'shareLogFile';
-
-  /// 下载文件的方法名。
-  static const String METHOD_DOWNLOAD_FILE = 'downloadFile';
-
-  /// 读取文件列表的方法名。
-  static const String METHOD_READ_FILE_LIST = 'readFileList';
-
-  /// 设置选中索引的方法名。
-  static const String METHOD_SET_SELECTED_INDEX = 'setSelectedIndex';
-
-  /// 删除OTA文件索引的方法名。
-  static const String METHOD_DELETE_OTA_FILE_INDEX = 'deleteOtaFileIndex';
-
-  /// 检查存储环境的方法名。
-  static const String METHOD_TRY_TO_CHECK_STORAGE_ENVIRONMENT = 'tryToCheckStorageEnvironment';
-
-  /// 选择文件的方法名。
-  static const String METHOD_PICK_FILE = 'pickFile';
-
   /// 表示当时是否正在OTA升级。
   static const String METHOD_TYPE_IS_OTA = 'isOta';
 
   /// 开始OTA更新的方法名。
   static const String METHOD_START_OTA = 'startOTA';
-
-  /// 删除所有日志文件的方法名。
-  static const String METHOD_DELETE_ALL_LOG_FILE = 'deleteAllLogFile';
-
-  /// 获取WiFi IP地址的方法名。
-  static const String METHOD_GET_WIFI_IP_ADDRESS = 'getWifiIpAddress';
-
-  /// 退出所有的Activity
-  static const String METHOD_POP_ALL_ACTIVITY = 'popAllActivity';
-
-  /// 发送自定义命令
-  static const String METHOD_SEND_CUSTOM_COMMAND = 'sendCustomCommand';
 
   /// 索引参数名。
   static const String ARG_INDEX = 'index';
@@ -156,18 +111,6 @@ class BleMethodConstants {
   /// MTU参数名。
   static const String ARG_MTU = 'mtu';
 
-  /// 日志文件索引参数名。
-  static const String ARG_LOG_FILE_INDEX = 'logFileIndex';
-
-  /// HTTP URL参数名。
-  static const String ARG_HTTP_URL = 'httpUrl';
-
-  /// 位置参数名。
-  static const String ARG_POS = 'pos';
-
   /// 升级的path
   static const String ARG_PATH = 'path';
-
-  /// 发送自定义命令的键
-  static const String ARG_CUSTOM_DATA = 'customData';
 }
