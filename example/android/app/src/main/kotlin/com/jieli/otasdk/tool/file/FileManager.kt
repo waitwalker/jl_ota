@@ -1,6 +1,6 @@
 package com.jieli.otasdk.tool.file
 
-import com.jieli.otasdk.OtaRuntime
+import com.jieli.otasdk.ExampleUpgradeDir
 import java.io.File
 import java.io.IOException
 import java.util.Locale
@@ -21,7 +21,7 @@ object FileManager {
     fun readUpgradeFile(): MutableList<File> {
         try {
             val files = mutableListOf<File>()
-            val otaPath = OtaRuntime.otaFileDir
+            val otaPath = ExampleUpgradeDir.otaFileDir
             //读取私有空间下Upgrade文件夹的升级文件列表
             val folder = File(otaPath)
             if (folder.exists() && folder.isDirectory) {

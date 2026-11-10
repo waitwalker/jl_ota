@@ -2,7 +2,7 @@ package com.jieli.otasdk.util
 
 import android.content.Context
 import android.net.Uri
-import com.jieli.otasdk.OtaRuntime
+import com.jieli.otasdk.ExampleUpgradeDir
 import com.jieli.jlFileTransfer.FileUtils
 import com.jieli.jl_bt_ota.constant.ErrorCode
 import com.jieli.jl_bt_ota.interfaces.IActionCallback
@@ -70,7 +70,7 @@ class FileTransferUtil {
         ) {
             try {
                 context.contentResolver?.let { contentResolver ->
-                    val parentFilePath = OtaRuntime.otaFileDir
+                    val parentFilePath = ExampleUpgradeDir.otaFileDir
                     var fileName = FileUtils.getFileName(context, uri)
                     if (!fileName.equals(newFileName)){
                         fileName = newFileName

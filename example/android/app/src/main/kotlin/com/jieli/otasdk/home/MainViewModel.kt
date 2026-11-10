@@ -7,7 +7,7 @@ import com.jieli.jlFileTransfer.TransferFolder
 import com.jieli.jlFileTransfer.TransferFolderCallback
 import com.jieli.jlFileTransfer.WebService
 import com.jieli.jl_bt_ota.util.JL_Log
-import com.jieli.otasdk.OtaRuntime
+import com.jieli.otasdk.ExampleUpgradeDir
 import com.jieli.otasdk.R
 import com.jieli.otasdk.tool.bluetooth.BluetoothHelper
 import java.io.File
@@ -63,7 +63,7 @@ class MainViewModel private constructor() : ViewModel() {
                 // OTA folder configuration
                 folderList.add(TransferFolder().apply {
                     id = FOLDER_ID_OTA
-                    folder = File(OtaRuntime.otaFileDir)
+                    folder = File(ExampleUpgradeDir.otaFileDir)
                     describe = appContext.getString(R.string.update_file)
                     fileType = FOLDER_FILE_TYPE_UFW
                     callback = createTransferFolderCallback()

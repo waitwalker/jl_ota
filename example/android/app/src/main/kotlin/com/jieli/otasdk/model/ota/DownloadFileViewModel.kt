@@ -2,7 +2,7 @@ package com.jieli.otasdk.model.ota
 
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
-import com.jieli.otasdk.OtaRuntime
+import com.jieli.otasdk.ExampleUpgradeDir
 import com.jieli.otasdk.util.DownloadFileUtil
 import java.io.File
 
@@ -39,7 +39,7 @@ class DownloadFileViewModel : ViewModel() {
     fun downloadFile(httpUrl: String) {
         this.httpUrl = httpUrl
 
-        val parentFile = OtaRuntime.otaFileDir
+        val parentFile = ExampleUpgradeDir.otaFileDir
         val originalFileName = DEFAULT_FILE_NAME
         val targetFileName = generateUniqueFileName(parentFile, originalFileName)
         val targetPath = File(parentFile, targetFileName).absolutePath
