@@ -52,7 +52,6 @@ class EventChannelHandler: NSObject, FlutterStreamHandler {
     private func initData() {
         setupNotificationObservers()
         self.btEnityList = []
-        self.sendScanDeviceListToFlutter()
     }
     
     private func setupNotificationObservers() {
@@ -64,7 +63,8 @@ class EventChannelHandler: NSObject, FlutterStreamHandler {
             Notification.Name(kJL_BLE_M_FOUND),
             Notification.Name(kJL_BLE_M_ENTITY_CONNECTED),
             Notification.Name(kJL_BLE_M_ENTITY_DISCONNECTED),
-            Notification.Name(kJL_BLE_M_OFF)
+            Notification.Name(kJL_BLE_M_OFF),
+            Notification.Name(kFLT_BLE_CONNECT_FAILED)
         ]
         
         for name in notificationNames {
@@ -73,6 +73,11 @@ class EventChannelHandler: NSObject, FlutterStreamHandler {
     }
         
     /// Send scan device list to flutter
+    func notifyScanStopped() {
+        cancelCurrentScanTimeout()
+        sendScanDeviceList(scanState: .idle)
+    }
+
     func sendScanDeviceListToFlutter() {
         if !JLBleHandler.share().handleGetBleStatus() {
             return
@@ -83,6 +88,10 @@ class EventChannelHandler: NSObject, FlutterStreamHandler {
         
     @objc private func handleAllNotifications(_ notification: Notification) {
         let name = notification.name.rawValue
+        if name == kFLT_BLE_CONNECT_FAILED {
+            handleConnectFailed()
+            return
+        }
         
         if !ToolsHelper.isConnectBySDK() {
             // Custom connection mode notification handling
@@ -193,8 +202,8 @@ class EventChannelHandler: NSObject, FlutterStreamHandler {
                         EventChannelConstants.KEY_IS_REQUIRED: true
                     ])
                 }
-                // GATT 连接时 deviceType 仍是 unKnow；查询完成后再发一次，供宿主决定何时 startOTA。
-                self.checkDeviceConnectState()
+                // 设备信息查询完成后再带上真实 deviceType，宿主据此开始 OTA。
+                self.checkDeviceConnectState(deviceInfoReady: true)
             }
         }
         addPendingWorkItem(workItem)
@@ -248,9 +257,7 @@ class EventChannelHandler: NSObject, FlutterStreamHandler {
     private func addAuthenticatedDevices() {
         guard let entity = JL_RunSDK.sharedInstance().mBleEntityM else { return }
         guard entity.mIsAuth else { return }
-        
-        let btEnityListArray = btEnityList as? [JL_EntityM] ?? []
-        guard !btEnityListArray.contains(entity) else { return }
+        guard !isExitInListUnsafe(entity.mPeripheral) else { return }
         
         btEnityList.insert(entity, at: 0)
     }
@@ -277,7 +284,7 @@ class EventChannelHandler: NSObject, FlutterStreamHandler {
                         EventChannelConstants.KEY_IS_REQUIRED: true
                     ])
                 }
-                self.checkDeviceConnectState()
+                self.checkDeviceConnectState(deviceInfoReady: true)
             }
         }
         addPendingWorkItem(workItem)
@@ -294,13 +301,24 @@ class EventChannelHandler: NSObject, FlutterStreamHandler {
             EventChannelConstants.KEY_STATE: ConnectionState.disconnected.rawValue])
     }
     
-    private func checkDeviceConnectState() {
+    /// GATT 刚连上时 deviceType 固定为 unKnow。设备信息回调之后再发真实类型，宿主才开始 OTA。
+    private func checkDeviceConnectState(deviceInfoReady: Bool = false) {
         let isConnected = JLBleHandler.share().isConnected()
-        let deviceType = JLBleHandler.deviceType()
+        let deviceType = (isConnected && deviceInfoReady) ? JLBleHandler.deviceType() : JLBleHandler.unknownDeviceType
         
         sendEvent(EventChannelConstants.TYPE_OTA_CONNECTION, data: [
             EventChannelConstants.KEY_STATE: isConnected ? ConnectionState.connected.rawValue : ConnectionState.disconnected.rawValue,
             EventChannelConstants.KEY_DEVICE_TYPE: deviceType
+        ])
+    }
+
+    private func handleConnectFailed() {
+        sendEvent(EventChannelConstants.TYPE_DEVICE_CONNECTION, data: [
+            EventChannelConstants.KEY_STATE: ConnectionState.failed.rawValue
+        ])
+        sendEvent(EventChannelConstants.TYPE_OTA_CONNECTION, data: [
+            EventChannelConstants.KEY_STATE: ConnectionState.failed.rawValue,
+            EventChannelConstants.KEY_DEVICE_TYPE: JLBleHandler.unknownDeviceType
         ])
     }
     
@@ -337,7 +355,12 @@ class EventChannelHandler: NSObject, FlutterStreamHandler {
     }
 
     private func handleScanTimeoutIfNeeded(scanState: ScanState) {
-        guard scanState == .scanning else { return }
+        guard scanState == .scanning else {
+            if scanState == .idle {
+                cancelCurrentScanTimeout()
+            }
+            return
+        }
         
         cancelCurrentScanTimeout()
         scheduleScanTimeout()
@@ -350,6 +373,7 @@ class EventChannelHandler: NSObject, FlutterStreamHandler {
     private func scheduleScanTimeout() {
         let workItem = DispatchWorkItem { [weak self] in
             guard let self = self else { return }
+            JLBleHandler.share().handleStopScanDevice()
             self.sendScanDeviceList(scanState: .idle)
         }
         
@@ -391,7 +415,7 @@ class EventChannelHandler: NSObject, FlutterStreamHandler {
         guard !macAddress.isEmpty else { return "" }
         
         let cleanedMac = macAddress.uppercased().filter { "0123456789ABCDEF".contains($0) }
-        guard cleanedMac.count == 12 else { return macAddress }
+        guard cleanedMac.count == 12 else { return "" }
         
         let chunks = stride(from: 0, to: cleanedMac.count, by: 2).map {
             let start = cleanedMac.index(cleanedMac.startIndex, offsetBy: $0)
@@ -442,18 +466,11 @@ class EventChannelHandler: NSObject, FlutterStreamHandler {
     }
     
     private func isExitInListUnsafe(_ peripheral: CBPeripheral) -> Bool {
-        guard let entityList = btEnityList as? [JL_EntityM] else {
-            return false
-        }
-        
         let targetUUID = peripheral.identifier.uuidString
-        
-        for item in entityList {
-            if item.mPeripheral.identifier.uuidString == targetUUID {
-                return true
-            }
+        return btEnityList.contains { item in
+            guard let entity = item as? JL_EntityM else { return false }
+            return entity.mPeripheral.identifier.uuidString == targetUUID
         }
-        return false
     }
 
     func isExitInList(_ peripheral: CBPeripheral) -> Bool {

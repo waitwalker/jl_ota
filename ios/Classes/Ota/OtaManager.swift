@@ -47,8 +47,13 @@ private enum OtaConstants {
     /// Start the OTA update process with the specified file
     func startOTA(call: FlutterMethodCall, result: @escaping FlutterResult) {
         guard let path = call.arguments as? [String: Any],
-              let filePath = path[MethodChannelConstants.ARG_PATH] as? String else {
-            result(FlutterError(code: "INVALID_INDEX", message: "Index must be non-negative", details: nil))
+              let filePath = path[MethodChannelConstants.ARG_PATH] as? String,
+              !filePath.isEmpty else {
+            result(FlutterError(code: "INVALID_ARGUMENTS", message: "Missing OTA file path", details: nil))
+            return
+        }
+        guard FileManager.default.fileExists(atPath: filePath) else {
+            result(FlutterError(code: "FILE_NOT_FOUND", message: "OTA file not found", details: filePath))
             return
         }
         

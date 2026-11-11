@@ -99,6 +99,7 @@ class MethodChannelHandler: NSObject {
         
         // Start scanning
         JLBleHandler.share().handleScanDevice()
+        eventChannelHandler?.sendScanDeviceListToFlutter()
         result(true)
     }
     
@@ -107,6 +108,7 @@ class MethodChannelHandler: NSObject {
     private func stopScan(result: @escaping FlutterResult) {
         // Stop scanning
         JLBleHandler.share().handleStopScanDevice()
+        eventChannelHandler?.notifyScanStopped()
         result(true)
     }
     
@@ -140,82 +142,62 @@ class MethodChannelHandler: NSObject {
             return
         }
         
-        // Call the device connection logic
-        connectDevice(at: index)
-        
-        guard let gattServiceUUIDs = ToolsHelper.getGattServiceUUIDs(),
-              !gattServiceUUIDs.isEmpty else {
-            eventHandler.sendEvent(EventChannelConstants.TYPE_DEVICE_CONNECTION, data: [
-                EventChannelConstants.KEY_STATE: ConnectionState.connecting.rawValue
-            ])
-            result(false)
+        guard connectDevice(at: index) else {
+            result(FlutterError(code: "CONNECT_FAILED", message: "Unable to start connection", details: nil))
             return
         }
 
-        eventHandler.sendEvent(
-            EventChannelConstants.TYPE_DEVICE_CONNECTION,
-            data: [
-                EventChannelConstants.KEY_STATE: EventChannelHandler.ConnectionState.failed.rawValue
-            ]
-        )
+        eventHandler.sendEvent(EventChannelConstants.TYPE_DEVICE_CONNECTION, data: [
+            EventChannelConstants.KEY_STATE: ConnectionState.connecting.rawValue
+        ])
         result(true)
     }
     
-    /// Connects to a Bluetooth device at the specified index
-    /// - Parameter index: The index of the device in the device list
-    private func connectDevice(at index: Int) {
-        // Check Bluetooth status
+    /// Connects to a Bluetooth device at the specified index.
+    /// - Returns: false when this index cannot start a new connection.
+    private func connectDevice(at index: Int) -> Bool {
         guard JLBleHandler.share().handleGetBleStatus() else {
-            return
+            return false
         }
-        
-        // Ensure event handler exists
         guard let eventHandler = eventChannelHandler else {
-            return
+            return false
         }
-        
-        // Check index validity
         guard index >= 0, index < eventHandler.btEnityList.count else {
-            return
+            return false
         }
         
         if !ToolsHelper.isConnectBySDK() {
-            // Custom connection method
             guard let selectedItem = eventHandler.btEnityList[index] as? JLBleEntity else {
-                return
+                return false
             }
-            
             let peripheral = selectedItem.mPeripheral
-            
-            // Check device status
             guard peripheral.state != .connected, peripheral.state != .connecting else {
-                return
+                return false
             }
             
             JLBleManager.sharedInstance().isPaired = ToolsHelper.isSupportPair()
             JLBleManager.sharedInstance().connectBLE(peripheral)
-        } else {
-            // SDK connection method
-            guard let selectedItem = eventHandler.btEnityList[index] as? JL_EntityM else {
-                return
-            }
-            
-            let item = selectedItem.mPeripheral
-            
-            // Check device status
-            guard item.state != .connected, item.state != .connecting else {
-                return
-            }
-            
-            JL_RunSDK.sharedInstance().mBleMultiple.ble_PAIR_ENABLE = ToolsHelper.isSupportPair()
-            JL_RunSDK.sharedInstance().mBleMultiple.connectEntity(selectedItem) { [weak self] status in
-                guard let _ = self else { return }
-                if status == JL_EntityM_Status.paired {
-                    JL_RunSDK.sharedInstance().mBleEntityM = selectedItem
-                    JL_RunSDK.sharedInstance().lastUUID = item.identifier.uuidString
-                }
-            }
+            return true
         }
+
+        guard let selectedItem = eventHandler.btEnityList[index] as? JL_EntityM else {
+            return false
+        }
+        let item = selectedItem.mPeripheral
+        guard item.state != .connected, item.state != .connecting else {
+            return false
+        }
+        
+        JL_RunSDK.sharedInstance().mBleMultiple.ble_PAIR_ENABLE = ToolsHelper.isSupportPair()
+        JL_RunSDK.sharedInstance().mBleMultiple.connectEntity(selectedItem) { status in
+            if status == .paired {
+                JL_RunSDK.sharedInstance().mBleEntityM = selectedItem
+                JL_RunSDK.sharedInstance().lastUUID = item.identifier.uuidString
+                return
+            }
+            JL_RunSDK.sharedInstance().notifyIfConnectFailed(status, peripheral: item)
+        }
+        return true
     }
     
     /// Disconnects from a Bluetooth device at the specified index

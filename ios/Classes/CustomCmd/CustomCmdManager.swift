@@ -16,12 +16,14 @@ private enum CustomCmdConstants {
     static let invalidDataType = "INVALID_DATA_TYPE"
     static let emptyData = "EMPTY_DATA"
     static let sendFailed = "SEND_FAILED"
+    static let notConnected = "NOT_CONNECTED"
     
     // Error Messages
     static let invalidArgumentsMessage = "Invalid arguments"
     static let invalidDataTypeMessage = "Custom data should be a byte array"
     static let emptyDataMessage = "Custom data is empty"
     static let sendFailedMessage = "Status: "
+    static let notConnectedMessage = "Custom command needs an authenticated SDK Bluetooth connection"
     
     // Response
     static let ackResponse = "ACK"
@@ -30,26 +32,48 @@ private enum CustomCmdConstants {
 @objc public class CustomCmdManager: NSObject, JLCustomCmdPtl{
     @objc public static let shared = CustomCmdManager()
     private var eventSink: FlutterEventSink?
-
-    private lazy var customMgr: JL_CustomManager? = {
-        let mCustomManager = JL_RunSDK.sharedInstance().mBleEntityM?.mCmdManager.mCustomManager
-        return mCustomManager
-    }()
+    private weak var boundManager: JL_CustomManager?
     
     override init() {
         super.init()
-        initState()
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleConnectionReady),
+            name: Notification.Name(kFLT_BLE_PAIRED),
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleConnectionReady),
+            name: Notification.Name(kJL_BLE_M_ENTITY_CONNECTED),
+            object: nil
+        )
     }
-    
-    private func initState() {
-        customMgr?.delegate = self
+
+    private func currentCustomManager() -> JL_CustomManager? {
+        JL_RunSDK.sharedInstance().mBleEntityM?.mCmdManager.mCustomManager
+    }
+
+    private func bindDelegate() {
+        let manager = currentCustomManager()
+        if boundManager !== manager {
+            if boundManager?.delegate === self {
+                boundManager?.delegate = nil
+            }
+            manager?.delegate = self
+            boundManager = manager
+        } else if manager?.delegate == nil {
+            manager?.delegate = self
+        }
+    }
+
+    @objc private func handleConnectionReady() {
+        bindDelegate()
     }
     
     @objc public func setEventSink(sink: FlutterEventSink?) {
         self.eventSink = sink
-        if customMgr?.delegate == nil {
-            customMgr?.delegate = self
-        }
+        bindDelegate()
     }
 
     public func send(data: Data, result: @escaping FlutterResult) {
@@ -59,8 +83,14 @@ private enum CustomCmdConstants {
                                 details: nil))
             return
         }
-        customMgr?.cmdCustomData(data, isNeedResponse: true, result: { [weak self] status, _, responseData in
-            guard self != nil else { return }
+        bindDelegate()
+        guard let customMgr = currentCustomManager() else {
+            result(FlutterError(code: CustomCmdConstants.notConnected,
+                                message: CustomCmdConstants.notConnectedMessage,
+                                details: nil))
+            return
+        }
+        customMgr.cmdCustomData(data, isNeedResponse: true, result: { status, _, responseData in
             if status == JL_CMDStatus.success {
                 if let responseData {
                     JLLogManager.logLevel(.DEBUG, content: "response data: \(responseData.count) bytes")
@@ -105,7 +135,10 @@ private enum CustomCmdConstants {
     }
     
     public func cleanUp() {
-        customMgr?.delegate = nil
+        if boundManager?.delegate === self {
+            boundManager?.delegate = nil
+        }
+        boundManager = nil
         eventSink = nil
     }
 }
