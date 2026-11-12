@@ -6,6 +6,8 @@ import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattService
 import android.bluetooth.BluetoothProfile
+import android.bluetooth.BluetoothStatusCodes
+import android.os.Build
 import com.jieli.jl_bt_ota.constant.BluetoothConstant
 import com.jieli.jl_bt_ota.util.BluetoothUtil
 import com.jieli.jl_bt_ota.util.CHexConver
@@ -38,6 +40,10 @@ class BleDevice @JvmOverloads constructor(
 
     /** 当前生效的 BLE MTU 大小，默认为 [BluetoothConstant.BLE_MTU_MIN] */
     private var mtu = BluetoothConstant.BLE_MTU_MIN
+
+    /** 最近一次提交给 GATT 的写入数据。API 33 起 characteristic.value 不再回填这次写入的内容。 */
+    @Volatile
+    private var lastWritePayload: ByteArray? = null
 
     /** 系统底层已建立的 BluetoothGatt 连接句柄 */
     private var gatt: BluetoothGatt? = null
@@ -303,7 +309,7 @@ class BleDevice @JvmOverloads constructor(
 
                 override fun onEnd(id: Long, name: String?) {
                     val thread = sendDataThread
-                    if (thread != null && thread.id == id) {
+                    if (thread != null && AppUtil.threadId(thread) == id) {
                         sendDataThread = null
                     }
                 }
@@ -320,6 +326,11 @@ class BleDevice @JvmOverloads constructor(
     }
 
     /**
+     * 读取最近一次提交写入的数据副本
+     */
+    fun peekLastWritePayload(): ByteArray? = lastWritePayload?.clone()
+
+    /**
      * 调用系统底层 BluetoothGatt 实际执行特征值写入
      *
      * @param gatt 目标 GATT 句柄
@@ -329,7 +340,6 @@ class BleDevice @JvmOverloads constructor(
      * @return true 表示成功调用底层的 writeCharacteristic
      */
     @SuppressLint("MissingPermission")
-    @Suppress("DEPRECATION")
     private fun writeDataToDeviceByBle(
         gatt: BluetoothGatt?,
         serviceUUID: UUID?,
@@ -353,9 +363,17 @@ class BleDevice @JvmOverloads constructor(
             return false
         }
         var ret = false
+        lastWritePayload = data.clone()
         try {
-            gattCharacteristic.setValue(data)
-            ret = gatt.writeCharacteristic(gattCharacteristic)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                val status = gatt.writeCharacteristic(gattCharacteristic, data, gattCharacteristic.writeType)
+                ret = status == BluetoothStatusCodes.SUCCESS
+            } else {
+                @Suppress("DEPRECATION")
+                gattCharacteristic.setValue(data)
+                @Suppress("DEPRECATION")
+                ret = gatt.writeCharacteristic(gattCharacteristic)
+            }
         } catch (e: Exception) {
             e.printStackTrace()
         }

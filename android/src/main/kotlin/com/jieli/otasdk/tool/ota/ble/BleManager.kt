@@ -10,6 +10,7 @@ import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothGattService
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
+import android.bluetooth.BluetoothStatusCodes
 import android.bluetooth.le.BluetoothLeScanner
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanFilter
@@ -47,12 +48,11 @@ import java.util.UUID
 /**
  * BLE 低功耗蓝牙底层连接管理核心类
  *
- * 负责 BLE 扫描（支持低版本 LeScan 与 Android 5.0+ BluetoothLeScanner）、连接与断开生命周期管理、
+ * 负责 BLE 扫描（BluetoothLeScanner）、连接与断开生命周期管理、
  * GATT 服务发现、特征值通知使能（Descriptor 写入重试）、MTU 协商、数据异步发送及断开重连。
  *
  * @param context 上下文对象
  */
-@Suppress("DEPRECATION")
 class BleManager private constructor(context: Context) {
     /** 应用程序 Application 上下文引用 */
     private val mContext: Context = CommonUtil.checkNotNull(context)
@@ -61,15 +61,14 @@ class BleManager private constructor(context: Context) {
     private val configHelper = ConfigHelper.getInstance()
 
     /** 系统底层蓝牙适配器 */
-    private val mBluetoothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
+    private val mBluetoothAdapter: BluetoothAdapter? = AppUtil.getBluetoothAdapter(mContext)
 
-    /** Android 5.0+ 专用的低功耗蓝牙扫描器 */
-    private val mBluetoothLeScanner: BluetoothLeScanner? =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP && mBluetoothAdapter != null) {
-            mBluetoothAdapter.bluetoothLeScanner
-        } else {
-            null
-        }
+    /**
+     * 取当前 BLE 扫描器。
+     *
+     * 蓝牙关闭时 [BluetoothAdapter.getBluetoothLeScanner] 返回 null，不能在构造时缓存。
+     */
+    private fun bluetoothLeScanner(): BluetoothLeScanner? = mBluetoothAdapter?.bluetoothLeScanner
 
     /** 当前缓存的所有 BLE 已连接/连接中设备映射表（以 MAC 地址为 Key） */
     private val mBleDeviceMap = HashMap<String, BleDevice>()
@@ -94,14 +93,7 @@ class BleManager private constructor(context: Context) {
     private var checkSystemBleThread: CheckSystemBleThread? = null
 
     /**
-     * 旧版 LeScan 扫描回调（兼容 Android 4.3 - 4.4）
-     */
-    private val mLeScanCallback = BluetoothAdapter.LeScanCallback { device, rssi, scanRecord ->
-        filterDevice(device, rssi, scanRecord, true)
-    }
-
-    /**
-     * Android 5.0+ 标准 ScanCallback 扫描回调实现
+     * BluetoothLeScanner 扫描回调
      */
     private val mScanCallback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult) {
@@ -233,8 +225,25 @@ class BleManager private constructor(context: Context) {
             }
         }
 
-        @Suppress("DEPRECATION")
+        override fun onCharacteristicChanged(
+            gatt: BluetoothGatt,
+            characteristic: BluetoothGattCharacteristic,
+            value: ByteArray,
+        ) {
+            dispatchCharacteristicChanged(gatt, characteristic, value)
+        }
+
+        @Deprecated("Deprecated in Java")
+        @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
         override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
+            dispatchCharacteristicChanged(gatt, characteristic, characteristic.value)
+        }
+
+        private fun dispatchCharacteristicChanged(
+            gatt: BluetoothGatt,
+            characteristic: BluetoothGattCharacteristic,
+            value: ByteArray?,
+        ) {
             val device = gatt.device ?: return
             var serviceUuid: UUID? = null
             val characteristicUuid = characteristic.uuid
@@ -242,7 +251,6 @@ class BleManager private constructor(context: Context) {
             if (bluetoothGattService != null) {
                 serviceUuid = bluetoothGattService.uuid
             }
-            val value = characteristic.value
             JL_Log.d(
                 TAG,
                 "onCharacteristicChanged",
@@ -257,7 +265,6 @@ class BleManager private constructor(context: Context) {
             mCallbackManager.onBleDataNotification(device, serviceUuid, characteristicUuid, value)
         }
 
-        @Suppress("DEPRECATION")
         override fun onCharacteristicWrite(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
             val device = gatt.device ?: return
             var serviceUuid: UUID? = null
@@ -266,7 +273,7 @@ class BleManager private constructor(context: Context) {
             if (bluetoothGattService != null) {
                 serviceUuid = bluetoothGattService.uuid
             }
-            val value = characteristic.value
+            val value = getBleDevice(device)?.peekLastWritePayload()
             JL_Log.d(
                 TAG,
                 "onCharacteristicWrite",
@@ -464,7 +471,7 @@ class BleManager private constructor(context: Context) {
     /**
      * 启动低功耗蓝牙 (BLE) 扫描
      *
-     * 校验权限与环境就绪后发起扫描。5.0+ 采用 [BluetoothLeScanner]，低版本回退采用 [BluetoothAdapter.startLeScan]。
+     * 校验权限与环境就绪后，使用 [BluetoothLeScanner] 发起扫描。
      *
      * @param timeout 扫描超时时间（毫秒）
      * @return true 表示成功提交扫描启动指令
@@ -480,36 +487,34 @@ class BleManager private constructor(context: Context) {
         if (scanTimeout <= 0) scanTimeout = SCAN_BLE_TIMEOUT
         if (isBleScanning) {
             JL_Log.i(TAG, "startLeScan", "BLE is searching.")
-            mBluetoothLeScanner?.flushPendingScanResults(mScanCallback)
+            bluetoothLeScanner()?.flushPendingScanResults(mScanCallback)
             setBleScanning(true, scanTimeout)
             syncSystemBleDevice()
             return true
         }
-        val ret: Boolean
-        val scanner = mBluetoothLeScanner
-        if (scanner != null) {
-            val scanMode = ScanSettings.SCAN_MODE_LOW_LATENCY
-            val scanSettings = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                val builder = ScanSettings.Builder()
-                    .setScanMode(scanMode)
-                    .setMatchMode(ScanSettings.MATCH_MODE_AGGRESSIVE)
-                    .setNumOfMatches(ScanSettings.MATCH_NUM_MAX_ADVERTISEMENT)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    builder.setPhy(ScanSettings.PHY_LE_ALL_SUPPORTED)
-                }
-                builder.build()
-            } else {
-                ScanSettings.Builder()
-                    .setScanMode(scanMode)
-                    .build()
-            }
-            val filters = ArrayList<ScanFilter>()
-            scanner.startScan(filters, scanSettings, mScanCallback)
-            ret = true
-        } else {
-            val adapter = mBluetoothAdapter ?: return false
-            ret = adapter.startLeScan(mLeScanCallback)
+        val scanner = bluetoothLeScanner()
+        if (scanner == null) {
+            JL_Log.w(TAG, "startLeScan", "BluetoothLeScanner is null.")
+            return false
         }
+        val scanMode = ScanSettings.SCAN_MODE_LOW_LATENCY
+        val scanSettings = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val builder = ScanSettings.Builder()
+                .setScanMode(scanMode)
+                .setMatchMode(ScanSettings.MATCH_MODE_AGGRESSIVE)
+                .setNumOfMatches(ScanSettings.MATCH_NUM_MAX_ADVERTISEMENT)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                builder.setPhy(ScanSettings.PHY_LE_ALL_SUPPORTED)
+            }
+            builder.build()
+        } else {
+            ScanSettings.Builder()
+                .setScanMode(scanMode)
+                .build()
+        }
+        val filters = ArrayList<ScanFilter>()
+        scanner.startScan(filters, scanSettings, mScanCallback)
+        val ret = true
         JL_Log.i(TAG, "startLeScan", CommonUtil.formatString("%s. timeout : %d.", ret, scanTimeout))
         setBleScanning(ret, scanTimeout)
         if (ret) {
@@ -528,12 +533,7 @@ class BleManager private constructor(context: Context) {
         if (!checkScanEnv("stopLeScan")) return false
         if (!isBleScanning) return false
         try {
-            val scanner = mBluetoothLeScanner
-            if (scanner != null) {
-                scanner.stopScan(mScanCallback)
-            } else {
-                mBluetoothAdapter?.stopLeScan(mLeScanCallback)
-            }
+            bluetoothLeScanner()?.stopScan(mScanCallback)
         } catch (ignore: Exception) {
         }
         removeTimeTask(MSG_SCAN_BLE_TIMEOUT)
@@ -1362,8 +1362,24 @@ class BleManager private constructor(context: Context) {
     ): Boolean {
         if (!AppUtil.checkHasConnectPermission(mContext)) return false
         var count = retryCount
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val status = bluetoothGatt.writeDescriptor(descriptor, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)
+            val ret = status == BluetoothStatusCodes.SUCCESS
+            JL_Log.i(TAG, "tryToWriteDescriptor", "writeDescriptor : $ret")
+            if (!ret) {
+                count++
+                if (count >= 3) {
+                    return false
+                }
+                JL_Log.i(TAG, "tryToWriteDescriptor", "writeDescriptor failed. retryCount : $count")
+                SystemClock.sleep(50)
+                tryToWriteDescriptor(bluetoothGatt, descriptor, count, true)
+            }
+            return ret
+        }
         var ret = isSkipSetValue
         if (!ret) {
+            @Suppress("DEPRECATION")
             ret = descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)
             JL_Log.i(TAG, "tryToWriteDescriptor", "setValue : $ret")
             if (!ret) {
@@ -1380,6 +1396,7 @@ class BleManager private constructor(context: Context) {
             }
         }
         if (ret) {
+            @Suppress("DEPRECATION")
             ret = bluetoothGatt.writeDescriptor(descriptor)
             JL_Log.i(TAG, "tryToWriteDescriptor", "writeDescriptor : $ret")
             if (!ret) {
@@ -1529,11 +1546,11 @@ class BleManager private constructor(context: Context) {
         }
 
         private fun extractDeviceFromIntent(intent: Intent): BluetoothDevice? {
-            return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
-            } else {
-                intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                return intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
             }
+            @Suppress("DEPRECATION")
+            return intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
         }
 
         @SuppressLint("MissingPermission")
