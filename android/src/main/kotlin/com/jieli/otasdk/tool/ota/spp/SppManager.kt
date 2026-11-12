@@ -9,11 +9,12 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
+import android.os.Looper
 import android.os.Message
 import android.os.ParcelUuid
-import android.os.Parcelable
 import android.os.SystemClock
 import com.jieli.jl_bt_ota.util.BluetoothUtil
 import com.jieli.jl_bt_ota.util.CHexConver
@@ -37,13 +38,12 @@ import java.util.UUID
  *
  * @param mContext 上下文对象
  */
-@Suppress("DEPRECATION")
 class SppManager private constructor(private val mContext: Context) : SendSppDataThread.ISppOp {
     /** 是否使用自定义 SPP 私有通道 */
     private val useSppPrivateChannel = ConfigHelper.getInstance().isUseMultiSppChannel()
 
     /** 系统底层蓝牙适配器 */
-    private val mBtAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
+    private val mBtAdapter: BluetoothAdapter? = AppUtil.getBluetoothAdapter(mContext)
 
     /** SPP 事件观察者回调管理器 */
     private val mSppEventCallbackManager = SppEventCallbackManager()
@@ -120,7 +120,7 @@ class SppManager private constructor(private val mContext: Context) : SendSppDat
     /**
      * 内部 Handler 消息处理中心，负责超时管理（扫描超时、配对超时、SPP 连接超时）
      */
-    private val mHandler = Handler { msg ->
+    private val mHandler = Handler(Looper.getMainLooper()) { msg ->
         when (msg.what) {
             MSG_DISCOVERY_EDR_TIMEOUT -> {
                 val scanning = isScanning
@@ -742,7 +742,7 @@ class SppManager private constructor(private val mContext: Context) : SendSppDat
                         socket: BluetoothSocket?,
                     ) {
                         val thread = mConnectSppThread
-                        if (thread != null && thread.id == threadID) {
+                        if (thread != null && AppUtil.threadId(thread) == threadID) {
                             mConnectSppThread = null
                         }
                         if (result) {
@@ -832,7 +832,7 @@ class SppManager private constructor(private val mContext: Context) : SendSppDat
 
                     override fun onThreadStop(threadID: Long) {
                         val thread = mSendSppDataThread
-                        if (thread != null && thread.id == threadID) {
+                        if (thread != null && AppUtil.threadId(thread) == threadID) {
                             mSendSppDataThread = null
                         }
                     }
@@ -941,13 +941,36 @@ class SppManager private constructor(private val mContext: Context) : SendSppDat
     /**
      * 从 Bundle 中提取 SPP UUID 对象
      */
-    @Suppress("DEPRECATION")
     private fun readSppUuid(bundle: Bundle?): UUID? {
         var sppUUID: UUID? = UUID_SPP
         if (bundle != null) {
-            sppUUID = bundle.getSerializable(KEY_SPP_UUID) as? UUID
+            sppUUID = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                bundle.getSerializable(KEY_SPP_UUID, UUID::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                bundle.getSerializable(KEY_SPP_UUID) as? UUID
+            }
         }
         return sppUUID
+    }
+
+    private fun readBluetoothDevice(intent: Intent): BluetoothDevice? {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
+        } else {
+            @Suppress("DEPRECATION")
+            intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
+        }
+    }
+
+    private fun readUuidArray(intent: Intent): Array<ParcelUuid>? {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            intent.getParcelableArrayExtra(BluetoothDevice.EXTRA_UUID, ParcelUuid::class.java)
+        } else {
+            @Suppress("DEPRECATION")
+            val raw = intent.getParcelableArrayExtra(BluetoothDevice.EXTRA_UUID) ?: return null
+            Array(raw.size) { index -> ParcelUuid.fromString(raw[index].toString()) }
+        }
     }
 
     /**
@@ -965,7 +988,7 @@ class SppManager private constructor(private val mContext: Context) : SendSppDat
                     notifyDiscoveryStatus(false, 0)
                 }
                 BluetoothDevice.ACTION_FOUND -> {
-                    val device: BluetoothDevice = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE) ?: return
+                    val device: BluetoothDevice = readBluetoothDevice(intent) ?: return
                     val rssi = intent.getShortExtra(BluetoothDevice.EXTRA_RSSI, (-1).toShort())
                     if (isSppDevice(device) && BluetoothUtil.isBluetoothEnable()) {
                         if (!mDiscoveredEdrDevices.contains(device)) {
@@ -1003,7 +1026,7 @@ class SppManager private constructor(private val mContext: Context) : SendSppDat
                     }
                 }
                 BluetoothDevice.ACTION_BOND_STATE_CHANGED -> {
-                    val device: BluetoothDevice = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE) ?: return
+                    val device: BluetoothDevice = readBluetoothDevice(intent) ?: return
                     if (!AppUtil.checkHasConnectPermission(context)) return
                     val bond = device.bondState
                     val validDevice = isValidDevice(device)
@@ -1024,15 +1047,13 @@ class SppManager private constructor(private val mContext: Context) : SendSppDat
                     }
                 }
                 BluetoothDevice.ACTION_UUID -> {
-                    val device: BluetoothDevice = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE) ?: return
-                    val parcelUuids = intent.getParcelableArrayExtra(BluetoothDevice.EXTRA_UUID)
+                    val device: BluetoothDevice = readBluetoothDevice(intent) ?: return
+                    val parcelUuids = readUuidArray(intent)
                     if (parcelUuids == null) {
                         JL_Log.e(TAG, "ACTION_UUID", "device : $device, no uuids")
                     } else {
-                        val uuids = arrayOfNulls<ParcelUuid>(parcelUuids.size)
                         for (i in parcelUuids.indices) {
-                            uuids[i] = ParcelUuid.fromString(parcelUuids[i].toString())
-                            JL_Log.d(TAG, "ACTION_UUID", "index = $i uuid = " + UuidUtil.read16BitUUID(uuids[i]!!.uuid))
+                            JL_Log.d(TAG, "ACTION_UUID", "index = $i uuid = " + UuidUtil.read16BitUUID(parcelUuids[i].uuid))
                         }
                     }
                     val connectingSpp = connectingSppDevice

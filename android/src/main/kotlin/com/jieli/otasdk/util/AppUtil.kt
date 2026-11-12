@@ -5,10 +5,13 @@ import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
+import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.provider.Settings
 import android.os.ParcelUuid
 import android.text.TextUtils
 import androidx.core.app.ActivityCompat
@@ -185,23 +188,60 @@ object AppUtil {
     }
 
     /**
-     * 开启系统蓝牙适配器
-     *
-     * 需具备蓝牙连接权限；若当前未开启则调用底层系统 API 开启。
+     * 读取线程 ID。API 36 起 [Thread.getId] 废弃，改用 [Thread.threadId]。
+     */
+    @JvmStatic
+    fun threadId(thread: Thread): Long {
+        return if (Build.VERSION.SDK_INT >= 36) {
+            thread.threadId()
+        } else {
+            @Suppress("DEPRECATION")
+            thread.id
+        }
+    }
+
+    /**
+     * 获取系统蓝牙适配器
      *
      * @param context 上下文对象
-     * @return true 表示开启成功或原本已是开启状态，false 表示缺少权限或设备不支持蓝牙
+     * @return 适配器；设备不支持蓝牙时返回 null
+     */
+    @JvmStatic
+    fun getBluetoothAdapter(context: Context?): BluetoothAdapter? {
+        val appContext = context?.applicationContext ?: return null
+        val manager = appContext.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
+        return manager?.adapter
+    }
+
+    /**
+     * 开启系统蓝牙适配器
+     *
+     * 需具备蓝牙连接权限。已开启时直接返回 true。宿主 targetSdk 低于 33 时仍调用系统 enable()。
+     * targetSdk 33 及以上系统禁止应用直接打开蓝牙，此时跳转到系统蓝牙设置，并返回 false。
+     *
+     * @param context 上下文对象
+     * @return true 表示蓝牙已开启或本次打开成功，false 表示未打开
      */
     @JvmStatic
     @SuppressLint("MissingPermission")
     fun enableBluetooth(context: Context?): Boolean {
         if (!checkHasConnectPermission(context)) return false
-        val bluetoothAdapter = BluetoothAdapter.getDefaultAdapter() ?: return false
-        var ret = bluetoothAdapter.isEnabled
-        if (!ret) {
-            ret = bluetoothAdapter.enable()
+        val appContext = context?.applicationContext ?: return false
+        val bluetoothAdapter = getBluetoothAdapter(appContext) ?: return false
+        if (bluetoothAdapter.isEnabled) return true
+        // targetSdk 33 起系统禁止应用直接打开蓝牙，enable() 固定返回 false。
+        if (appContext.applicationInfo.targetSdkVersion < Build.VERSION_CODES.TIRAMISU) {
+            @Suppress("DEPRECATION")
+            return bluetoothAdapter.enable()
         }
-        return ret
+        return try {
+            val intent = Intent(Settings.ACTION_BLUETOOTH_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            appContext.startActivity(intent)
+            false
+        } catch (e: Exception) {
+            JL_Log.w("AppUtil", "enableBluetooth", "open bluetooth settings failed: ${e.message}")
+            false
+        }
     }
 
     /**
@@ -341,10 +381,16 @@ object AppUtil {
                     JL_Log.d(tag, "[[[[[[=============descriptors Size:" + descriptors.size + "======================\n")
                     for (descriptor in descriptors) {
                         if (descriptor == null) continue
+                        val descriptorValue = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            ""
+                        } else {
+                            @Suppress("DEPRECATION")
+                            CHexConver.byte2HexStr(descriptor.value)
+                        }
                         JL_Log.d(
                             tag,
                             "[[[[[[=============descriptor:" + descriptor.uuid + ", permission:" + descriptor.permissions +
-                                "\nvalue : " + CHexConver.byte2HexStr(descriptor.value) + "======================\n",
+                                "\nvalue : " + descriptorValue + "======================\n",
                         )
                     }
                 }

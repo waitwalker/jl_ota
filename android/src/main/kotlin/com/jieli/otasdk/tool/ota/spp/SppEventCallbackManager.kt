@@ -4,6 +4,7 @@ import android.bluetooth.BluetoothDevice
 import android.os.Handler
 import android.os.Looper
 import com.jieli.otasdk.tool.ota.spp.interfaces.ISppEventCallback
+import com.jieli.otasdk.util.AppUtil
 import com.jieli.otasdk.tool.ota.spp.interfaces.SppEventCallback
 import java.util.UUID
 
@@ -107,7 +108,7 @@ class SppEventCallbackManager : ISppEventCallback {
     private fun callbackSppEvent(impl: SppEventCallbackImpl?) {
         if (impl == null) return
         val runnable = OnSppEventRunnable(impl)
-        if (Thread.currentThread().id == Looper.getMainLooper().thread.id) {
+        if (AppUtil.threadId(Thread.currentThread()) == AppUtil.threadId(Looper.getMainLooper().thread)) {
             runnable.run()
         } else {
             mHandler.post(runnable)

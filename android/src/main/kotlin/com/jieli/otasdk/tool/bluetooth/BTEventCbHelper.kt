@@ -4,6 +4,7 @@ import android.bluetooth.BluetoothDevice
 import android.os.Handler
 import android.os.Looper
 import com.jieli.otasdk.tool.ota.ble.model.BleScanInfo
+import com.jieli.otasdk.util.AppUtil
 import java.util.*
 
 /**
@@ -141,7 +142,7 @@ class BTEventCbHelper : OnBTEventCallback() {
     private fun callbackEvent(impl: CallbackImpl<OnBTEventCallback>?) {
         if (null == impl) return
         val runnable = CallbackRunnable(callbacks, impl)
-        if (Thread.currentThread().id == Looper.getMainLooper().thread.id) {
+        if (AppUtil.threadId(Thread.currentThread()) == AppUtil.threadId(Looper.getMainLooper().thread)) {
             runnable.run()
         } else {
             uiHandler.post(runnable)
