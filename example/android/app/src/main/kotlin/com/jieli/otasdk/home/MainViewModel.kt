@@ -8,7 +8,7 @@ import com.jieli.jlFileTransfer.TransferFolderCallback
 import com.jieli.jlFileTransfer.WebService
 import com.jieli.jl_bt_ota.util.JL_Log
 import com.jieli.otasdk.ExampleUpgradeDir
-import com.jieli.otasdk.R
+import com.jieli.otasdk.example.R
 import com.jieli.otasdk.tool.bluetooth.BluetoothHelper
 import java.io.File
 import java.lang.ref.WeakReference

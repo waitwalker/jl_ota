@@ -1,12 +1,10 @@
 plugins {
     id("com.android.application")
-    id("kotlin-android")
-    id("kotlin-kapt")
     id("dev.flutter.flutter-gradle-plugin")
 }
 
 android {
-    namespace = "com.jieli.otasdk"
+    namespace = "com.jieli.otasdk.example"
     compileSdk = 36
     ndkVersion = "28.2.13676358"
 
@@ -15,8 +13,10 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
 
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
+    sourceSets {
+        getByName("main") {
+            java.srcDir("src/main/kotlin")
+        }
     }
 
     defaultConfig {
@@ -34,6 +34,12 @@ android {
         debug {
             signingConfig = signingConfigs.getByName("debug")
         }
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
     }
 }
 

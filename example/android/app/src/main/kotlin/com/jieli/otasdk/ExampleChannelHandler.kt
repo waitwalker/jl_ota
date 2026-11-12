@@ -18,6 +18,7 @@ import com.jieli.jl_bt_ota.util.JL_Log
 import com.jieli.otasdk.data.constant.EventChannelConstants
 import com.jieli.otasdk.data.constant.ExampleChannelConstants
 import com.jieli.otasdk.data.constant.OtaConstant
+import com.jieli.otasdk.example.R
 import com.jieli.otasdk.model.ota.DownloadFileViewModel
 import com.jieli.otasdk.model.ota.OTAViewModel
 import com.jieli.otasdk.tool.bluetooth.BluetoothHelper

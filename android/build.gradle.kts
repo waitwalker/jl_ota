@@ -1,12 +1,11 @@
 import com.android.build.gradle.LibraryExtension
 import org.gradle.api.JavaVersion
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import org.jetbrains.kotlin.gradle.dsl.KotlinAndroidProjectExtension
 
 group = "com.jieli.otasdk"
 version = "1.0-SNAPSHOT"
 
-val kotlinVersion = "2.2.20"
+val kotlinVersion = "2.4.21"
 
 buildscript {
     repositories {
@@ -17,8 +16,7 @@ buildscript {
     }
 
     dependencies {
-        classpath("com.android.tools.build:gradle:8.12.1")
-        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:2.2.20")
+        classpath("com.android.tools.build:gradle:9.5.1")
     }
 }
 
@@ -45,7 +43,6 @@ repositories {
 }
 
 apply(plugin = "com.android.library")
-apply(plugin = "kotlin-android")
 
 extensions.configure<LibraryExtension>("android") {
     namespace = "com.jieli.otasdk"
@@ -106,9 +103,9 @@ extensions.configure<LibraryExtension>("android") {
     }
 }
 
-tasks.withType<KotlinCompile>().configureEach {
+extensions.configure<KotlinAndroidProjectExtension> {
     compilerOptions {
-        jvmTarget.set(JvmTarget.JVM_11)
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
     }
 }
 
@@ -118,7 +115,6 @@ dependencies {
     add("testRuntimeOnly", "org.junit.jupiter:junit-jupiter-engine:5.10.1")
     add("testRuntimeOnly", "org.junit.platform:junit-platform-launcher:1.10.1")
 
-    add("implementation", "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion")
     add("implementation", mapOf("name" to "jl-component-lib_V1.4.0_10400-release", "ext" to "aar"))
     add("implementation", mapOf("name" to "jl_bt_ota_V1.11.0_11015-release", "ext" to "aar"))
 
