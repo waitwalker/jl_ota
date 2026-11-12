@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:jl_ota/ble_event_stream.dart';
 import 'package:jl_ota_example/channel/example_method.dart';
 import 'package:jl_ota_example/pages/setting_page.dart';

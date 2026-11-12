@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// A loading content dialog widget that allows for flexible styling and content.
 class LoadingContentDialog extends StatelessWidget {

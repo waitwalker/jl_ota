@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:jl_ota/model/scan_device.dart';
 
 import '../extensions/hex_color.dart';

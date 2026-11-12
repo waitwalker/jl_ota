@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// A single menu item in the file selection popup
 class FileSelectMenuItem extends StatelessWidget {

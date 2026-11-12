@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 export 'hex_color.dart';
 
 extension HexColor on Color {
@@ -17,8 +17,5 @@ extension HexColor on Color {
   /// 颜色转字符串
   String toHex({bool leadingHashSign = true}) =>
       '${leadingHashSign ? '#' : ''}'
-      '${alpha.toRadixString(16).padLeft(2, '0')}'
-      '${red.toRadixString(16).padLeft(2, '0')}'
-      '${green.toRadixString(16).padLeft(2, '0')}'
-      '${blue.toRadixString(16).padLeft(2, '0')}';
+      '${toARGB32().toRadixString(16).padLeft(8, '0')}';
 }

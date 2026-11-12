@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:jl_ota_example/channel/example_event.dart';
 import 'package:jl_ota_example/channel/example_method.dart';
 import 'package:jl_ota/constant/constants.dart';

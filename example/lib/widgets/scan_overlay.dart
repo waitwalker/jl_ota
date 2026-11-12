@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:jl_ota_example/extensions/hex_color.dart';
 
 /// Overlay widget for scanning interface with a cut-out scanning area

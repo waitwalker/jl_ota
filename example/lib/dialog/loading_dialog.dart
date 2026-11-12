@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../widgets/loading_widget.dart';
 import 'loading_content_dialog.dart';

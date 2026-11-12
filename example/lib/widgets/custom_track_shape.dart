@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// A custom slider track shape that adds padding to both sides of the track
 class CustomTrackShape extends RoundedRectSliderTrackShape {
