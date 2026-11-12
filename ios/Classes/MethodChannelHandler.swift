@@ -112,11 +112,27 @@ class MethodChannelHandler: NSObject {
         result(true)
     }
     
+    /// 取当前前台界面的 Flutter 控制器，用来在蓝牙未打开时弹出提示。
+    /// iOS 13 起 keyWindow 已废弃，改为从当前 WindowScene 取 key window。
+    private func foregroundFlutterViewController() -> FlutterViewController? {
+        let rootViewController: UIViewController?
+        if #available(iOS 13.0, *) {
+            rootViewController = UIApplication.shared.connectedScenes
+                .compactMap { $0 as? UIWindowScene }
+                .flatMap { $0.windows }
+                .first(where: { $0.isKeyWindow })?
+                .rootViewController
+        } else {
+            rootViewController = UIApplication.shared.keyWindow?.rootViewController
+        }
+        return rootViewController as? FlutterViewController
+    }
+
     private func connectDevice(call: FlutterMethodCall, result: @escaping FlutterResult) {
         // Check Bluetooth status
         if !JLBleHandler.share().handleGetBleStatus() {
             // Show alert if possible
-            if let flutterViewController = UIApplication.shared.keyWindow?.rootViewController as? FlutterViewController {
+            if let flutterViewController = foregroundFlutterViewController() {
                 let localizedText = DFUITools.languageText("ble_not_open" as String, table: "Localizable")
                 DFUITools.showText(localizedText, on: flutterViewController.view, delay: 1.0)
             }
