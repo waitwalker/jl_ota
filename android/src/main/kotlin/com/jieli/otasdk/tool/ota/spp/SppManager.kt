@@ -676,7 +676,7 @@ class SppManager private constructor(private val mContext: Context) : SendSppDat
             intentFilter.addAction(BluetoothAdapter.ACTION_DISCOVERY_STARTED)
             intentFilter.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED)
             intentFilter.addAction(BluetoothDevice.ACTION_FOUND)
-            mContext.registerReceiver(mDiscoveryReceiver, intentFilter)
+            AppUtil.registerNotExportedReceiver(mContext, mDiscoveryReceiver!!, intentFilter)
         }
     }
 
@@ -699,7 +699,7 @@ class SppManager private constructor(private val mContext: Context) : SendSppDat
             val intentFilter = IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
             intentFilter.addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
             intentFilter.addAction(BluetoothDevice.ACTION_UUID)
-            mContext.registerReceiver(mBluetoothReceiver, intentFilter)
+            AppUtil.registerNotExportedReceiver(mContext, mBluetoothReceiver!!, intentFilter)
         }
     }
 

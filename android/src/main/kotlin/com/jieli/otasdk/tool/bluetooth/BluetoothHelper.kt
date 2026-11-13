@@ -30,10 +30,10 @@ class BluetoothHelper {
     private val configHelper = ConfigHelper.getInstance()
 
     /** BLE 底层连接管理器单例 */
-    private val bleManager = BleManager.getInstance()!!
+    private val bleManager = BleManager.getInstance()
 
     /** SPP 经典蓝牙串口管理器单例 */
-    private val sppManager = SppManager.getInstance()!!
+    private val sppManager = SppManager.getInstance()
 
     /** 统一蓝牙事件分发助手 */
     private val btEventCbHelper = BTEventCbHelper()
@@ -69,8 +69,8 @@ class BluetoothHelper {
             btEventCbHelper.onDiscoveryChange(bStart, OtaConstant.PROTOCOL_BLE)
         }
 
-        override fun onDiscoveryBle(device: BluetoothDevice?, bleScanMessage: BleScanInfo?) {
-            btEventCbHelper.onDiscovery(device, bleScanMessage)
+        override fun onDiscoveryBle(device: BluetoothDevice?, bleScanInfo: BleScanInfo?) {
+            btEventCbHelper.onDiscovery(device, bleScanInfo)
         }
 
         override fun onBleConnection(device: BluetoothDevice?, status: Int) {
@@ -101,12 +101,12 @@ class BluetoothHelper {
      */
     private val sppEventCallback = object : SppEventCallback() {
 
-        override fun onAdapterChange(bEnabled: Boolean) {
-            btEventCbHelper.onAdapterChange(bEnabled)
+        override fun onAdapterChange(enabled: Boolean) {
+            btEventCbHelper.onAdapterChange(enabled)
         }
 
-        override fun onDiscoveryDeviceChange(bStart: Boolean) {
-            btEventCbHelper.onDiscoveryChange(bStart, OtaConstant.PROTOCOL_SPP)
+        override fun onDiscoveryDeviceChange(started: Boolean) {
+            btEventCbHelper.onDiscoveryChange(started, OtaConstant.PROTOCOL_SPP)
         }
 
         override fun onDiscoveryDevice(device: BluetoothDevice?, rssi: Int) {

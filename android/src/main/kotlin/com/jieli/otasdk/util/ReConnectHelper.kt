@@ -274,12 +274,12 @@ class ReConnectHelper(private val mContext: Context, private val mBtManager: Ble
          * 解析 OTA 标识广播包并更新缓存；若发现目标重连设备，则立即停止扫描并发起连接。
          *
          * @param device 扫描到的蓝牙设备
-         * @param bleScanMessage 扫描到的元数据包 [BleScanInfo]
+         * @param bleScanInfo 扫描到的元数据包 [BleScanInfo]
          */
-        override fun onDiscoveryBle(device: BluetoothDevice?, bleScanMessage: BleScanInfo?) {
-            if (!isReconnecting || null == device || bleScanMessage == null) return
+        override fun onDiscoveryBle(device: BluetoothDevice?, bleScanInfo: BleScanInfo?) {
+            if (!isReconnecting || null == device || bleScanInfo == null) return
             val advMsg = ParseDataUtil.parseOTAFlagFilterWithBroad(
-                bleScanMessage.rawData,
+                bleScanInfo.rawData,
                 JL_Constant.OTA_IDENTIFY
             )
             if (advMsg != null) {
@@ -336,10 +336,10 @@ class ReConnectHelper(private val mContext: Context, private val mBtManager: Ble
         /** 实际用于建立连接的目标 MAC 地址（OTA 升级后可能发生地址变更） */
         var connectAddress: String? = null
 
-        override fun equals(o: Any?): Boolean {
-            if (this === o) return true
-            if (o == null || javaClass != o.javaClass) return false
-            val that = o as ReconnectParam
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other == null || javaClass != other.javaClass) return false
+            val that = other as ReconnectParam
             return isUseNewADV == that.isUseNewADV && deviceAddress == that.deviceAddress
         }
 

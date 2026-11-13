@@ -370,8 +370,8 @@ class BleManager private constructor(context: Context) {
     /** 主线程 Handler，分发处理各类超时与延时任务 */
     private val mHandler = Handler(Looper.getMainLooper()) { msg -> onHandleMessage(msg) }
 
-    /** 回连辅助类实例 */
-    private lateinit var mReConnectHelper: ReConnectHelper
+    /** 回连辅助类实例。先写入主上下文，再创建，避免回连逻辑读到空上下文。 */
+    private val mReConnectHelper: ReConnectHelper
 
     init {
         if (CommonUtil.getMainContext() == null) {
@@ -1269,7 +1269,7 @@ class BleManager private constructor(context: Context) {
             intentFilter.addAction(BluetoothDevice.ACTION_ACL_CONNECTED)
             intentFilter.addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED)
             intentFilter.addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
-            mContext.registerReceiver(mAdapterReceiver, intentFilter)
+            AppUtil.registerNotExportedReceiver(mContext, mAdapterReceiver!!, intentFilter)
         }
     }
 
@@ -1364,18 +1364,14 @@ class BleManager private constructor(context: Context) {
         var count = retryCount
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val status = bluetoothGatt.writeDescriptor(descriptor, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)
-            val ret = status == BluetoothStatusCodes.SUCCESS
-            JL_Log.i(TAG, "tryToWriteDescriptor", "writeDescriptor : $ret")
-            if (!ret) {
-                count++
-                if (count >= 3) {
-                    return false
-                }
-                JL_Log.i(TAG, "tryToWriteDescriptor", "writeDescriptor failed. retryCount : $count")
-                SystemClock.sleep(50)
-                tryToWriteDescriptor(bluetoothGatt, descriptor, count, true)
-            }
-            return ret
+            val submitted = status == BluetoothStatusCodes.SUCCESS
+            JL_Log.i(TAG, "tryToWriteDescriptor", "writeDescriptor : $submitted")
+            if (submitted) return true
+            count++
+            if (count >= 3) return false
+            JL_Log.i(TAG, "tryToWriteDescriptor", "writeDescriptor failed. retryCount : $count")
+            SystemClock.sleep(50)
+            return tryToWriteDescriptor(bluetoothGatt, descriptor, count, true)
         }
         var ret = isSkipSetValue
         if (!ret) {
@@ -1384,16 +1380,12 @@ class BleManager private constructor(context: Context) {
             JL_Log.i(TAG, "tryToWriteDescriptor", "setValue : $ret")
             if (!ret) {
                 count++
-                if (count >= 3) {
-                    return false
-                } else {
-                    JL_Log.i(TAG, "tryToWriteDescriptor", "setValue failed. retryCount : $count")
-                    SystemClock.sleep(50)
-                    tryToWriteDescriptor(bluetoothGatt, descriptor, count, false)
-                }
-            } else {
-                count = 0
+                if (count >= 3) return false
+                JL_Log.i(TAG, "tryToWriteDescriptor", "setValue failed. retryCount : $count")
+                SystemClock.sleep(50)
+                return tryToWriteDescriptor(bluetoothGatt, descriptor, count, false)
             }
+            count = 0
         }
         if (ret) {
             @Suppress("DEPRECATION")
@@ -1401,13 +1393,10 @@ class BleManager private constructor(context: Context) {
             JL_Log.i(TAG, "tryToWriteDescriptor", "writeDescriptor : $ret")
             if (!ret) {
                 count++
-                if (count >= 3) {
-                    return false
-                } else {
-                    JL_Log.i(TAG, "tryToWriteDescriptor", "writeDescriptor failed. retryCount : $count")
-                    SystemClock.sleep(50)
-                    tryToWriteDescriptor(bluetoothGatt, descriptor, count, true)
-                }
+                if (count >= 3) return false
+                JL_Log.i(TAG, "tryToWriteDescriptor", "writeDescriptor failed. retryCount : $count")
+                SystemClock.sleep(50)
+                return tryToWriteDescriptor(bluetoothGatt, descriptor, count, true)
             }
         }
         return ret
