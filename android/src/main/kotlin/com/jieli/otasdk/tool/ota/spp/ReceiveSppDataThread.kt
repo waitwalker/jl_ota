@@ -92,7 +92,7 @@ class ReceiveSppDataThread(
         JL_Log.i(TAG, "ReceiveDataThread start.")
         running = true
         var exitReason = EXIT_REASON_SUCCESS
-        val threadId = id
+        val threadId = AppUtil.threadId(this)
         if (mOnRecvSppDataListener != null) {
             mOnRecvSppDataListener.onThreadStart(threadId)
         }

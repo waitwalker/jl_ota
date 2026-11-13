@@ -33,9 +33,10 @@ class ConnectionSppThread(
 
     @Synchronized
     override fun run() {
-        onThreadStart(id)
+        val threadId = AppUtil.threadId(this)
+        onThreadStart(threadId)
         if (mDevice == null || !AppUtil.checkHasConnectPermission(mContext)) {
-            onThreadStop(id, false, null, null, null)
+            onThreadStop(threadId, false, null, null, null)
             return
         }
         var ret = false
@@ -56,7 +57,7 @@ class ConnectionSppThread(
                     ", send max = " + socket.maxTransmitPacketSize,
             )
         }
-        onThreadStop(id, ret, mDevice, mSppUUID, socket)
+        onThreadStop(threadId, ret, mDevice, mSppUUID, socket)
     }
 
     /**

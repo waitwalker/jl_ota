@@ -6,8 +6,11 @@ import com.jieli.otasdk.tool.ota.ble.interfaces.IBleOp
 import com.jieli.otasdk.tool.ota.ble.interfaces.OnThreadStateListener
 import com.jieli.otasdk.tool.ota.ble.interfaces.OnWriteDataCallback
 import com.jieli.otasdk.tool.ota.ble.model.BleSendTask
+import com.jieli.otasdk.util.AppUtil
 import java.util.UUID
 import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.locks.ReentrantLock
 
 /**
  * BLE 数据发送独立工作线程
@@ -24,6 +27,10 @@ class SendBleDataThread(
 ) : Thread(TAG) {
     /** 待发送任务阻塞队列 */
     private val mQueue = LinkedBlockingQueue<BleSendTask>()
+
+    /** 与队列等待配套的锁。wait/notify 都走这把锁，不占用队列对象本身。 */
+    private val mLock = ReentrantLock()
+    private val mSignal = mLock.newCondition()
 
     /** 线程是否处于运行工作状态标志位 */
     @Volatile
@@ -105,16 +112,19 @@ class SendBleDataThread(
                 sendTask.callback = mCurrentTask!!.callback
                 mCurrentTask = sendTask
             }
-            synchronized(mQueue) {
+            mLock.lock()
+            try {
                 if (isThreadWaiting) {
                     if (isWaitingForCallback) {
-                        (mQueue as java.lang.Object).notifyAll()
+                        mSignal.signalAll()
                     } else {
-                        (mQueue as java.lang.Object).notify()
+                        mSignal.signal()
                     }
                 } else if (isWaitingForCallback) {
-                    (mQueue as java.lang.Object).notify()
+                    mSignal.signal()
                 }
+            } finally {
+                mLock.unlock()
             }
         }
     }
@@ -150,8 +160,11 @@ class SendBleDataThread(
         }
         if (ret && isThreadWaiting && !isWaitingForCallback) {
             isThreadWaiting = false
-            synchronized(mQueue) {
-                (mQueue as java.lang.Object).notify()
+            mLock.lock()
+            try {
+                mSignal.signal()
+            } finally {
+                mLock.unlock()
             }
         }
         return ret
@@ -199,11 +212,13 @@ class SendBleDataThread(
      */
     override fun run() {
         JL_Log.d(TAG, "send ble data thread is started.")
+        val threadId = AppUtil.threadId(this)
         if (mListener != null) {
-            mListener.onStart(id, name)
+            mListener.onStart(threadId, name)
         }
         val bleOp = mBleManager ?: return
-        synchronized(mQueue) {
+        mLock.lock()
+        try {
             while (isDataSend) {
                 mCurrentTask = null
                 isThreadWaiting = false
@@ -212,7 +227,7 @@ class SendBleDataThread(
                     isThreadWaiting = true
                     JL_Log.d(TAG, "queue is empty, so waiting for data")
                     try {
-                        (mQueue as java.lang.Object).wait()
+                        mSignal.await()
                     } catch (e: InterruptedException) {
                         e.printStackTrace()
                     }
@@ -227,7 +242,7 @@ class SendBleDataThread(
                         )
                         if (isWaitingForCallback) {
                             try {
-                                (mQueue as java.lang.Object).wait(BleManager.SEND_DATA_MAX_TIMEOUT.toLong())
+                                mSignal.await(BleManager.SEND_DATA_MAX_TIMEOUT.toLong(), TimeUnit.MILLISECONDS)
                             } catch (e: InterruptedException) {
                                 e.printStackTrace()
                             }
@@ -262,12 +277,14 @@ class SendBleDataThread(
                     }
                 }
             }
+        } finally {
+            mLock.unlock()
         }
         isWaitingForCallback = false
         isThreadWaiting = false
         mQueue.clear()
         if (mListener != null) {
-            mListener.onEnd(id, name)
+            mListener.onEnd(threadId, name)
         }
         JL_Log.d(TAG, "send ble data thread exit.")
     }

@@ -11,6 +11,7 @@ import com.jieli.otasdk.util.AppUtil
 import java.io.IOException
 import java.util.UUID
 import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.locks.ReentrantLock
 
 /**
  * 经典蓝牙 SPP 数据发送工作线程
@@ -29,6 +30,10 @@ class SendSppDataThread(
 ) : Thread() {
     /** 任务阻塞等待队列 */
     private val mQueue = LinkedBlockingQueue<SppSendTask>()
+
+    /** 与队列等待配套的锁。wait/notify 都走这把锁，不占用队列对象本身。 */
+    private val mLock = ReentrantLock()
+    private val mSignal = mLock.newCondition()
 
     /** 标志位：线程是否处于运行状态 */
     @Volatile
@@ -75,8 +80,11 @@ class SendSppDataThread(
         }
         if (ret && isQueueEmpty) {
             isQueueEmpty = false
-            synchronized(mQueue) {
-                (mQueue as java.lang.Object).notifyAll()
+            mLock.lock()
+            try {
+                mSignal.signalAll()
+            } finally {
+                mLock.unlock()
             }
         }
     }
@@ -85,10 +93,13 @@ class SendSppDataThread(
      * 唤醒因队列空闲而阻塞的线程
      */
     private fun wakeupThread() {
-        synchronized(mQueue) {
+        mLock.lock()
+        try {
             if (isQueueEmpty) {
-                (mQueue as java.lang.Object).notifyAll()
+                mSignal.signalAll()
             }
+        } finally {
+            mLock.unlock()
         }
     }
 
@@ -96,7 +107,7 @@ class SendSppDataThread(
      * 线程执行主循环
      */
     override fun run() {
-        val threadId = id
+        val threadId = AppUtil.threadId(this)
         if (mListener != null) {
             mHandler.post { mListener.onThreadStart(threadId) }
         }
@@ -107,13 +118,14 @@ class SendSppDataThread(
             return
         }
         val sppOp = mSppOp
-        synchronized(mQueue) {
+        mLock.lock()
+        try {
             while (isDataSend) {
                 isQueueEmpty = mQueue.isEmpty()
                 if (isQueueEmpty) {
                     JL_Log.d(TAG, "queue is empty, so waiting for data")
                     try {
-                        (mQueue as java.lang.Object).wait()
+                        mSignal.await()
                     } catch (e: InterruptedException) {
                         e.printStackTrace()
                     }
@@ -134,6 +146,8 @@ class SendSppDataThread(
                     }
                 }
             }
+        } finally {
+            mLock.unlock()
         }
         mQueue.clear()
         if (mListener != null) {
