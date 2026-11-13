@@ -6,6 +6,7 @@ import android.net.NetworkCapabilities
 import android.net.wifi.WifiManager
 import android.os.Build
 import com.jieli.jl_bt_ota.util.JL_Log
+import java.net.Inet4Address
 import java.util.Locale
 
 /**
@@ -45,25 +46,41 @@ object NetworkUtil {
     fun getWifiIpAddress(context: Context): String? {
         if (!isWifiConnected(context)) return null
         return try {
-            val wifiManager = context.applicationContext.getSystemService(
-                Context.WIFI_SERVICE
-            ) as WifiManager
-
-            val wifiInfo = wifiManager.connectionInfo
-            val ipAddress = wifiInfo.ipAddress
-
-            // 转换整型IP为点分十进制格式
-            String.format(
-                Locale.ENGLISH,
-                "%d.%d.%d.%d",
-                ipAddress and 0xff,
-                ipAddress shr 8 and 0xff,
-                ipAddress shr 16 and 0xff,
-                ipAddress shr 24 and 0xff
-            )
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                ipv4FromLinkProperties(context)
+            } else {
+                ipv4FromWifiManager(context)
+            }
         } catch (e: Exception) {
-            JL_Log.e("NetworkUtil", "getWifiIpAddress", "Error getting WiFi IP. $e")
+            JL_Log.e(TAG, "getWifiIpAddress", "Error getting WiFi IP. $e")
             null
         }
+    }
+
+    private fun ipv4FromLinkProperties(context: Context): String? {
+        val connectivityManager = context.applicationContext.getSystemService(
+            Context.CONNECTIVITY_SERVICE,
+        ) as ConnectivityManager
+        val network = connectivityManager.activeNetwork ?: return null
+        val addresses = connectivityManager.getLinkProperties(network)?.linkAddresses ?: return null
+        return addresses
+            .map { it.address }
+            .filterIsInstance<Inet4Address>()
+            .firstOrNull { !it.isLoopbackAddress && !it.isLinkLocalAddress }
+            ?.hostAddress
+    }
+
+    @Suppress("DEPRECATION")
+    private fun ipv4FromWifiManager(context: Context): String {
+        val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+        val ipAddress = wifiManager.connectionInfo.ipAddress
+        return String.format(
+            Locale.ENGLISH,
+            "%d.%d.%d.%d",
+            ipAddress and IPV4_OCTET_MASK,
+            ipAddress shr 8 and IPV4_OCTET_MASK,
+            ipAddress shr 16 and IPV4_OCTET_MASK,
+            ipAddress shr 24 and IPV4_OCTET_MASK,
+        )
     }
 }

@@ -156,7 +156,12 @@ class ExampleChannelHandler(
         }
         val versionCode = try {
             val info = activity.packageManager.getPackageInfo(activity.packageName, 0)
-            if (Build.VERSION.SDK_INT >= 28) info.longVersionCode.toInt() else info.versionCode
+            if (Build.VERSION.SDK_INT >= 28) {
+                info.longVersionCode.toInt()
+            } else {
+                @Suppress("DEPRECATION")
+                info.versionCode
+            }
         } catch (e: PackageManager.NameNotFoundException) {
             0
         }
@@ -312,14 +317,14 @@ class ExampleChannelHandler(
         val eventMap = when (downloadEvent?.type) {
             ExampleChannelConstants.STATUS_ON_PROGRESS -> mapOf(
                 EventChannelConstants.KEY_STATUS to ExampleChannelConstants.STATUS_ON_PROGRESS,
-                EventChannelConstants.KEY_PROGRESS to downloadEvent.progress.toInt(),
+                EventChannelConstants.KEY_PROGRESS to (downloadEvent.progress?.toInt() ?: 0),
             )
             ExampleChannelConstants.STATUS_ON_STOP -> mapOf(
                 EventChannelConstants.KEY_STATUS to ExampleChannelConstants.STATUS_ON_STOP,
             )
             ExampleChannelConstants.STATUS_ON_ERROR -> mapOf(
                 EventChannelConstants.KEY_STATUS to ExampleChannelConstants.STATUS_ON_ERROR,
-                EventChannelConstants.KEY_MESSAGE to downloadEvent.errorMsg,
+                EventChannelConstants.KEY_MESSAGE to (downloadEvent.errorMsg ?: ""),
             )
             ExampleChannelConstants.STATUS_ON_START -> mapOf(
                 EventChannelConstants.KEY_STATUS to ExampleChannelConstants.STATUS_ON_START,
