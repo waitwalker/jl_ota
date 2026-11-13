@@ -1,4 +1,4 @@
-import com.android.build.gradle.LibraryExtension
+import com.android.build.api.dsl.LibraryExtension
 import org.gradle.api.JavaVersion
 import org.jetbrains.kotlin.gradle.dsl.KotlinAndroidProjectExtension
 
@@ -20,12 +20,20 @@ buildscript {
     }
 }
 
-// 本地 AAR 会作为 runtime 依赖漏到 :app，必须让所有模块都能解析；Maven 仓仍只给杰理自己用。
+// 本地 AAR 会作为 runtime 依赖漏到宿主 app。只挂到本模块和 application 模块，避免无关插件也使用 flatDir。
 val jlOtaLibsDir = file("libs")
+val pluginProject = project
 rootProject.allprojects {
-    repositories {
-        flatDir {
+    val target = this
+    if (target == pluginProject) {
+        repositories.flatDir {
             dirs(jlOtaLibsDir)
+        }
+    } else {
+        pluginManager.withPlugin("com.android.application") {
+            target.repositories.flatDir {
+                dirs(jlOtaLibsDir)
+            }
         }
     }
 }
@@ -37,9 +45,6 @@ repositories {
     maven { url = uri("https://maven.aliyun.com/repository/central") }
     maven { url = uri("https://maven.aliyun.com/repository/public") }
     maven { url = uri("https://jitpack.io") }
-    flatDir {
-        dirs(jlOtaLibsDir)
-    }
 }
 
 apply(plugin = "com.android.library")
@@ -115,8 +120,8 @@ dependencies {
     add("testRuntimeOnly", "org.junit.jupiter:junit-jupiter-engine:5.10.1")
     add("testRuntimeOnly", "org.junit.platform:junit-platform-launcher:1.10.1")
 
-    add("implementation", mapOf("name" to "jl-component-lib_V1.4.0_10400-release", "ext" to "aar"))
-    add("implementation", mapOf("name" to "jl_bt_ota_V1.11.0_11015-release", "ext" to "aar"))
+    add("implementation", ":jl-component-lib_V1.4.0_10400-release@aar")
+    add("implementation", ":jl_bt_ota_V1.11.0_11015-release@aar")
 
     add("implementation", "androidx.lifecycle:lifecycle-viewmodel-ktx:2.4.0")
     add("implementation", "androidx.fragment:fragment:1.3.6")

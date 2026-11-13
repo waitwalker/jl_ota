@@ -48,8 +48,8 @@ flutter {
 }
 
 dependencies {
-    compileOnly(mapOf("name" to "jl_bt_ota_V1.11.0_11015-release", "ext" to "aar"))
-    implementation(mapOf("name" to "jl_file_transfer_V1.0.0-release", "ext" to "aar"))
+    compileOnly(":jl_bt_ota_V1.11.0_11015-release@aar")
+    implementation(":jl_file_transfer_V1.0.0-release@aar")
     implementation("com.koushikdutta.async:androidasync:3.1.0")
     implementation("com.jakewharton.timber:timber:4.1.2")
     implementation("com.hwangjr.rxbus:rxbus:1.0.5") {
