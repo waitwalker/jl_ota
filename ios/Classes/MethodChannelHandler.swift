@@ -113,19 +113,24 @@ class MethodChannelHandler: NSObject {
     }
     
     /// 取当前前台界面的 Flutter 控制器，用来在蓝牙未打开时弹出提示。
-    /// iOS 13 起 keyWindow 已废弃，改为从当前 WindowScene 取 key window。
+    /// 只取前台 Scene 的 key window。根控制器外面还有一层时，再从子控制器里找。
     private func foregroundFlutterViewController() -> FlutterViewController? {
         let rootViewController: UIViewController?
         if #available(iOS 13.0, *) {
-            rootViewController = UIApplication.shared.connectedScenes
-                .compactMap { $0 as? UIWindowScene }
-                .flatMap { $0.windows }
-                .first(where: { $0.isKeyWindow })?
-                .rootViewController
+            let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+            let scene = scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
+            if #available(iOS 15.0, *) {
+                rootViewController = scene?.keyWindow?.rootViewController
+            } else {
+                rootViewController = scene?.windows.first { $0.isKeyWindow }?.rootViewController
+            }
         } else {
             rootViewController = UIApplication.shared.keyWindow?.rootViewController
         }
-        return rootViewController as? FlutterViewController
+        if let flutterViewController = rootViewController as? FlutterViewController {
+            return flutterViewController
+        }
+        return rootViewController?.children.compactMap { $0 as? FlutterViewController }.first
     }
 
     private func connectDevice(call: FlutterMethodCall, result: @escaping FlutterResult) {
