@@ -1,5 +1,8 @@
 import com.android.build.gradle.LibraryExtension
 import org.gradle.api.JavaVersion
+import org.gradle.api.Project
+import org.gradle.api.artifacts.ProjectDependency
+import org.gradle.api.artifacts.repositories.FlatDirectoryArtifactRepository
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
@@ -22,19 +25,50 @@ buildscript {
     }
 }
 
-// 本地 AAR 会作为 runtime 依赖漏到宿主 app。只挂到本模块和 application 模块，避免无关插件也使用 flatDir。
+// 本地 AAR 会作为 runtime 依赖传递到依赖本插件的上层插件模块及宿主 application 模块。
+// 仅挂到本模块、application 模块及直接/间接依赖本模块的子工程，避免无关插件也使用 flatDir。
 val jlOtaLibsDir = file("libs")
 val pluginProject = project
-rootProject.allprojects {
-    val target = this
-    if (target == pluginProject) {
+
+fun Project.ensureJlOtaFlatDir() {
+    val alreadyAdded = repositories
+        .filterIsInstance<FlatDirectoryArtifactRepository>()
+        .any { jlOtaLibsDir in it.dirs }
+    if (!alreadyAdded) {
         repositories.flatDir {
             dirs(jlOtaLibsDir)
         }
+    }
+}
+
+rootProject.allprojects {
+    val target = this
+    if (target == pluginProject) {
+        target.ensureJlOtaFlatDir()
     } else {
         pluginManager.withPlugin("com.android.application") {
-            target.repositories.flatDir {
-                dirs(jlOtaLibsDir)
+            target.ensureJlOtaFlatDir()
+        }
+    }
+}
+
+gradle.projectsEvaluated {
+    val consumers = mutableSetOf(pluginProject.name)
+    var changed = true
+    while (changed) {
+        changed = false
+        rootProject.allprojects.forEach { candidate ->
+            if (candidate.name !in consumers) {
+                val dependsOnConsumer = candidate.configurations.any { config ->
+                    config.dependencies.any { dep ->
+                        dep is ProjectDependency && dep.name in consumers
+                    }
+                }
+                if (dependsOnConsumer) {
+                    consumers.add(candidate.name)
+                    candidate.ensureJlOtaFlatDir()
+                    changed = true
+                }
             }
         }
     }
