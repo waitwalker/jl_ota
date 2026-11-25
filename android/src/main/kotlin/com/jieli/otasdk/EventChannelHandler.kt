@@ -23,7 +23,6 @@ import com.jieli.jl_bt_ota.util.BluetoothUtil
 import com.jieli.jl_bt_ota.util.CHexConver
 import com.jieli.jl_bt_ota.util.JL_Log
 import com.jieli.otasdk.model.connect.ConnectViewModel
-import io.flutter.embedding.android.FlutterActivity
 import io.flutter.plugin.common.EventChannel
 import kotlin.math.roundToInt
 
@@ -448,15 +447,12 @@ class EventChannelHandler(private val activity: Activity) : EventChannel.StreamH
      */
     private fun setKeepScreenOn(keepOn: Boolean) {
         try {
-            if (activity is FlutterActivity) {
-                val flutterActivity = activity
-                if (keepOn) {
-                    // 设置屏幕常亮 Flag
-                    flutterActivity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                } else {
-                    // 清除屏幕常亮 Flag
-                    flutterActivity.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                }
+            if (keepOn) {
+                // 设置屏幕常亮 Flag（兼容 FlutterActivity 与 FlutterFragmentActivity 宿主）
+                activity.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            } else {
+                // 清除屏幕常亮 Flag
+                activity.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             }
         } catch (e: Exception) {
             JL_Log.e("EventChannelHandler", "setKeepScreenOn fail: ${e.message}")

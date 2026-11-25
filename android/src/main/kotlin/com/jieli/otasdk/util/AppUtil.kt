@@ -203,15 +203,16 @@ object AppUtil {
     }
 
     /**
-     * 注册仅供本应用接收的广播。
+     * 注册系统蓝牙受保护广播接收器。
      *
-     * targetSdk 34 起，动态注册必须声明是否导出。这些监听都是系统蓝牙广播，
-     * 用 [Context.RECEIVER_NOT_EXPORTED] 即可收到，同时拒绝其他应用投递。
+     * Android 蓝牙协议栈运行在独立特权进程（BLUETOOTH_UID = 1002），并非核心 system_server（UID 1000）。
+     * Android 13+ 若使用 [Context.RECEIVER_NOT_EXPORTED] 会导致系统拦截丢弃蓝牙进程发出的发现、配对及状态广播；
+     * 因此必须使用 [Context.RECEIVER_EXPORTED]（所监听 Action 均为系统级 protected-broadcast，第三方应用无法伪造发送）。
      */
     @JvmStatic
-    fun registerNotExportedReceiver(context: Context, receiver: BroadcastReceiver, filter: IntentFilter) {
+    fun registerBluetoothReceiver(context: Context, receiver: BroadcastReceiver, filter: IntentFilter) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+            context.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
         } else {
             context.registerReceiver(receiver, filter)
         }

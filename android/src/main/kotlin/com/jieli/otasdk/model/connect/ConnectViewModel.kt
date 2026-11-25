@@ -213,15 +213,19 @@ class ConnectViewModel private constructor() : BluetoothViewModel() {
         // 停止扫描
         stopScan()
 
-        // 注销蓝牙回调
+        // 注销本类与基类的蓝牙回调
         bluetoothHelper.unregisterCallback(btEventCallback)
+        super.destroy()
 
         // 清空 LiveData
         clearLiveData()
 
-        // 重置内部状态
+        // 重置内部状态与单例引用，避免重绑后拿到已失效实例
         scanDeviceList = mutableListOf()
         isNeedScan = false
+        if (instance === this) {
+            instance = null
+        }
     }
 
     /**

@@ -101,7 +101,7 @@ class OTAViewModel : BluetoothViewModel() {
         }
 
         override fun onMandatoryUpgrade(device: BluetoothDevice?) {
-            mandatoryUpgradeMLD.postValue(device!!)
+            device?.let { mandatoryUpgradeMLD.postValue(it) }
         }
     }
 

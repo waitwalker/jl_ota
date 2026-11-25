@@ -1269,7 +1269,7 @@ class BleManager private constructor(context: Context) {
             intentFilter.addAction(BluetoothDevice.ACTION_ACL_CONNECTED)
             intentFilter.addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED)
             intentFilter.addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
-            AppUtil.registerNotExportedReceiver(mContext, mAdapterReceiver!!, intentFilter)
+            AppUtil.registerBluetoothReceiver(mContext, mAdapterReceiver!!, intentFilter)
         }
     }
 

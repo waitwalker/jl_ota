@@ -121,7 +121,7 @@ class MethodChannelHandler(
             connectVM.stopScan()
             connectVM.clearScanDeviceList()
         }
-        connectVM.cleanUp()
+        ConnectViewModel.destroyInstance()
     }
 
     /**
