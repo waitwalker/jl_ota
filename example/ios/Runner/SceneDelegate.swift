@@ -1,18 +1,33 @@
 import Flutter
 import JLLogHelper
 import UIKit
-import jl_ota
 
 class SceneDelegate: FlutterSceneDelegate {
     override func scene(
         _ scene: UIScene,
+        willConnectTo session: UISceneSession,
+        options connectionOptions: UIScene.ConnectionOptions
+    ) {
+        // App 未在运行时，系统只把文件 URL 交到这里，不会再走 openURLContexts。
+        for context in connectionOptions.urlContexts where context.url.isFileURL {
+            handleOpenURL(context.url)
+        }
+        super.scene(scene, willConnectTo: session, options: connectionOptions)
+    }
+
+    override func scene(
+        _ scene: UIScene,
         openURLContexts URLContexts: Set<UIOpenURLContext>
     ) {
-        for context in URLContexts {
-            let url = context.url
-            handleOpenURL(url)
+        let fileContexts = URLContexts.filter { $0.url.isFileURL }
+        for context in fileContexts {
+            handleOpenURL(context.url)
         }
-        super.scene(scene, openURLContexts: URLContexts)
+        // 文件路径不是页面路由。交给 Flutter 会按 inbox 绝对路径 pushNamed 并断言失败。
+        let linkContexts = URLContexts.subtracting(fileContexts)
+        if !linkContexts.isEmpty {
+            super.scene(scene, openURLContexts: linkContexts)
+        }
     }
 
     private func handleOpenURL(_ url: URL) {
@@ -89,8 +104,6 @@ class SceneDelegate: FlutterSceneDelegate {
         // 创建文件
         fileManager.createFile(atPath: targetPath.path, contents: data, attributes: nil)
 
-        // 发送通知给Flutter层
-        let otaPlugin = JlOtaPlugin()
-        otaPlugin.scanOtaList()
+        ExampleUpgradeFiles.shared.publish()
     }
 }

@@ -22,12 +22,20 @@ buildscript {
     }
 }
 
-// 本地 AAR 会作为 runtime 依赖漏到 :app，必须让所有模块都能解析；Maven 仓仍只给杰理自己用。
+// 本地 AAR 会作为 runtime 依赖漏到宿主 app。只挂到本模块和 application 模块，避免无关插件也使用 flatDir。
 val jlOtaLibsDir = file("libs")
+val pluginProject = project
 rootProject.allprojects {
-    repositories {
-        flatDir {
+    val target = this
+    if (target == pluginProject) {
+        repositories.flatDir {
             dirs(jlOtaLibsDir)
+        }
+    } else {
+        pluginManager.withPlugin("com.android.application") {
+            target.repositories.flatDir {
+                dirs(jlOtaLibsDir)
+            }
         }
     }
 }
@@ -39,14 +47,10 @@ repositories {
     maven { url = uri("https://maven.aliyun.com/repository/central") }
     maven { url = uri("https://maven.aliyun.com/repository/public") }
     maven { url = uri("https://jitpack.io") }
-    flatDir {
-        dirs(jlOtaLibsDir)
-    }
 }
 
 apply(plugin = "com.android.library")
 apply(plugin = "kotlin-android")
-apply(plugin = "kotlin-kapt")
 
 extensions.configure<LibraryExtension>("android") {
     namespace = "com.jieli.otasdk"
@@ -120,28 +124,11 @@ dependencies {
     add("testRuntimeOnly", "org.junit.platform:junit-platform-launcher:1.10.1")
 
     add("implementation", "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion")
-    add("implementation", mapOf("name" to "jl-component-lib_V1.4.0_10400-release", "ext" to "aar"))
-    add("implementation", mapOf("name" to "jl_bt_ota_V1.11.0_11015-release", "ext" to "aar"))
-    add("implementation", mapOf("name" to "jl_file_transfer_V1.0.0-release", "ext" to "aar"))
-
-    add("implementation", "com.github.permissions-dispatcher:permissionsdispatcher:4.9.2")
-    add("kapt", "com.github.permissions-dispatcher:permissionsdispatcher-processor:4.9.2")
-
-    add("implementation", platform("com.squareup.okhttp3:okhttp-bom:4.12.0"))
-    add("implementation", "com.squareup.okhttp3:logging-interceptor:4.10.0")
-    add("implementation", "com.squareup.okhttp3:mockwebserver:4.10.0")
-
-    add("implementation", "androidx.lifecycle:lifecycle-viewmodel-ktx:2.4.0")
-    add("implementation", "androidx.activity:activity-ktx:1.2.3")
-    add("implementation", "androidx.fragment:fragment:1.3.6")
-    add("implementation", "com.koushikdutta.async:androidasync:3.1.0")
-    add("implementation", "com.jakewharton.timber:timber:4.1.2")
-
-    add("implementation", "com.hwangjr.rxbus:rxbus:1.0.5") {
-        exclude(group = "com.jakewharton.timber", module = "timber")
-    }
+    add("implementation", ":jl-component-lib_V1.4.0_10400-release@aar")
+    add("implementation", ":jl_bt_ota_V1.11.0_11015-release@aar")
 
     add("implementation", "androidx.appcompat:appcompat:1.7.1")
+    add("implementation", "androidx.lifecycle:lifecycle-viewmodel-ktx:2.4.0")
+    add("implementation", "androidx.fragment:fragment:1.3.6")
     add("implementation", "androidx.annotation:annotation:1.3.0")
-    add("implementation", "org.conscrypt:conscrypt-android:2.5.3")
 }

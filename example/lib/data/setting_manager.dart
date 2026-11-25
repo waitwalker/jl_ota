@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:developer';
 import 'package:jl_ota/constant/constants.dart';
 import 'package:jl_ota/ble_method.dart';
+import 'package:jl_ota_example/channel/example_method.dart';
 
 /// Settings Manager
 ///
@@ -87,7 +88,7 @@ class SettingManager {
   // 获取日志路径
   static Future<String> getLogDirPath() async {
     try {
-      return await BleMethod.getLogFileDirPath();
+      return await ExampleMethod.getLogFileDirPath();
     } catch (e) {
       log("Failed to get log dir: $e");
       return "";
@@ -98,7 +99,7 @@ class SettingManager {
   static Future<Map<String, String>> getVersions() async {
     try {
       final sdkVersion = await BleMethod.getSdkVersion();
-      final appVersion = await BleMethod.getAppVersion();
+      final appVersion = await ExampleMethod.getAppVersion();
       return {AppConstants.sdkName: sdkVersion, AppConstants.appName: appVersion};
     } catch (e) {
       log("Failed to get versions: $e");
@@ -128,12 +129,13 @@ class SettingManager {
         await BleMethod.setUseCustomReConnectWay(customReconnect);
         await BleMethod.setConnectWay(communicationMethod);
         await BleMethod.setBleRequestMtu(mtu);
-        await BleMethod.popAllActivity(); // 重启应用
+        await ExampleMethod.popAllActivity(); // 重启应用
       } else {
         // iOS特有设置
         await BleMethod.setConnectUsingSdkBluetooth(useSdkBluetooth);
         await BleMethod.setGattOverEdrState(gattOverEdr);
         await BleMethod.setGattServiceUuids(gattServiceUuids);
+        await ExampleMethod.exitApp();
       }
     } catch (e) {
       log("Failed to save settings: $e");

@@ -1,4 +1,4 @@
-import 'package:flutter/cupertino.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 
 /// A custom painter that draws an isosceles triangle shape
 class TrianglePainter extends CustomPainter {

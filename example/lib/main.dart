@@ -1,12 +1,12 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
+import 'package:jl_ota/ble_method.dart';
 import 'package:jl_ota_example/utils/connection_state_manager.dart';
 import 'package:jl_ota_example/utils/data_notifier.dart';
 import 'package:jl_ota_example/pages/welcome_page.dart';
 import 'package:jl_ota_example/utils/global_connection_listener.dart';
 import 'package:provider/provider.dart';
 import './extensions/hex_color.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:jl_ota_example/l10n/app_localizations.dart';
 
 /// Main entry point of the application
@@ -43,17 +43,14 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    BleMethod.setLogEnabled(true);
   }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      localizationsDelegates: [
-        ...AppLocalizations.localizationsDelegates,
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
+      builder: (context, child) => MaterialUiCompatibilityBridge(child: child!),
+      localizationsDelegates: [AppLocalizations.delegate, ...GlobalMaterialLocalizations.delegates],
       supportedLocales: AppLocalizations.supportedLocales,
       localeResolutionCallback: (locale, supportedLocales) {
         for (var supportedLocale in supportedLocales) {

@@ -7,7 +7,6 @@ import android.os.Handler
 import android.os.Looper
 import android.view.WindowManager
 import androidx.lifecycle.Observer
-import com.jieli.jl_bt_ota.constant.Command
 import com.jieli.otasdk.data.constant.EventChannelConstants
 import com.jieli.otasdk.data.constant.OtaConstant
 import com.jieli.otasdk.data.model.ScanResult
@@ -16,45 +15,43 @@ import com.jieli.otasdk.data.model.device.ScanDevice
 import com.jieli.otasdk.data.model.ota.OTAEnd
 import com.jieli.otasdk.data.model.ota.OTAState
 import com.jieli.otasdk.data.model.ota.OTAWorking
-import com.jieli.otasdk.model.ota.DownloadFileViewModel
 import com.jieli.otasdk.model.ota.OTAViewModel
 import com.jieli.otasdk.util.DeviceUtil
-import com.jieli.otasdk.util.DownloadFileUtil
-import com.jieli.otasdk.util.FileUtil
 import com.jieli.jl_bt_ota.constant.ErrorCode
 import com.jieli.jl_bt_ota.constant.JL_Constant
-import com.jieli.jl_bt_ota.constant.StateCode
 import com.jieli.jl_bt_ota.util.BluetoothUtil
 import com.jieli.jl_bt_ota.util.CHexConver
 import com.jieli.jl_bt_ota.util.JL_Log
-import com.jieli.jl_bt_ota.interfaces.rcsp.OnRcspCallback
-import com.jieli.jl_bt_ota.model.base.CommandBase
-import com.jieli.jl_bt_ota.model.command.CustomCmd
-import com.jieli.jl_bt_ota.model.parameter.CustomParam
 import com.jieli.otasdk.model.connect.ConnectViewModel
-import com.jieli.otasdk.tool.bluetooth.BluetoothHelper
-import io.flutter.embedding.android.FlutterActivity
 import io.flutter.plugin.common.EventChannel
 import kotlin.math.roundToInt
 
 /**
- * Des:
- * author: lifang
- * date: 2025/07/29
- * Copyright: Jieli Technology
- * Modify date:
- * Modified by:
+ * Flutter EventChannel 事件流分发处理器
+ *
+ * 负责监听底层蓝牙状态、扫描发现设备、设备连接状态以及 OTA 升级全生命周期的状态变化，
+ * 并将其统一转换为结构化字典数据，实时推送给 Flutter 端的事件监听流。
+ *
+ * @param activity 宿主 Activity 实例，用于访问窗口管理器（如屏幕常亮）以及设备名称解析
  */
 class EventChannelHandler(private val activity: Activity) : EventChannel.StreamHandler {
+    /** Flutter 事件流的下发通道接收器，当外部开始监听时赋值，取消监听时置空 */
     private var eventSink: EventChannel.EventSink? = null
-    private val handler = Handler(Looper.getMainLooper())
-    private val connectVM by lazy { ConnectViewModel.getInstance() }
-    private val otaViewModel by lazy { OTAViewModel.getInstance() }
-    private val downloadFileVM by lazy { DownloadFileViewModel.getInstance() }
-    private val logHelper by lazy { LogHelper.getInstance() }
-    private val bluetoothHelper: BluetoothHelper by lazy { BluetoothHelper.getInstance() }
-    private var rcspCallback: OnRcspCallback? = null
 
+    /** 主线程 Handler，确保所有事件统一在主线程推送到 Flutter 端 */
+    private val handler = Handler(Looper.getMainLooper())
+
+    /** 蓝牙连接与扫描业务模型单例 */
+    private val connectVM by lazy { ConnectViewModel.getInstance() }
+
+    /** OTA 固件升级业务模型单例 */
+    private val otaViewModel by lazy { OTAViewModel.getInstance() }
+
+    /**
+     * 蓝牙适配器开启/关闭状态观察者
+     *
+     * 当蓝牙关闭时自动清空已扫描设备列表，并向 Flutter 推送蓝牙最新开关状态
+     */
     private val bluetoothStateObserver = Observer<Boolean> { isOpen ->
         if (!isOpen) {
             connectVM.scanDeviceList.clear()
@@ -66,6 +63,11 @@ class EventChannelHandler(private val activity: Activity) : EventChannel.StreamH
         )
     }
 
+    /**
+     * 蓝牙设备连接状态变化观察者
+     *
+     * 向 Flutter 派发连接状态变化事件，并同步刷新扫描列表中对应设备的状态
+     */
     private val deviceConnectionObserver = Observer<DeviceConnection> { deviceConnection ->
         sendEvent(
             EventChannelConstants.TYPE_DEVICE_CONNECTION, mapOf(
@@ -75,10 +77,18 @@ class EventChannelHandler(private val activity: Activity) : EventChannel.StreamH
         updateDeviceConnection(deviceConnection)
     }
 
+    /**
+     * 蓝牙设备扫描结果事件观察者
+     */
     private val scanResultObserver = Observer<ScanResult> { result ->
         handleScanResult(result)
     }
 
+    /**
+     * 分发处理扫描状态变化
+     *
+     * @param result 扫描状态或发现的新设备数据
+     */
     private fun handleScanResult(result: ScanResult) {
         when (result.state) {
             ScanResult.SCAN_STATUS_SCANNING -> handleScanningState()
@@ -87,11 +97,19 @@ class EventChannelHandler(private val activity: Activity) : EventChannel.StreamH
         }
     }
 
+    /**
+     * 处理开始扫描状态：清空历史列表并下发空列表与扫描中状态
+     */
     private fun handleScanningState() {
         connectVM.scanDeviceList.clear()
         sendScanDeviceList(ScanResult.SCAN_STATUS_SCANNING)
     }
 
+    /**
+     * 处理扫描到新设备状态：根据过滤规则过滤并按信号强度降序排序后推送到 Flutter
+     *
+     * @param result 包含扫描发现设备的扫描结果
+     */
     private fun handleFoundDeviceState(result: ScanResult) {
         val device = result.device ?: return
         val filter = connectVM.getScanFilter() ?: ""
@@ -102,11 +120,23 @@ class EventChannelHandler(private val activity: Activity) : EventChannel.StreamH
         }
     }
 
+    /**
+     * 校验新发现的设备是否应当加入展示列表（排重以及关键字匹配）
+     *
+     * @param device 待校验的扫描设备
+     * @param filter 过滤关键字
+     * @return true 表示符合条件且未曾添加
+     */
     private fun shouldAddDevice(device: ScanDevice, filter: String): Boolean {
         val currentList = connectVM.scanDeviceList
         return !currentList.contains(device) && isValidDevice(device, filter)
     }
 
+    /**
+     * 将新设备添加进缓存列表，并按信号强度 (RSSI) 降序排序
+     *
+     * @param device 待加入列表的扫描设备
+     */
     private fun addAndSortDevice(device: ScanDevice) {
         val currentList = connectVM.scanDeviceList.toMutableList()
         currentList.add(device)
@@ -114,10 +144,16 @@ class EventChannelHandler(private val activity: Activity) : EventChannel.StreamH
         connectVM.scanDeviceList = currentList
     }
 
+    /**
+     * 处理扫描结束（空闲）状态
+     */
     private fun handleIdleState() {
         sendScanDeviceList(ScanResult.SCAN_STATUS_IDLE)
     }
 
+    /**
+     * OTA 阶段设备连接状态观察者，向 Flutter 派发 OTA 连接状态与设备类型
+     */
     private val otaConnectionObserver = Observer<DeviceConnection> { otaConnection ->
         sendEvent(
             EventChannelConstants.TYPE_OTA_CONNECTION, mapOf(
@@ -130,90 +166,70 @@ class EventChannelHandler(private val activity: Activity) : EventChannel.StreamH
         )
     }
 
-    private val downloadStatusObserver = Observer<DownloadFileUtil.DownloadFileEvent?> { downloadEvent ->
-        sendDownloadStatusEvent(downloadEvent)
-    }
-
-    private val fileListObserver = Observer<List<java.io.File>> { files ->
-        sendEvent(
-            EventChannelConstants.TYPE_OTA_FILE_LIST, mapOf(
-                EventChannelConstants.KEY_LIST to files.map { file ->
-                    mapOf(
-                        EventChannelConstants.KEY_NAME to FileUtil.getFileMsg(file),
-                        EventChannelConstants.KEY_PATH to file.path
-                    )
-                }
-            )
-        )
-    }
-
-    private val selectedFilePathsObserver = Observer<List<String>> { selectedPaths ->
-        sendEvent(
-            EventChannelConstants.TYPE_SELECTED_FILE_PATHS, mapOf(
-                EventChannelConstants.KEY_LIST to selectedPaths
-            )
-        )
-    }
-
+    /**
+     * 目标设备强制升级通知观察者，向 Flutter 派发是否需要强制升级
+     */
     private val mandatoryUpgradeObserver = Observer<BluetoothDevice?> { device ->
         sendEvent(
             EventChannelConstants.TYPE_MANDATORY_UPGRADE, mapOf(
                 EventChannelConstants.KEY_IS_REQUIRED to (device != null)
             )
         )
-        // if (!otaViewModel.isOTA()) {
-        //     ToastUtil.showToastShort(R.string.device_must_mandatory_upgrade)
-        // }
     }
 
+    /**
+     * OTA 升级生命周期状态变化观察者
+     */
     private val otaStateObserver = Observer<OTAState?> { otaState ->
         handleOtaState(otaState)
     }
 
+    /**
+     * Flutter 开始监听事件流时的回调
+     *
+     * 保存 EventSink 句柄，并注册所有 ViewModel 的 LiveData 观察者
+     *
+     * @param arguments Flutter 端传递的监听入参
+     * @param sink 用于向下游 Flutter 发送事件的数据槽
+     */
     override fun onListen(arguments: Any?, sink: EventChannel.EventSink) {
         eventSink = sink
-        logHelper.setEventSink(eventSink)
 
         connectVM.bluetoothStateMLD.observeForever(bluetoothStateObserver)
         connectVM.deviceConnectionMLD.observeForever(deviceConnectionObserver)
         connectVM.scanResultMLD.observeForever(scanResultObserver)
         otaViewModel.otaConnectionMLD.observeForever(otaConnectionObserver)
-        downloadFileVM.downloadStatusMLD.observeForever(downloadStatusObserver)
-        otaViewModel.fileListMLD.observeForever(fileListObserver)
-        otaViewModel.selectedFilePathsMLD.observeForever(selectedFilePathsObserver)
         otaViewModel.mandatoryUpgradeMLD.observeForever(mandatoryUpgradeObserver)
         otaViewModel.otaStateMLD.observeForever(otaStateObserver)
-
-        rcspCallback = object : OnRcspCallback() {
-            override fun onRcspCommand(device: BluetoothDevice, cmd: CommandBase<*, *>) {
-                if (cmd.id != Command.CMD_EXTRA_CUSTOM || cmd !is CustomCmd) return
-                handleReceivedCustomCommand(bluetoothHelper.getConnectedDevice(),cmd)
-            }
-        }
-
-        rcspCallback?.let {
-            otaViewModel.otaManager.addOnRcspCallback(it)
-        }
     }
 
+    /**
+     * Flutter 取消监听事件流时的回调
+     *
+     * 注销所有 LiveData 观察者，清空 Handler 消息队列并置空 EventSink
+     *
+     * @param arguments Flutter 端传递的取消参数
+     */
     override fun onCancel(arguments: Any?) {
         connectVM.bluetoothStateMLD.removeObserver(bluetoothStateObserver)
         connectVM.deviceConnectionMLD.removeObserver(deviceConnectionObserver)
         connectVM.scanResultMLD.removeObserver(scanResultObserver)
         otaViewModel.otaConnectionMLD.removeObserver(otaConnectionObserver)
-        downloadFileVM.downloadStatusMLD.removeObserver(downloadStatusObserver)
-        otaViewModel.fileListMLD.removeObserver(fileListObserver)
-        otaViewModel.selectedFilePathsMLD.removeObserver(selectedFilePathsObserver)
         otaViewModel.mandatoryUpgradeMLD.removeObserver(mandatoryUpgradeObserver)
         otaViewModel.otaStateMLD.removeObserver(otaStateObserver)
 
         handler.removeCallbacksAndMessages(null)
-        otaViewModel.otaManager.removeRcspCallback(rcspCallback)
-
         eventSink = null
-        logHelper.cleanUp()
     }
 
+    /**
+     * 统一向 Flutter 端派发封装后的结构化事件字典
+     *
+     * 保证派发动作在 Android 主线程执行
+     *
+     * @param type 事件大类标识（参考 [EventChannelConstants]）
+     * @param data 事件携带的键值对数据
+     */
     private fun sendEvent(type: String, data: Map<String, Any>) {
         handler.post {
             eventSink?.success(
@@ -225,6 +241,11 @@ class EventChannelHandler(private val activity: Activity) : EventChannel.StreamH
         }
     }
 
+    /**
+     * 向 Flutter 派发当前扫描状态与完整已扫描设备列表
+     *
+     * @param scanStatus 扫描状态标识（如正在扫描、发现设备或空闲）
+     */
     private fun sendScanDeviceList(scanStatus: Int) {
         val scanState = when (scanStatus) {
             ScanResult.SCAN_STATUS_SCANNING -> EventChannelConstants.SCAN_STATE_SCANNING
@@ -240,36 +261,11 @@ class EventChannelHandler(private val activity: Activity) : EventChannel.StreamH
         )
     }
 
-    private fun sendDownloadStatusEvent(downloadEvent: DownloadFileUtil.DownloadFileEvent?) {
-        val eventMap = when (downloadEvent?.type) {
-            EventChannelConstants.STATUS_ON_PROGRESS -> mapOf(
-                EventChannelConstants.KEY_STATUS to EventChannelConstants.STATUS_ON_PROGRESS,
-                EventChannelConstants.KEY_PROGRESS to downloadEvent.progress.toInt()
-            )
-
-            EventChannelConstants.STATUS_ON_STOP -> mapOf(
-                EventChannelConstants.KEY_STATUS to EventChannelConstants.STATUS_ON_STOP
-            )
-
-            EventChannelConstants.STATUS_ON_ERROR -> mapOf(
-                EventChannelConstants.KEY_STATUS to EventChannelConstants.STATUS_ON_ERROR,
-                EventChannelConstants.KEY_MESSAGE to downloadEvent.errorMsg
-            )
-
-            EventChannelConstants.STATUS_ON_START -> mapOf(
-                EventChannelConstants.KEY_STATUS to EventChannelConstants.STATUS_ON_START
-            )
-
-            else -> mapOf(
-                EventChannelConstants.KEY_STATUS to EventChannelConstants.STATUS_UNKNOWN
-            )
-        }
-        sendEvent(EventChannelConstants.TYPE_DOWNLOAD_STATUS, eventMap)
-    }
-
-
     /**
      * 从原始 BLE 广播包 (scanRecord) 中解析并提取纯 0xFF 厂商自定义数据
+     *
+     * @param scanRecord 原始扫描广播字节数组
+     * @return 提取出的厂商自定义数据 ByteArray；若未命中则返回 null
      */
     private fun extractManufacturerData(scanRecord: ByteArray?): ByteArray? {
         if (scanRecord == null || scanRecord.isEmpty()) return null
@@ -290,6 +286,9 @@ class EventChannelHandler(private val activity: Activity) : EventChannel.StreamH
 
     /**
      * 从原始 BLE 广播包 (scanRecord) 中解析设备名称 (Type 0x08 Shortened 或 0x09 Complete Local Name)
+     *
+     * @param scanRecord 原始扫描广播字节数组
+     * @return 解析出的广播名称；若未命中则返回 null
      */
     private fun extractLocalName(scanRecord: ByteArray?): String? {
         if (scanRecord == null || scanRecord.isEmpty()) return null
@@ -311,6 +310,14 @@ class EventChannelHandler(private val activity: Activity) : EventChannel.StreamH
         return null
     }
 
+    /**
+     * 将扫描到的设备模型 [ScanDevice] 序列化转换为供 Flutter 消费的 Map
+     *
+     * 包含设备名称、描述、连接状态、广播自定义数据 Hex、广播名称等字段。
+     *
+     * @param item 扫描到的设备实体
+     * @return 序列化后的 Map 结构
+     */
     private fun deviceToMap(item: ScanDevice): Map<String, Any?> {
         // 优先提取纯 0xFF 厂商数据；若不是标准 TLV 则回退使用 item.data
         val mfgBytes = extractManufacturerData(item.data) ?: item.data
@@ -340,7 +347,13 @@ class EventChannelHandler(private val activity: Activity) : EventChannel.StreamH
         )
     }
 
-
+    /**
+     * 判断设备是否满足名称或 MAC 地址前缀过滤条件
+     *
+     * @param scanDevice 待校验设备
+     * @param filterStr 过滤关键字
+     * @return true 表示符合过滤条件
+     */
     @SuppressLint("MissingPermission")
     private fun isValidDevice(scanDevice: ScanDevice, filterStr: String): Boolean {
         if (filterStr.isBlank()) return true
@@ -350,12 +363,19 @@ class EventChannelHandler(private val activity: Activity) : EventChannel.StreamH
         return content.startsWith(filterStr, ignoreCase = true)
     }
 
+    /**
+     * 处理并派发 OTA 升级各状态事件
+     *
+     * 负责开启/关闭屏幕常亮、转换各阶段（开始、回连、传输进度、结束与异常信息）并推送到 Flutter
+     *
+     * @param otaState 升级状态包装实体
+     */
     private fun handleOtaState(otaState: OTAState?) {
         if (otaState == null) return
 
         when (otaState.state) {
             OTAState.OTA_STATE_START -> {
-                // 设置屏幕常亮
+                // 设置屏幕常亮，防止系统休眠中断升级
                 setKeepScreenOn(true)
                 sendEvent(
                     EventChannelConstants.TYPE_OTA_STATE, mapOf(
@@ -393,10 +413,7 @@ class EventChannelHandler(private val activity: Activity) : EventChannel.StreamH
                     ErrorCode.ERR_NONE -> EventChannelConstants.MSG_SUCCESS
                     ErrorCode.ERR_UNKNOWN -> EventChannelConstants.MSG_UNKNOWN_ERROR
                     ErrorCode.SUB_ERR_OTA_IN_HANDLE -> EventChannelConstants.MSG_OTA_IN_PROGRESS
-                    ErrorCode.SUB_ERR_DATA_NOT_FOUND -> {
-                        otaViewModel.readFileList()
-                        EventChannelConstants.MSG_NO_OTA_FILE
-                    }
+                    ErrorCode.SUB_ERR_DATA_NOT_FOUND -> EventChannelConstants.MSG_NO_OTA_FILE
 
                     else -> OtaConstant.formatString(
                         "code: %d(0x%X), %s", otaEnd.code, otaEnd.code, otaEnd.message
@@ -424,26 +441,29 @@ class EventChannelHandler(private val activity: Activity) : EventChannel.StreamH
     }
 
     /**
-     * Sets or clears the screen always-on flag
-     * @param keepOn true: Keep screen always on, false: Allow screen to turn off
+     * 设置或清除屏幕常亮标志，避免 OTA 传输过程中手机息屏休眠导致蓝牙断连
+     *
+     * @param keepOn true 为保持屏幕常亮，false 为恢复系统默认息屏行为
      */
     private fun setKeepScreenOn(keepOn: Boolean) {
         try {
-            if (activity is FlutterActivity) {
-                val flutterActivity = activity
-                if (keepOn) {
-                    // Set screen always-on flag
-                    flutterActivity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                } else {
-                    // Clear screen always-on flag
-                    flutterActivity.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                }
+            if (keepOn) {
+                // 设置屏幕常亮 Flag（兼容 FlutterActivity 与 FlutterFragmentActivity 宿主）
+                activity.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            } else {
+                // 清除屏幕常亮 Flag
+                activity.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             }
         } catch (e: Exception) {
             JL_Log.e("EventChannelHandler", "setKeepScreenOn fail: ${e.message}")
         }
     }
 
+    /**
+     * 收到设备连接状态变化时，同步更新已扫描设备列表中对应项的连接状态
+     *
+     * @param connection 最新的设备连接实体
+     */
     private fun updateDeviceConnection(connection: DeviceConnection) {
         val item = findItemByDevice(connection.device) ?: return
         if (item.state != connection.state) {
@@ -452,6 +472,12 @@ class EventChannelHandler(private val activity: Activity) : EventChannel.StreamH
         }
     }
 
+    /**
+     * 根据蓝牙物理设备在已扫描列表中查找匹配的 [ScanDevice] 项
+     *
+     * @param device 待查找的蓝牙设备
+     * @return 匹配的 [ScanDevice]，未找到则返回 null
+     */
     private fun findItemByDevice(device: BluetoothDevice?): ScanDevice? {
         if (null == device) return null
         for (item in connectVM.scanDeviceList) {
@@ -461,43 +487,4 @@ class EventChannelHandler(private val activity: Activity) : EventChannel.StreamH
         }
         return null
     }
-
-    private fun handleReceivedCustomCommand(device: BluetoothDevice?, cmd: CustomCmd) {
-        val param = cmd.param
-        val isNeedResponse = cmd.isResponseRequired
-
-        param?.data?.let { data ->
-            notifyCustomDataReceived(data)
-        }
-
-        if (isNeedResponse) {
-            sendResponseToDevice(bluetoothHelper.getConnectedDevice(), cmd)
-        }
-    }
-
-    private fun notifyCustomDataReceived(data: ByteArray) {
-        val dataList = data.map { it.toInt() }.toList()
-
-        val eventData = mapOf<String, Any>(
-            EventChannelConstants.KEY_CUSTOM_DATA to dataList
-        )
-
-        sendEvent(
-            EventChannelConstants.TYPE_CUSTOM_DATA_UPDATE,
-            eventData
-        )
-    }
-
-    private fun sendResponseToDevice(device: BluetoothDevice?, cmd: CustomCmd) {
-        val responseData = generateResponseData(cmd)
-        bluetoothHelper.writeDataToDevice(device,responseData)
-    }
-
-    private fun generateResponseData(cmd: CustomCmd): ByteArray {
-        return byteArrayOf()
-    }
-
-    private val CommandBase<*, *>.isResponseRequired: Boolean
-        get() = type == CommandBase.FLAG_HAVE_PARAMETER_AND_RESPONSE ||
-                type == CommandBase.FLAG_NO_PARAMETER_AND_RESPONSE
 }

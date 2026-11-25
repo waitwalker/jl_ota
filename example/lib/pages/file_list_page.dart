@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:developer';
 
-import 'package:flutter/material.dart';
-import 'package:jl_ota/ble_event_stream.dart';
-import 'package:jl_ota/ble_method.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:jl_ota_example/channel/example_event.dart';
+import 'package:jl_ota_example/channel/example_method.dart';
 import 'package:jl_ota/constant/constants.dart';
 import 'package:jl_ota_example/pages/file_detail_page.dart';
 
@@ -39,14 +39,14 @@ class _FileListPageState extends State<FileListPage> {
 
   void _getLogFileList() async {
     try {
-      await BleMethod.getLogFiles();
+      await ExampleMethod.getLogFiles();
     } catch (e, stackTrace) {
       log("Failed to get log files: $e", error: e, stackTrace: stackTrace);
     }
   }
 
   void _subscribeToLogFileListStream() {
-    _logFileListSubscription = BleEventStream.logFilesStream.listen(
+    _logFileListSubscription = ExampleEvent.logFilesStream.listen(
       (logFileList) {
         setState(() {
           _logFileList = logFileList;
@@ -84,7 +84,7 @@ class _FileListPageState extends State<FileListPage> {
     if (mounted) {
       Navigator.pop(context);
       try {
-        await BleMethod.deleteAllLogFiles();
+        await ExampleMethod.deleteAllLogFiles();
         setState(() {
           _logFileList = [];
         });

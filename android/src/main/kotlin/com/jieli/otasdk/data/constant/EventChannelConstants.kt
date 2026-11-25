@@ -1,65 +1,115 @@
 package com.jieli.otasdk.data.constant
 
 /**
- * Des：定义了事件通道中使用的常量，包括事件类型、状态值、扫描状态、负载键和消息文本。
- * author: lifang
- * date: 2025/07/30
- * Copyright: Jieli Technology
- * Modify date:
- * Modified by:
+ * EventChannel 事件通道常量定义类
+ *
+ * 集中管理原生层通过 EventChannel 向 Flutter 端派发的各类事件类型、状态字符串、数据 Payload 键名以及通用状态文本。
  */
 object EventChannelConstants {
-    // 事件类型
-    const val TYPE_BLUETOOTH_STATE = "bluetoothState" // 蓝牙状态事件类型
-    const val TYPE_DEVICE_CONNECTION = "deviceConnection" // 设备连接事件类型
-    const val TYPE_SCAN_DEVICE_LIST = "scanDeviceList" // 扫描设备列表事件类型
-    const val TYPE_OTA_CONNECTION = "otaConnection" // OTA连接事件类型
-    const val TYPE_DOWNLOAD_STATUS = "downloadStatus" // 下载状态事件类型
-    const val TYPE_OTA_FILE_LIST = "otaFileList" // OTA文件列表事件类型
-    const val TYPE_SELECTED_FILE_PATHS = "selectedFilePaths" // 选中文件路径列表事件类型
-    const val TYPE_MANDATORY_UPGRADE = "mandatoryUpgrade" // 强制升级事件类型
-    const val TYPE_OTA_STATE = "otaState" // OTA状态事件类型
-    const val TYPE_CUSTOM_DATA_UPDATE = "customDataUpdate" // 自定义数据更新
+    // <<<--- 事件大类标识 TYPE --->>>
+    /** 蓝牙适配器开关状态事件类型 */
+    const val TYPE_BLUETOOTH_STATE = "bluetoothState"
 
-    // 状态值
-    const val STATUS_ON_PROGRESS = "onProgress" // 正在进行中状态
-    const val STATUS_ON_STOP = "onStop" // 已停止状态
-    const val STATUS_ON_ERROR = "onError" // 错误状态
-    const val STATUS_ON_START = "onStart" // 已开始状态
-    const val STATUS_UNKNOWN = "unknown" // 未知状态
-    const val STATE_IDLE = "idle" // 空闲状态
-    const val STATE_START = "start" // 开始状态
-    const val STATE_RECONNECT = "reconnect" // 重新连接状态
-    const val STATE_WORKING = "working" // 工作状态
-    const val STATE_UNKNOWN = "unknown" // 未知状态
+    /** 蓝牙设备连接状态事件类型 */
+    const val TYPE_DEVICE_CONNECTION = "deviceConnection"
 
-    // 扫描状态
-    const val SCAN_STATE_SCANNING = "scanning" // 正在扫描状态
-    const val SCAN_STATE_FOUND_DEV = "foundDevice" // 发现设备状态
-    const val SCAN_STATE_IDLE = "idle" // 空闲状态
+    /** 扫描设备列表变更事件类型 */
+    const val TYPE_SCAN_DEVICE_LIST = "scanDeviceList"
 
-    // 负载键
-    const val KEY_TYPE = "type" // 类型键
-    const val KEY_VALUE = "value" // 值键
-    const val KEY_STATE = "state" // 状态键
-    const val KEY_LIST = "list" // 列表键
-    const val KEY_STATUS = "status" // 状态键
-    const val KEY_PROGRESS = "progress" // 进度键
-    const val KEY_MESSAGE = "message" // 消息键
-    const val KEY_DEVICE_TYPE = "deviceType" // 设备类型键
-    const val KEY_NAME = "name" // 名称键
-    const val KEY_DESC = "desc" // 描述键
-    const val KEY_PATH = "path" // 路径键
-    const val KEY_IS_REQUIRED = "isRequired" // 是否必需键
-    const val KEY_SUCCESS = "success" // 成功键
-    const val KEY_CODE = "code" // 代码键
-    const val KEY_CUSTOM_DATA = "customData" // 自定义数据的值
+    /** OTA 期间专用连接状态事件类型 */
+    const val TYPE_OTA_CONNECTION = "otaConnection"
 
-    // 消息文本
-    const val MSG_CHECKING_FILE = "Checking file" // 正在检查文件消息
-    const val MSG_UPGRADING = "Upgrading" // 正在升级消息
-    const val MSG_SUCCESS = "Success" // 成功消息
-    const val MSG_UNKNOWN_ERROR = "Unknown Error" // 未知错误消息
-    const val MSG_OTA_IN_PROGRESS = "OTA in progress" // OTA正在进行中消息
-    const val MSG_NO_OTA_FILE = "No found ota file" // 未找到OTA文件消息
+    /** 设备强制升级通知事件类型 */
+    const val TYPE_MANDATORY_UPGRADE = "mandatoryUpgrade"
+
+    /** OTA 升级全生命周期状态事件类型 */
+    const val TYPE_OTA_STATE = "otaState"
+
+    // <<<--- 状态值定义 STATE --->>>
+    /** 空闲或就绪状态 */
+    const val STATE_IDLE = "idle"
+
+    /** 开始状态 */
+    const val STATE_START = "start"
+
+    /** 重连状态（如 OTA 芯片重启后的回连） */
+    const val STATE_RECONNECT = "reconnect"
+
+    /** 工作/传输中状态 */
+    const val STATE_WORKING = "working"
+
+    /** 未知状态 */
+    const val STATE_UNKNOWN = "unknown"
+
+    // <<<--- 扫描状态定义 SCAN_STATE --->>>
+    /** 正在扫描设备中 */
+    const val SCAN_STATE_SCANNING = "scanning"
+
+    /** 扫描发现新设备 */
+    const val SCAN_STATE_FOUND_DEV = "foundDevice"
+
+    /** 扫描处于空闲或已停止状态 */
+    const val SCAN_STATE_IDLE = "idle"
+
+    // <<<--- 数据负载字段键 KEY --->>>
+    /** 事件大类键名 */
+    const val KEY_TYPE = "type"
+
+    /** 事件具体数据键名 */
+    const val KEY_VALUE = "value"
+
+    /** 状态标识键名 */
+    const val KEY_STATE = "state"
+
+    /** 设备列表集合键名 */
+    const val KEY_LIST = "list"
+
+    /** 状态布尔值或整型键名 */
+    const val KEY_STATUS = "status"
+
+    /** 升级进度百分比键名 (0 - 100) */
+    const val KEY_PROGRESS = "progress"
+
+    /** 提示或错误文本消息键名 */
+    const val KEY_MESSAGE = "message"
+
+    /** 蓝牙设备类型描述键名（如经典蓝牙、BLE、双模） */
+    const val KEY_DEVICE_TYPE = "deviceType"
+
+    /** 设备显示名称键名 */
+    const val KEY_NAME = "name"
+
+    /** 设备附加描述信息键名（如 RSSI 与 MAC 地址） */
+    const val KEY_DESC = "desc"
+
+    /** 文件存储路径键名 */
+    const val KEY_PATH = "path"
+
+    /** 是否需要强制执行布尔标识键名 */
+    const val KEY_IS_REQUIRED = "isRequired"
+
+    /** 操作是否成功布尔标识键名 */
+    const val KEY_SUCCESS = "success"
+
+    /** 状态码或错误码整型键名 */
+    const val KEY_CODE = "code"
+
+    // <<<--- 消息文本提示 MSG --->>>
+    /** 正在校验固件文件提示 */
+    const val MSG_CHECKING_FILE = "Checking file"
+
+    /** 固件传输升级中提示 */
+    const val MSG_UPGRADING = "Upgrading"
+
+    /** 操作或升级成功提示 */
+    const val MSG_SUCCESS = "Success"
+
+    /** 未知异常错误提示 */
+    const val MSG_UNKNOWN_ERROR = "Unknown Error"
+
+    /** 当前已有 OTA 升级在执行中提示 */
+    const val MSG_OTA_IN_PROGRESS = "OTA in progress"
+
+    /** 未找到有效的 OTA 固件文件提示 */
+    const val MSG_NO_OTA_FILE = "No found ota file"
 }

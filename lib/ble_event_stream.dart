@@ -4,24 +4,30 @@ import 'constant/ble_event_constants.dart';
 import 'model/device_connection.dart';
 import 'model/scan_device.dart';
 
-/// Bluetooth Feature Plugin Wrapper
+/// 蓝牙原生事件流监听门面类
 ///
-/// Communicates with the native Android side via 'EventChannel'.
-/// All external interfaces are static methods/properties and can be directly accessed through BleEventStream.xxx.
+/// 通过 [EventChannel] 监听原生 Android 端（[EventChannelHandler]）异步分发的各类蓝牙事件，
+/// 将底层单一的混合广播流过滤解析为强类型的特定业务事件流（如蓝牙开关、设备扫描、连接状态、OTA 进度等）。
 class BleEventStream {
+  /// 与原生通信的事件通道实例
   static const EventChannel _eventChannel = EventChannel('com.jieli.ble_plugin/events');
 
-  // 核心广播流
-  // 单例模式:确保_baseStream只被初始化一次
+  /// 核心广播流缓存实例（单例模式，避免重复注册原生监听）
   static Stream<dynamic>? _baseStream;
 
-  // 提供一个公共的访问方法
+  /// 获取底层原生事件广播流（单例懒加载）
+  ///
+  /// 若尚未建立监听，则调用 [EventChannel.receiveBroadcastStream] 初始化。
   static Stream<dynamic> get baseStream {
     _baseStream ??= _eventChannel.receiveBroadcastStream();
     return _baseStream!;
   }
 
-  // 蓝牙状态流
+  /// 蓝牙适配器开关状态变更事件流
+  ///
+  /// 订阅该流可实时获知系统蓝牙硬件的开启或关闭：
+  /// - `true`: 系统蓝牙已开启
+  /// - `false`: 系统蓝牙已关闭
   static Stream<bool> get bluetoothStateStream {
     return baseStream.where((event) => event is Map && event[BleEventConstants.KEY_TYPE] == BleEventConstants.TYPE_BLUETOOTH_STATE).map((event) {
       final data = event[BleEventConstants.KEY_VALUE];
@@ -29,7 +35,12 @@ class BleEventStream {
     });
   }
 
-  // 扫描状态流
+  /// 蓝牙扫描运行状态事件流
+  ///
+  /// 派发当前扫描器的工作状态字符串：
+  /// - [BleEventConstants.SCAN_STATE_SCANNING]: 正在扫描
+  /// - [BleEventConstants.SCAN_STATE_FOUND_DEV]: 发现设备
+  /// - [BleEventConstants.SCAN_STATE_IDLE]: 扫描空闲或停止
   static Stream<String> get scanStateStream {
     return baseStream.where((event) => event is Map && event[BleEventConstants.KEY_TYPE] == BleEventConstants.TYPE_SCAN_DEVICE_LIST).map((event) {
       final data = event[BleEventConstants.KEY_VALUE];
@@ -37,7 +48,9 @@ class BleEventStream {
     });
   }
 
-  // 扫描设备列表流
+  /// 扫描发现的蓝牙设备列表更新事件流
+  ///
+  /// 每次扫描到底层设备列表更新时，派发最新的解析后设备列表 [List<ScanDevice>]。
   static Stream<List<ScanDevice>> get scanDeviceListStream {
     return baseStream.where((event) => event is Map && event[BleEventConstants.KEY_TYPE] == BleEventConstants.TYPE_SCAN_DEVICE_LIST).map((event) {
       final list = event[BleEventConstants.KEY_VALUE][BleEventConstants.KEY_LIST] as List? ?? [];
@@ -45,7 +58,9 @@ class BleEventStream {
     });
   }
 
-  // 设备连接状态流
+  /// 蓝牙设备物理连接状态变更事件流
+  ///
+  /// 派发包装后的 [DeviceConnection] 实例，包含连接中、已连接、断开等连接状态码。
   static Stream<DeviceConnection> get deviceConnectionStream {
     return baseStream
         .where((event) {
@@ -57,7 +72,9 @@ class BleEventStream {
         });
   }
 
-  // OTA连接状态流
+  /// OTA 通信通道连接状态变更事件流
+  ///
+  /// 派发 Map 字典包含当前连接状态 [BleEventConstants.KEY_STATE] 以及目标设备类型 [BleEventConstants.KEY_DEVICE_TYPE]。
   static Stream<Map<String, dynamic>> get otaConnectionStream {
     return baseStream.where((event) => event is Map && event[BleEventConstants.KEY_TYPE] == BleEventConstants.TYPE_OTA_CONNECTION).map((event) {
       final data = event[BleEventConstants.KEY_VALUE];
@@ -68,59 +85,11 @@ class BleEventStream {
     });
   }
 
-  // 日志文件列表流
-  static Stream<List<Map<String, String>>> get logFilesStream {
-    return baseStream.where((event) => event is Map && event[BleEventConstants.KEY_TYPE] == BleEventConstants.TYPE_LOG_FILES).map((event) {
-      final files = event[BleEventConstants.KEY_FILES] as List? ?? [];
-      return files.whereType<Map>().map((fileMap) => {BleEventConstants.KEY_NAME: fileMap[BleEventConstants.KEY_NAME] as String? ?? ''}).toList();
-    });
-  }
-
-  // 日志文件详情流
-  static Stream<String> get logDetailFilesStream {
-    return baseStream.where((event) => event is Map && event[BleEventConstants.KEY_TYPE] == BleEventConstants.TYPE_LOG_DETAIL_FILES).map((event) {
-      final files = event[BleEventConstants.KEY_FILES] as List? ?? [];
-      return files.first as String? ?? '';
-    });
-  }
-
-  // 下载状态流
-  static Stream<Map<String, dynamic>> get downloadStatusStream {
-    return baseStream.where((event) => event is Map && event[BleEventConstants.KEY_TYPE] == BleEventConstants.TYPE_DOWNLOAD_STATUS).map((event) {
-      final data = event[BleEventConstants.KEY_VALUE];
-      return {
-        BleEventConstants.KEY_STATUS: data[BleEventConstants.KEY_STATUS],
-        BleEventConstants.KEY_PROGRESS: data[BleEventConstants.KEY_PROGRESS],
-        BleEventConstants.KEY_MESSAGE: data[BleEventConstants.KEY_MESSAGE],
-      };
-    });
-  }
-
-  // OTA文件列表流
-  static Stream<List<Map<String, String>>> get otaFileListStream {
-    return baseStream.where((event) => event is Map && event[BleEventConstants.KEY_TYPE] == BleEventConstants.TYPE_OTA_FILE_LIST).map((event) {
-      final list = event[BleEventConstants.KEY_VALUE][BleEventConstants.KEY_LIST] as List? ?? [];
-      return list
-          .whereType<Map>()
-          .map(
-            (fileMap) => {
-              BleEventConstants.KEY_NAME: fileMap[BleEventConstants.KEY_NAME] as String? ?? '',
-              BleEventConstants.KEY_PATH: fileMap[BleEventConstants.KEY_PATH] as String? ?? '',
-            },
-          )
-          .toList();
-    });
-  }
-
-  // 选中的文件路径流
-  static Stream<List<String>> get selectedFilePathsStream {
-    return baseStream.where((event) => event is Map && event[BleEventConstants.KEY_TYPE] == BleEventConstants.TYPE_SELECTED_FILE_PATHS).map((event) {
-      final list = event[BleEventConstants.KEY_VALUE][BleEventConstants.KEY_LIST] as List? ?? [];
-      return list.whereType<String>().toList();
-    });
-  }
-
-  // 强制升级流
+  /// 设备是否必须强制升级事件流
+  ///
+  /// 派发布尔值：
+  /// - `true`: 设备必须强制完成固件升级，不可退出或取消
+  /// - `false`: 普通可选升级模式
   static Stream<bool> get mandatoryUpgradeStream {
     return baseStream.where((event) => event is Map && event[BleEventConstants.KEY_TYPE] == BleEventConstants.TYPE_MANDATORY_UPGRADE).map((event) {
       final data = event[BleEventConstants.KEY_VALUE];
@@ -128,7 +97,15 @@ class BleEventStream {
     });
   }
 
-  // OTA状态流
+  /// OTA 固件升级执行状态与传输进度事件流
+  ///
+  /// 派发 Map 结构包含升级阶段信息：
+  /// - `state`: 当前升级阶段（idle / start / reconnect / working / unknown）
+  /// - `success`: 操作是否成功布尔值
+  /// - `code`: 状态码或错误码
+  /// - `type`: 升级子类型（文件校验、固件写入等）
+  /// - `message`: 描述提示信息
+  /// - `progress`: 仅在 `state == 'working'` 时包含当前固件传输进度百分比
   static Stream<Map<String, dynamic>> get otaStateStream {
     return baseStream.where((event) => event is Map && event[BleEventConstants.KEY_TYPE] == BleEventConstants.TYPE_OTA_STATE).map((event) {
       final data = event[BleEventConstants.KEY_VALUE];
@@ -144,54 +121,6 @@ class BleEventStream {
         result[BleEventConstants.KEY_PROGRESS] = data[BleEventConstants.KEY_PROGRESS];
       }
       return result;
-    });
-  }
-
-  // 自定义命令数据流
-  static Stream<Uint8List> get customCommandData {
-    return baseStream.where((event) => event is Map && event[BleEventConstants.KEY_TYPE] == BleEventConstants.TYPE_CUSTOM_COMMAND_DATA).map((event) {
-      try {
-        final data = event[BleEventConstants.KEY_VALUE] as Map?;
-        if (data == null) return Uint8List(0);
-
-        final customData = data[BleEventConstants.KEY_CUSTOM_DATA];
-
-        if (customData == null) {
-          return Uint8List(0);
-        }
-
-        if (customData is List) {
-          if (customData is List<int>) {
-            return Uint8List.fromList(customData);
-          }
-
-          final List<int> result = [];
-          for (var element in customData) {
-            if (element is int) {
-              result.add(element);
-            } else if (element is num) {
-              result.add(element.toInt());
-            } else {
-              return Uint8List(0);
-            }
-          }
-          return Uint8List.fromList(result);
-        }
-        return Uint8List(0);
-      } catch (e) {
-        return Uint8List(0);
-      }
-    });
-  }
-
-  // 错误流
-  static Stream<Map<String, String>> get errorStream {
-    return baseStream.where((event) => event is PlatformException).map((event) {
-      final error = event as PlatformException;
-      if (error.code == BleEventConstants.ERROR) {
-        return {BleEventConstants.KEY_CODE: error.code, BleEventConstants.KEY_MESSAGE: error.message ?? 'Unknown log error'};
-      }
-      throw error;
     });
   }
 }

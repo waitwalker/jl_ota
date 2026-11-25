@@ -1,13 +1,14 @@
 import 'dart:async';
 import 'dart:developer';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:jl_ota/constant/constants.dart';
 import 'package:jl_ota_example/utils/app_util.dart';
 
-import 'package:jl_ota/ble_event_stream.dart';
-import 'package:jl_ota/ble_method.dart';
+import 'package:jl_ota_example/channel/example_event.dart';
+import 'package:jl_ota_example/channel/example_method.dart';
 import 'package:jl_ota/constant/ble_event_constants.dart';
+import 'package:jl_ota_example/channel/example_channel_constants.dart';
 import '../pages/download_file_content.dart';
 
 /// A dialog widget for displaying download progress.
@@ -91,7 +92,7 @@ class _DownloadFileDialogState extends State<DownloadFileDialog> {
 
   Future<void> _downloadFile(String httpUrl) async {
     try {
-      await BleMethod.downloadFile(httpUrl);
+      await ExampleMethod.downloadFile(httpUrl);
       log("File downloaded successfully from $httpUrl");
     } catch (e) {
       log("Failed to download file: $e");
@@ -99,10 +100,10 @@ class _DownloadFileDialogState extends State<DownloadFileDialog> {
   }
 
   void _startListeningToDownloadStatus() {
-    _downloadStatusSubscription = BleEventStream.downloadStatusStream.listen((data) {
+    _downloadStatusSubscription = ExampleEvent.downloadStatusStream.listen((data) {
       setState(() {
         var state = data[BleEventConstants.KEY_STATUS];
-        if (state == BleEventConstants.STATUS_ON_STOP || state == BleEventConstants.STATUS_ON_ERROR) {
+        if (state == ExampleChannelConstants.statusOnStop || state == ExampleChannelConstants.statusOnError) {
           if (mounted) {
             if (Navigator.of(context).canPop()) {
               Navigator.of(context).pop();
@@ -111,7 +112,7 @@ class _DownloadFileDialogState extends State<DownloadFileDialog> {
           }
         }
         final progressValue = data[BleEventConstants.KEY_PROGRESS];
-        if (state == BleEventConstants.STATUS_ON_PROGRESS && progressValue != null) {
+        if (state == ExampleChannelConstants.statusOnProgress && progressValue != null) {
           _progress = progressValue;
         }
       });

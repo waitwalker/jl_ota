@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'custom_thumb_shape.dart';
 import 'custom_track_shape.dart';

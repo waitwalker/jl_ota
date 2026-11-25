@@ -195,6 +195,10 @@ class JlAdvData {
     );
   }
 
+  /// 将十六进制字符串转换为字节列表（`List<int>`）
+  ///
+  /// [hex] 待转换的十六进制文本（自动过滤空格）
+  /// 返回字节整数列表，若格式异常或长度为奇数则返回 null
   static List<int>? _hexToBytes(String hex) {
     final cleaned = hex.replaceAll(' ', '').trim();
     if (cleaned.length.isOdd) return null;
@@ -211,12 +215,14 @@ class JlAdvData {
 
   // =================== 内部类型安全转换工具方法 ===================
 
+  /// 安全解析可空字符串，空串自动转为 null
   static String? _parseNullableString(dynamic value) {
     if (value == null) return null;
     final str = value.toString().trim();
     return str.isEmpty ? null : str;
   }
 
+  /// 安全解析可空整数，支持 int、num 及数值字符串
   static int? _parseNullableInt(dynamic value) {
     if (value == null) return null;
     if (value is int) return value;
@@ -229,6 +235,7 @@ class JlAdvData {
     return null;
   }
 
+  /// 安全解析可空布尔值，支持 bool、num（0/1）及字符串（'0'/'1'/'true'/'false'）
   static bool? _parseNullableBool(dynamic value) {
     if (value == null) return null;
     if (value is bool) return value;
@@ -242,20 +249,41 @@ class JlAdvData {
   }
 }
 
-/// 适配 mix_device 厂商数据模型
+/// 适配 mix_device 协议的结构化厂商数据模型
+///
+/// 封装包含协议版本、连接目标 App 类型、产品 PID/VID 及组标识等核心字段。
 class JlMixManufacture {
+  /// 协议版本号（例如 1）
   final int protocolVersion;
+
+  /// 连接的目标 App 类别（0: 女性向 App, 1: 男性向 App, -1: 未知）
   final int connApp;
+
+  /// 硬件产品型号 ID（ProductID，小端序）
   final int productID;
+
+  /// 硬件产品变体/子型号 ID（VariantID，小端序）
   final int variantID;
+
+  /// 硬件版本号（HardwareID）
   final int hardwareID;
+
+  /// 关联组产品型号 ID（GroupProductID，小端序）
   final int groupProductID;
+
+  /// 关联组变体/子型号 ID（GroupVariantID，小端序）
   final int groupVariantID;
 
+  /// 目标 App 常量：女性向应用
   static const int connFemaleApp = 0;
+
+  /// 目标 App 常量：男性向应用
   static const int connMaleApp = 1;
+
+  /// 目标 App 常量：未知应用
   static const int connUnknownApp = -1;
 
+  /// 构造一个适配 mix_device 协议的结构化厂商数据模型
   const JlMixManufacture({
     required this.protocolVersion,
     required this.connApp,
@@ -266,6 +294,7 @@ class JlMixManufacture {
     required this.groupVariantID,
   });
 
+  /// 转换为字典结构
   Map<String, dynamic> toMap() => {
     'protocolVersion': protocolVersion,
     'connApp': connApp,

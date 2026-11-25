@@ -1,8 +1,8 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
-import 'package:jl_ota/ble_event_stream.dart';
-import 'package:jl_ota/ble_method.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:jl_ota_example/channel/example_event.dart';
+import 'package:jl_ota_example/channel/example_method.dart';
 import 'package:jl_ota/constant/constants.dart';
 import 'package:jl_ota_example/extensions/hex_color.dart';
 
@@ -75,7 +75,7 @@ class _FileDetailPageState extends State<FileDetailPage> {
           IconButton(
             icon: Image.asset('assets/images/icon_share.png', width: 28, height: 28),
             onPressed: () async {
-              await BleMethod.shareLogFile(widget.index);
+              await ExampleMethod.shareLogFile(widget.index);
             },
           ),
         ],
@@ -102,11 +102,11 @@ class _FileDetailPageState extends State<FileDetailPage> {
   }
 
   void _logFileIndex() {
-    BleMethod.clickLogFileIndex(widget.index);
+    ExampleMethod.clickLogFileIndex(widget.index);
   }
 
   void _listenToLogDetails() {
-    logDetailSubscription = BleEventStream.logDetailFilesStream.listen(_handleLogDetail, onError: _handleLogDetailError);
+    logDetailSubscription = ExampleEvent.logDetailFilesStream.listen(_handleLogDetail, onError: _handleLogDetailError);
   }
 
   void _handleLogDetail(String logDetail) {

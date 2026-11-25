@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:developer';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:jl_ota_example/widgets/toast_utils.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';

@@ -1,1 +1,0 @@
-BleManager/HandleBroadcastPtl.h

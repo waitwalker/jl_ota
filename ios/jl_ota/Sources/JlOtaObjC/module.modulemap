@@ -1,4 +1,0 @@
-module JlOtaObjC {
-    umbrella header "JlOtaObjC.h"
-    export *
-}

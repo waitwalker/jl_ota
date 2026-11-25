@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:jl_ota_example/extensions/hex_color.dart';
 import 'package:jl_ota_example/widgets/scanner_corner_painter.dart';
 

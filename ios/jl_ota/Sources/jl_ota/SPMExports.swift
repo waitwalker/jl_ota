@@ -7,5 +7,4 @@
 @_exported import JL_BLEKit
 @_exported import JL_HashPair
 @_exported import JL_OTALib
-@_exported import JlOtaObjC
 #endif

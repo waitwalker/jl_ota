@@ -23,28 +23,18 @@ public class JlOtaPlugin: NSObject, FlutterPlugin {
         // Set application language
         LanguageManager.setupAppLanguage()
         
-        initLog()
+        setLogEnabled(false)
+    }
+
+    /// SDK 日志默认关闭。宿主通过 setLogEnabled 打开或关闭。
+    static func setLogEnabled(_ enabled: Bool) {
+        JLLogManager.setLog(enabled, isMore: false, level: JLLOG_LEVEL(rawValue: 0)!)
+        JLLogManager.saveLog(asFile: enabled)
+        if enabled {
+            JLLogManager.log(withTimestamp: true)
+        }
     }
     
-    /// Initializes the logging system for OTA plugin
-    private static func initLog() {
-        // Configure logging system
-        JLLogManager.setLog(true, isMore: false, level: JLLOG_LEVEL(rawValue: 0)!)
-        JLLogManager.saveLog(asFile: true)
-        JLLogManager.log(withTimestamp: true)
-        JLLogManager.clearLog()
-    }
-    
-    /// Scans for available OTA update files in the system
-    public func scanOtaList() {
-        OtaManager.shared.scanForUpdateFiles()
-    }
-    
-    /// Sets the WiFi IP address for OTA update connections
-    /// - Parameter ipAddress: The IP address to use for WiFi connections
-    public func setWifiIpAddress(_ ipAddress: String) {
-        OtaManager.shared.setWifiIpAddress(ipAddress)
-    }
 }
 
 #endif

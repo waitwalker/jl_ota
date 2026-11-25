@@ -2,7 +2,7 @@ import 'dart:developer';
 import 'dart:io';
 
 import 'package:device_info_plus/device_info_plus.dart';
-import 'package:jl_ota/ble_method.dart';
+import 'package:jl_ota_example/channel/example_method.dart';
 
 import 'package:jl_ota/constant/constants.dart';
 
@@ -29,7 +29,7 @@ class AppUtil {
   /// Returns a Future that completes when the operation is finished.
   static Future<void> readFileList() async {
     try {
-      await BleMethod.readFileList();
+      await ExampleMethod.readFileList();
     } catch (e) {
       log("Failed to read OTA file list: $e");
     }
@@ -83,10 +83,10 @@ class AppUtil {
     return false;
   }
 
-  /// Asynchronously picks a file using the [BleMethod.pickFile] method.
+  /// Asynchronously picks a file using the [ExampleMethod.pickFile] method.
   static Future<void> pickFile() async {
     try {
-      await BleMethod.pickFile();
+      await ExampleMethod.pickFile();
       log("File picked successfully");
     } catch (e) {
       log("Failed to pick file: $e");

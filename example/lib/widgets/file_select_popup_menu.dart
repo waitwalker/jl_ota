@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:jl_ota_example/utils/app_util.dart';
 import 'package:jl_ota_example/widgets/triangle_painter_widget.dart';
 
